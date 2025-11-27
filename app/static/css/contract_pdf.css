@@ -18,6 +18,64 @@ body.contract-body {
     color: #111827;
 }
 
+.cover-page {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 40mm 20mm 30mm 20mm;
+    background: linear-gradient(145deg, #f8fafc 0%, #eef2ff 40%, #f8fafc 100%);
+    page-break-after: always;
+}
+
+.cover-title {
+    font-size: 28pt;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    text-align: left;
+    margin-bottom: 8mm;
+    color: #0f172a;
+}
+
+.cover-subtitle {
+    font-size: 14pt;
+    font-weight: 600;
+    margin-bottom: 3mm;
+    color: #1f2937;
+}
+
+.cover-meta {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6mm 10mm;
+    background: rgba(255, 255, 255, 0.7);
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 10mm;
+    box-shadow: 0 10px 25px rgba(15, 23, 42, 0.06);
+}
+
+.cover-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #1d4ed8;
+    color: #fff;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 10pt;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.cover-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 10pt;
+    color: #4b5563;
+}
+
 h1.main-title,
 h2 {
     text-align: center;
@@ -36,7 +94,7 @@ h2 {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px 20px;
-    margin-bottom: 12px;
+    margin-bottom: 14px;
 }
 
 .label {
@@ -54,11 +112,11 @@ h2 {
 
 .divider {
     border-top: 2px solid #e5e7eb;
-    margin: 10px 0 18px 0;
+    margin: 10px 0 20px 0;
 }
 
 .clause {
-    margin-bottom: 18px;
+    margin-bottom: 20px;
     page-break-inside: avoid;
 }
 
@@ -66,12 +124,13 @@ h2 {
     font-size: 13pt;
     font-weight: 700;
     text-align: center;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
 }
 
 .clause-body {
     text-align: justify;
     font-size: 11pt;
+    line-height: 1.6;
 }
 
 .clause--sub {
@@ -81,7 +140,7 @@ h2 {
 }
 
 .signature-block {
-    margin-top: 28px;
+    margin-top: 32px;
     page-break-inside: avoid;
 }
 
@@ -111,6 +170,28 @@ h2 {
 
 .sig-name {
     font-weight: 600;
+}
+
+.legal-box {
+    margin-top: 14px;
+    padding: 12px;
+    border: 1px solid #d1d5db;
+    background: #f9fafb;
+    border-radius: 8px;
+    font-size: 10.5pt;
+}
+
+.key-points {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 14px;
+    margin: 10px 0 18px;
+}
+
+.key-point {
+    border-left: 3px solid #1d4ed8;
+    padding-left: 10px;
+    font-size: 11pt;
 }
 
 .signature-date {

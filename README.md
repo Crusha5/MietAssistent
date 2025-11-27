@@ -32,8 +32,9 @@ Für die PDF-Generierung via WeasyPrint werden folgende Pakete (z.B. in Docker-I
 
 ```bash
 apt install -y libcairo2 libpangocairo-1.0-0 libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz0b \
-    libgobject-2.0-0 libglib2.0-0 libgirepository-1.0-1 gobject-introspection \
-    libgdk-pixbuf-2.0-0 libffi-dev libxml2 libxslt1-dev fonts-dejavu-core
+    libgdk-pixbuf-2.0-0 libgobject-2.0-0 libglib2.0-0 libglib2.0-bin \
+    libgirepository-1.0-1 libgirepository-1.0-dev gir1.2-pango-1.0 gir1.2-gdkpixbuf-2.0 \
+    gobject-introspection libffi-dev libxml2 libxslt1-dev shared-mime-info fonts-dejavu-core
 ```
 
 Die Schriftart DejaVu Sans wird für ein konsistentes Layout der Verträge und Protokolle genutzt.

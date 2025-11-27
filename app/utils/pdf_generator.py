@@ -169,6 +169,39 @@ def generate_professional_contract_html(contract, clauses=None, paragraph_tree=N
 <link rel=\"stylesheet\" href=\"static/css/contract_pdf.css\">
 </head>
 <body class=\"contract-body\">
+<section class=\"cover-page\">
+    <div>
+        <div class=\"cover-badge\">Rechtssicherer Mietvertrag</div>
+        <div class=\"cover-title\">Wohnraummietvertrag</div>
+        <div class=\"cover-subtitle\">zwischen {landlord_name or '________________'} (Vermieter) und {tenant_name or '________________'} (Mieter)</div>
+    </div>
+    <div class=\"cover-meta\">
+        <div>
+            <div class=\"label\">Vertragsnummer</div>
+            <div class=\"value\">{contract_number}</div>
+        </div>
+        <div>
+            <div class=\"label\">Mietbeginn</div>
+            <div class=\"value\">{start_str}</div>
+        </div>
+        <div>
+            <div class=\"label\">Mietobjekt</div>
+            <div class=\"value\">{apartment_info}</div>
+        </div>
+        <div>
+            <div class=\"label\">Erstellt am</div>
+            <div class=\"value\">{created_str}</div>
+        </div>
+    </div>
+    <div class=\"legal-box\">
+        Dieser Vertrag stellt die maßgebliche Vereinbarung zwischen Vermieter und Mieter dar. Bitte prüfen Sie alle Daten auf Vollständigkeit und Richtigkeit. 
+        Änderungen oder Ergänzungen bedürfen der Schriftform. Angaben zu Miete, Nebenkosten, Kaution und Kündigungsfristen sind den folgenden Paragraphen zu entnehmen.
+    </div>
+    <div class=\"cover-footer\">
+        <div>Ort der Immobilie: {apartment_info or '________________'}</div>
+        <div>Ausfertigung für beide Vertragsparteien</div>
+    </div>
+</section>
 <header class=\"contract-header\">
     <div>
         <div class=\"label\">Vertragsnummer</div>
@@ -199,6 +232,15 @@ def generate_professional_contract_html(contract, clauses=None, paragraph_tree=N
     </div>
 </section>
 <div class=\"divider\"></div>
+<div class=\"key-points\">
+    <div class=\"key-point\"><strong>Vertragspartner:</strong> {landlord_name} ↔ {tenant_name}</div>
+    <div class=\"key-point\"><strong>Objekt:</strong> {apartment_info or 'gemäß Mietgegenstand'}</div>
+    <div class=\"key-point\"><strong>Beginn:</strong> {start_str}</div>
+    <div class=\"key-point\"><strong>Rechtsgrundlage:</strong> BGB §§ 535 ff.; individuelle Regelungen siehe nachfolgende Paragraphen.</div>
+</div>
+<div class=\"legal-box\">
+    Dieser Vertrag basiert auf den gesetzlichen Bestimmungen der §§ 535 ff. BGB. Die folgenden Klauseln regeln insbesondere Mietgegenstand, Höhe und Fälligkeit der Miete, Nebenkosten, Kaution, Gebrauch des Mietobjekts, Schönheitsreparaturen sowie Kündigungsfristen. Unwirksame Klauseln berühren die Wirksamkeit des übrigen Vertrags nicht (Salvatorische Klausel).
+</div>
 """
 
     parts = [html]
