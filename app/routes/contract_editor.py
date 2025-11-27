@@ -4,7 +4,7 @@ from flask import Blueprint, request, jsonify, render_template, redirect, url_fo
 from app.extensions import db
 from app.routes.main import login_required
 from app.models import User
-import uuid, json
+import uuid, json, re
 from datetime import datetime
 
 
@@ -27,6 +27,15 @@ def _strip_paragraph_prefix(title: str) -> str:
         return title
     cleaned = title.lstrip('§').strip()
     return cleaned if cleaned else title
+
+
+def _clean_bullet_markers(text: str) -> str:
+    if not text:
+        return text
+    bullet_pattern = r"(<li[^>]*>)\\s*(?:•|&bull;|&#8226;)\\s*"
+    cleaned = re.sub(bullet_pattern, r"\\1", text)
+    cleaned = re.sub(r"(</li>)\\s*(?:•|&bull;|&#8226;)\\s*", r"\\1", cleaned)
+    return cleaned
 
 def get_contract_models():
     """Importiert Models erst bei Bedarf - KORRIGIERTE VERSION"""
@@ -590,6 +599,7 @@ def generate_block_based_contract_html(contract, blocks=None, inventory_items=No
         content = block.content
         for key, value in variables.items():
             content = content.replace(f'§{key}§', str(value))
+        content = _clean_bullet_markers(content)
 
         html_content += f"""
         <section class=\"clause\">
@@ -601,7 +611,7 @@ def generate_block_based_contract_html(contract, blocks=None, inventory_items=No
     html_content += f"""
         <section class=\"signature-block\">
             <p class=\"label\">Ort, Datum</p>
-            <div class=\"signature-date\">____________________________</div>
+            <div class=\"signature-date-line\"></div>
             <div class=\"signature-row\">
                 <div class=\"sig-cell\">
                     <div class=\"sig-line\"></div>

@@ -14,22 +14,22 @@
 body.contract-body {
     font-family: "DejaVu Sans", Arial, sans-serif;
     font-size: 11pt;
-    line-height: 1.65;
+    line-height: 1.8;
     color: #111827;
 }
 
 .contract-body p {
-    margin: 0 0 12px 0;
+    margin: 0 0 16px 0;
 }
 
 .contract-body ul,
 .contract-body ol {
-    margin: 8px 0 14px 22px;
-    line-height: 1.7;
+    margin: 10px 0 18px 24px;
+    line-height: 1.8;
 }
 
 .contract-body li {
-    margin-bottom: 8px;
+    margin-bottom: 10px;
 }
 
 .cover-page {
@@ -37,7 +37,7 @@ body.contract-body {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    padding: 40mm 20mm 30mm 20mm;
+    padding: 20mm 20mm 30mm 20mm;
     page-break-after: always;
 }
 
@@ -123,7 +123,7 @@ h2 {
 }
 
 .clause {
-    margin-bottom: 26px;
+    margin-bottom: 30px;
     page-break-inside: avoid;
 }
 
@@ -131,13 +131,13 @@ h2 {
     font-size: 13pt;
     font-weight: 700;
     text-align: center;
-    margin-bottom: 12px;
+    margin-bottom: 14px;
 }
 
 .clause-body {
     text-align: justify;
     font-size: 11pt;
-    line-height: 1.7;
+    line-height: 1.85;
 }
 
 .clause--sub {
@@ -148,6 +148,13 @@ h2 {
 .signature-block {
     margin-top: 2cm;
     page-break-inside: avoid;
+}
+
+.signature-date-line {
+    border-bottom: 1px solid #1f2937;
+    width: 60%;
+    margin: 4px 0 3cm 0;
+    height: 0;
 }
 
 .signature-row {
@@ -187,9 +194,14 @@ h2 {
     font-size: 10.5pt;
 }
 
+.legal-box--break {
+    page-break-after: always;
+    margin-bottom: 0;
+}
+
 .key-points {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 10px 14px;
     margin: 10px 0 18px;
 }

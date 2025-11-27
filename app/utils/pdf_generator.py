@@ -1,8 +1,19 @@
 import os
+import re
 from datetime import datetime
 
 from flask import current_app
 from weasyprint import CSS, HTML
+
+
+def _clean_bullet_markers(html_text: str) -> str:
+    """Entfernt doppelte Aufzählungszeichen innerhalb von HTML-Listen."""
+    if not html_text:
+        return html_text
+    bullet_pattern = r"(<li[^>]*>)\\s*(?:•|&bull;|&#8226;)\\s*"
+    cleaned = re.sub(bullet_pattern, r"\\1", html_text)
+    cleaned = re.sub(r"(</li>)\\s*(?:•|&bull;|&#8226;)\\s*", r"\\1", cleaned)
+    return cleaned
 
 
 def _get_base_path() -> str:
@@ -141,6 +152,8 @@ def generate_professional_contract_html(contract, clauses=None, paragraph_tree=N
 
     start_date = getattr(contract, "start_date", None)
     start_str = start_date.strftime("%d.%m.%Y") if start_date else "-"
+    end_date = getattr(contract, "end_date", None)
+    end_str = end_date.strftime("%d.%m.%Y") if end_date else "unbefristet"
 
     contract_number = getattr(contract, "contract_number", "") or ""
 
@@ -149,7 +162,7 @@ def generate_professional_contract_html(contract, clauses=None, paragraph_tree=N
         for idx, child in enumerate(children or [], start=1):
             num = f"{prefix}.{idx}"
             title = child.get("title") or ""
-            content = child.get("content") or ""
+            content = _clean_bullet_markers(child.get("content") or "")
             html_parts.append(
                 f"""
     <div class="clause clause--sub">
@@ -185,6 +198,10 @@ def generate_professional_contract_html(contract, clauses=None, paragraph_tree=N
         <div>
             <div class=\"label\">Mietbeginn</div>
             <div class=\"value\">{start_str}</div>
+        </div>
+        <div>
+            <div class=\"label\">Vertragsende</div>
+            <div class=\"value\">{end_str}</div>
         </div>
         <div>
             <div class=\"label\">Mietobjekt</div>
@@ -234,22 +251,23 @@ def generate_professional_contract_html(contract, clauses=None, paragraph_tree=N
     </div>
 </section>
 <div class=\"divider\"></div>
-<div class=\"key-points\">
-    <div class=\"key-point\"><strong>Vertragspartner:</strong> {landlord_name} ↔ {tenant_name}</div>
-    <div class=\"key-point\"><strong>Objekt:</strong> {apartment_info or 'gemäß Mietgegenstand'}</div>
-    <div class=\"key-point\"><strong>Beginn:</strong> {start_str}</div>
-    <div class=\"key-point\"><strong>Rechtsgrundlage:</strong> BGB §§ 535 ff.; individuelle Regelungen siehe nachfolgende Paragraphen.</div>
-</div>
-<div class=\"legal-box\">
-    Dieser Vertrag basiert auf den gesetzlichen Bestimmungen der §§ 535 ff. BGB. Die folgenden Klauseln regeln insbesondere Mietgegenstand, Höhe und Fälligkeit der Miete, Nebenkosten, Kaution, Gebrauch des Mietobjekts, Schönheitsreparaturen sowie Kündigungsfristen. Unwirksame Klauseln berühren die Wirksamkeit des übrigen Vertrags nicht (Salvatorische Klausel).
-</div>
+    <div class=\"key-points\">
+        <div class=\"key-point\"><strong>Vertragspartner:</strong> {landlord_name} ↔ {tenant_name}</div>
+        <div class=\"key-point\"><strong>Objekt:</strong> {apartment_info or 'gemäß Mietgegenstand'}</div>
+        <div class=\"key-point\"><strong>Beginn:</strong> {start_str}</div>
+        <div class=\"key-point\"><strong>Ende:</strong> {end_str}</div>
+        <div class=\"key-point\"><strong>Rechtsgrundlage:</strong> BGB §§ 535 ff.; individuelle Regelungen siehe nachfolgende Paragraphen.</div>
+    </div>
+    <div class=\"legal-box legal-box--break\">
+        Dieser Vertrag basiert auf den gesetzlichen Bestimmungen der §§ 535 ff. BGB. Die folgenden Klauseln regeln insbesondere Mietgegenstand, Höhe und Fälligkeit der Miete, Nebenkosten, Kaution, Gebrauch des Mietobjekts, Schönheitsreparaturen sowie Kündigungsfristen. Unwirksame Klauseln berühren die Wirksamkeit des übrigen Vertrags nicht (Salvatorische Klausel).
+    </div>
 """
 
     parts = [html]
     for idx, node in enumerate(paragraph_tree or [], start=1):
         number = node.get("number") or str(idx)
         title = node.get("title") or ""
-        content = node.get("content") or ""
+        content = _clean_bullet_markers(node.get("content") or "")
 
         parts.append(
             f"""
@@ -267,7 +285,7 @@ def generate_professional_contract_html(contract, clauses=None, paragraph_tree=N
         f"""
 <section class=\"signature-block\">
     <p class=\"label\">Ort, Datum</p>
-    <div class=\"signature-date\">____________________________</div>
+    <div class=\"signature-date-line\"></div>
     <div class=\"signature-row\">
         <div class=\"sig-cell\">
             <div class=\"sig-line\"></div>

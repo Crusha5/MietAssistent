@@ -6,6 +6,7 @@ from datetime import datetime
 import uuid
 import json
 import os
+import re
 
 from app.routes.contract_editor import load_contract_tree
 from app.models import Landlord, Protocol, Meter, MeterReading, Document, Tenant
@@ -618,6 +619,14 @@ def generate_block_based_contract_html(contract, blocks=None, inventory_items=No
     if inventory_items is None:
         inventory_items = contract.inventory_items
 
+    def _clean_bullet_markers(text: str) -> str:
+        if not text:
+            return text
+        bullet_pattern = r"(<li[^>]*>)\\s*(?:•|&bull;|&#8226;)\\s*"
+        cleaned = re.sub(bullet_pattern, r"\\1", text)
+        cleaned = re.sub(r"(</li>)\\s*(?:•|&bull;|&#8226;)\\s*", r"\\1", cleaned)
+        return cleaned
+
     variables = {
         'mieter_vorname': contract.tenant.first_name,
         'mieter_nachname': contract.tenant.last_name,
@@ -675,6 +684,7 @@ def generate_block_based_contract_html(contract, blocks=None, inventory_items=No
         content = block.content
         for key, value in variables.items():
             content = content.replace(f'§{key}§', str(value))
+        content = _clean_bullet_markers(content)
 
         html_content += f"""
         <section class=\"clause\">
@@ -686,7 +696,7 @@ def generate_block_based_contract_html(contract, blocks=None, inventory_items=No
     html_content += f"""
         <section class=\"signature-block\">
             <p class=\"label\">Ort, Datum</p>
-            <div class=\"signature-date\">____________________________</div>
+            <div class=\"signature-date-line\"></div>
             <div class=\"signature-row\">
                 <div class=\"sig-cell\">
                     <div class=\"sig-line\"></div>
