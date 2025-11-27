@@ -1,0 +1,257 @@
+{
+  "project": {
+    "name": "mietassistent",
+    "display_name": "MietAssistent",
+    "version": "3.0.0",
+    "description": "Umfassendes digitales Verwaltungssystem für Vermietung, Objektverwaltung, Nebenkosten, Verträge und Dokumentation. Einfach. Sicher. Deutsch.",
+    "tagline": "Das Schweizer Taschenmesser für private und semi-professionelle Vermieter."
+  },
+
+  "modules": [
+    "Objektmanagement",
+    "Wohnungen & Einheiten",
+    "Mieter & Verträge",
+    "Zähler & Verbrauch",
+    "Betriebskosten",
+    "Abrechnungen",
+    "Dokumente & OCR",
+    "Mieterportal",
+    "Banking & EÜR",
+    "Wartung & Ticketsystem",
+    "Mobil-App",
+    "Revisionssicherheit",
+    "API-Integration",
+    "Backup & Monitoring"
+  ],
+
+  "branding": {
+    "color_scheme": {
+      "primary": "#1e40af",
+      "secondary": "#0f766e",
+      "accent": "#dc2626",
+      "success": "#059669",
+      "warning": "#d97706",
+      "background": "#f8fafc",
+      "surface": "#ffffff",
+      "dark_background": "#0f172a"
+    },
+    "logo_concept": "Haus-Icon kombiniert mit Zählernetzwerk und Schutzschild",
+    "typography": {
+      "primary": "Inter",
+      "secondary": "Open Sans"
+    }
+  },
+
+  "system_architecture": {
+    "entities": [
+      "Gebäude",
+      "Wohnungen & Gewerbe",
+      "Zählerstruktur Haupt- und Unterzähler",
+      "Mieter",
+      "Verträge",
+      "Übergabeprotokolle",
+      "Betriebskosten",
+      "Abrechnungen",
+      "Dokumente",
+      "Belege & Rechnungen",
+      "Banktransaktionen",
+      "Wartungstickets"
+    ],
+    "hierarchy_levels": {
+      "1": "Gebäude",
+      "2": "Wohnungen/Gewerbeeinheiten",
+      "3": "Zählerhierarchie (unendlich tief)",
+      "4": "Mieter/Benutzer",
+      "5": "Verträge & Protokolle",
+      "6": "Kosten & Abrechnungen"
+    }
+  },
+
+  "installation": {
+    "type": "One-Click Docker Installation",
+    "docker_files": ["docker-compose.yml", "Dockerfile"],
+    "setup_wizard": {
+      "url": "/setup",
+      "steps": [
+        "Systemprüfung",
+        "Admin anlegen",
+        "Gebäude erstellen",
+        "Wohnungen anlegen",
+        "Zählertypen konfigurieren",
+        "Start ins Dashboard"
+      ]
+    },
+    "requirements": {
+      "ram": "2GB+",
+      "cpu": "2 Cores",
+      "disk": "4GB+",
+      "docker": "20.10+",
+      "docker_compose": "2.12+",
+      "ports": [5000, 5432]
+    }
+  },
+
+  "features": {
+    "objects": {
+      "buildings": "Beliebige Anzahl an Gebäuden",
+      "units": "Wohnungen, Gewerbe, sonstige Einheiten",
+      "attachments": "Fotos, Grundrisse, Verträge"
+    },
+    "tenants": {
+      "contracts": "Mietvertragsgenerator (PDF)",
+      "handover": "Übergabeprotokolle mit Fotos, Unterschrift",
+      "communication": "E-Mail, Dokumente, Portalzugriff"
+    },
+    "meters": {
+      "hierarchy": "Unbegrenzte Verschachtelung",
+      "virtual": "Virtuelle Rechenzähler",
+      "multipliers": "Faktoren & Umrechnungen",
+      "consumption": "Autom. Verbrauchsberechnung",
+      "ocr": "Zählerstand per Foto (OCR)"
+    },
+    "costs": {
+      "import": "OCR-Erkennung",
+      "distribution": [
+        "Nach Fläche",
+        "Nach Verbrauch",
+        "Nach Wohneinheit",
+        "Nach Nutzerzahl",
+        "Manuell"
+      ]
+    },
+    "settlements": {
+      "workflow": "Geführter Abrechnungsassistent",
+      "pdf_templates": "Rechtssichere Vorlagen",
+      "send": "Versand an Mieter",
+      "annual_archiving": "10 Jahre"
+    },
+    "documents": {
+      "types": [
+        "Mietvertrag",
+        "Übergabeprotokoll",
+        "Rechnung",
+        "Betriebskostenbeleg",
+        "Zählerfoto"
+      ],
+      "versioning": true,
+      "revisionssicherheit": true,
+      "ocr": true
+    },
+    "banking": {
+      "csv_import": true,
+      "auto_matching": true,
+      "open_items": true,
+      "euer_report": true
+    },
+    "maintenance": {
+      "ticket_system": true,
+      "cost_tracking": true,
+      "photo_upload": true
+    },
+    "notifications": {
+      "reminders": [
+        "Zählerstände",
+        "Abrechnungen",
+        "Mietzahlung",
+        "Wartung"
+      ]
+    },
+    "mobile_app": {
+      "ios": true,
+      "android": true,
+      "features": [
+        "Offline Zählerstände",
+        "QR-Code Scanner",
+        "Push Notifications",
+        "Mieterportal"
+      ]
+    }
+  },
+
+  "data_models": {
+    "User": { "fields": ["id","username","role","email","phone","password_hash","language","theme","created_at"] },
+    "Building": { "fields": ["id","name","address","zip","city","year_built","total_area","energy_class","notes"] },
+    "Apartment": { "fields": ["id","building_id","number","floor","area","rooms","rent_net","rent_extra","status"] },
+    "Tenant": { "fields": ["id","apartment_id","first_name","last_name","email","phone","move_in","move_out"] },
+    "Contract": { "fields": ["id","tenant_id","apartment_id","pdf_path","start_date","end_date","deposit","rent_terms","created_at"] },
+    "Handover": { "fields": ["id","apartment_id","type","date","notes","photos","pdf_path"] },
+    "Meter": { "fields": ["id","building_id","apartment_id","parent_meter","type","number","factor","is_virtual","installation_date"] },
+    "MeterReading": { "fields": ["id","meter_id","value","date","type","photo","ocr_text"] },
+    "OperatingCost": { "fields": ["id","category","amount","period_start","period_end","invoice_date","distribution","building_id","apartment_id"] },
+    "CostDistribution": { "fields": ["id","operating_cost_id","apartment_id","amount","basis"] },
+    "Settlement": { "fields": ["id","apartment_id","year","total_costs","advance_payments","balance","status","pdf"] },
+    "Ticket": { "fields": ["id","apartment_id","title","status","priority","photos","cost","notes"] },
+    "Receipt": { "fields": ["id","file","ocr","invoice_number","net","vat","gross","paid","payment_date"] },
+    "BankTransaction": { "fields": ["id","amount","date","description","tenant_id","apartment_id"] }
+  },
+
+  "documents": {
+    "templates": {
+      "contract": "Dynamischer PDF-Mietvertrag",
+      "handover": "Übergabe & Übernahmeprotokoll",
+      "settlement": "Jahresabrechnung",
+      "invoice": "Rechnungsbeleg",
+      "protocol": "Revisionssicheres Änderungslog"
+    }
+  },
+
+  "security": {
+    "authentication": "BCrypt",
+    "api_tokens": "JWT with refresh",
+    "encryption": "AES-256 for sensitive data",
+    "revisionssicherheit": {
+      "enabled": true,
+      "hashing": "SHA256",
+      "versioning": true,
+      "tamper_proof": true
+    },
+    "dsgvo": {
+      "data_minimization": true,
+      "retention_policy": {
+        "contracts": "10 years",
+        "settlements": "10 years",
+        "meter_readings": "10 years",
+        "receipts": "10 years"
+      }
+    }
+  },
+
+  "docker": {
+    "services": {
+      "web": { "port": 5000, "volumes": ["data","uploads","logs","backups"] },
+      "ocr": { "port": 5001 },
+      "db": { "type": "sqlite default, optional postgres" }
+    }
+  },
+
+  "api": {
+    "base": "/api/v1",
+    "authentication": {
+      "login": "POST /auth/login",
+      "refresh": "POST /auth/refresh",
+      "logout": "POST /auth/logout"
+    },
+    "endpoints": {
+      "buildings": ["list","create","update","delete","hierarchy"],
+      "apartments": ["list","details","assign-tenant","assign-meter"],
+      "tenants": ["create","update","documents","move-out"],
+      "contracts": ["create","generate-pdf","download"],
+      "handover": ["create","update","download"],
+      "meters": ["list","create","readings","consumption","hierarchy"],
+      "meter_readings": ["create","bulk","ocr"],
+      "costs": ["create","distribute","list"],
+      "settlements": ["calculate","pdf","send"],
+      "documents": ["upload","list","delete"],
+      "tickets": ["create","update","resolve"],
+      "banking": ["import","match","transactions"],
+      "euer": ["generate","export"]
+    }
+  },
+
+  "monitoring": {
+    "healthchecks": true,
+    "performance_metrics": true,
+    "logging": "Full structured JSON logs",
+    "alerts": ["high cpu","db corruption","backup failure"]
+  }
+}

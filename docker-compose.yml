@@ -1,0 +1,25 @@
+services:
+  rental-app:
+    build: .
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.rental-management.rule=Host(`nka.v2office.de`)"
+      - "traefik.http.routers.rental-management.entrypoints=websecure"
+      - "traefik.http.routers.rental-management.tls.certresolver=myresolver"
+      - "traefik.http.services.rental-management.loadbalancer.server.port=5000"
+      - "traefik.docker.network=proxy-network"
+    networks:
+      - proxy-network
+    volumes:
+      - ./data:/app/data
+      - ./uploads:/app/uploads
+    environment:
+      - FLASK_ENV=production
+      - SECRET_KEY=your-production-secret-key-change-this-in-production
+      - JWT_SECRET_KEY=your-jwt-secret-key-change-this-in-production
+      - PREFERRED_URL_SCHEME=https
+
+networks:
+  proxy-network:
+    external: true
