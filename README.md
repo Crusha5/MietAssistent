@@ -26,3 +26,12 @@ Professionelle Nebenkostenabrechnung mit flexibler Zählerstruktur. Dieses Repos
 - Passwort-Hashing mit BCrypt, Sitzungen als HTTPOnly + CSRF-Schutz
 - Rollen: admin, manager, tenant mit feingranularen Berechtigungen
 - DSGVO-konforme Aufbewahrungsfristen für Zählerstände, Abrechnungen und Verträge
+
+## WeasyPrint Systemabhängigkeiten
+Für die PDF-Generierung via WeasyPrint werden folgende Pakete (z.B. in Docker-Images auf Debian/Ubuntu-Basis) benötigt:
+
+```bash
+apt install -y libpango-1.0-0 libgdk-pixbuf2.0-0 libcairo2 libffi-dev libxml2 libxslt1-dev fonts-dejavu-core
+```
+
+Die Schriftart DejaVu Sans wird für ein konsistentes Layout der Verträge und Protokolle genutzt.

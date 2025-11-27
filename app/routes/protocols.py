@@ -10,8 +10,7 @@ import os
 from types import SimpleNamespace
 from io import BytesIO
 import pandas as pd
-from xhtml2pdf import pisa
-from app.utils.pdf_generator import save_protocol_pdf
+from app.utils.pdf_generator import generate_pdf_bytes, save_protocol_pdf
 from app.utils.schema_helpers import ensure_archiving_columns
 
 protocols_bp = Blueprint('protocols', __name__)
@@ -489,7 +488,8 @@ def export_protocols(fmt):
 
     if fmt == 'pdf':
         html = render_template('protocols/export_pdf.html', protocols=records)
-        pisa.CreatePDF(html, dest=buffer)
+        pdf_bytes = generate_pdf_bytes(html)
+        buffer = BytesIO(pdf_bytes)
         buffer.seek(0)
         return send_file(buffer, mimetype='application/pdf', download_name='protokolle.pdf', as_attachment=True)
 
@@ -514,8 +514,8 @@ def download_protocol_pdf(protocol_id):
         inventory_entries=json.loads(protocol.protocol_data or '{}').get('inventory', []) if protocol.protocol_data else []
     )
 
-    buffer = BytesIO()
-    pisa.CreatePDF(html, dest=buffer)
+    pdf_bytes = generate_pdf_bytes(html)
+    buffer = BytesIO(pdf_bytes)
     buffer.seek(0)
 
     save_protocol_pdf(protocol, html)
