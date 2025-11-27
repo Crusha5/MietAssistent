@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+
+{% block title %}Klauselverwaltung - {{ contract.contract_number }} - MietAssistent{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h2 mb-0">
+        <i class="bi bi-file-text text-primary me-2"></i>Klauselverwaltung
+    </h1>
+    <div class="btn-group">
+        <a href="{{ url_for('contracts.contract_detail', contract_id=contract.id) }}" 
+           class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Zurück zum Vertrag
+        </a>
+        <a href="{{ url_for('contract_editor.inventory_management', contract_id=contract.id) }}" 
+           class="btn btn-outline-primary">
+            <i class="bi bi-list-check me-1"></i>Inventar
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-4">
+        <!-- Standardklauseln Katalog -->
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-light">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-layers me-2"></i>Standardklauseln
+                </h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="list-group list-group-flush">
+                    {% for category, clauses in clauses_by_category.items() %}
+                    <div class="list-group-item">
+                        <h6 class="mb-2">{{ category|title }}</h6>
+                        {% for clause in clauses %}
+                        <div class="form-check mb-2">
+                            <input class="form-check-input clause-checkbox" 
+                                   type="checkbox" 
+                                   value="{{ clause.id }}"
+                                   id="clause_{{ clause.id }}"
+                                   data-clause-id="{{ clause.id }}">
+                            <label class="form-check-label small" for="clause_{{ clause.id }}">
+                                {{ clause.title }}
+                                {% if clause.is_mandatory %}
+                                <span class="badge bg-warning ms-1">Pflicht</span>
+                                {% endif %}
+                            </label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="card-footer">
+                <button id="addSelectedClauses" class="btn btn-primary w-100">
+                    <i class="bi bi-plus-circle me-1"></i>Ausgewählte Klauseln hinzufügen
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-8">
+        <!-- Aktuelle Vertragsklauseln -->
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Vertragsklauseln</h5>
+                <span class="badge bg-primary">{{ contract.clauses|length }} Klauseln</span>
+            </div>
+            <div class="card-body">
+                <div id="clausesContainer">
+                    {% for clause in contract.clauses|sort(attribute='sort_order') %}
+                    <div class="clause-item card mb-3" data-clause-id="{{ clause.id }}">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">{{ clause.title }}</h6>
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-primary edit-clause" 
+                                        data-clause-id="{{ clause.id }}">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-outline-danger delete-clause" 
+                                        data-clause-id="{{ clause.id }}">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="clause-content">{{ clause.content|safe }}</div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="bi bi-file-text display-4 text-muted"></i>
+                        <p class="text-muted mt-3">Noch keine Klauseln hinzugefügt</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Klausel Editor Modal -->
+<div class="modal fade" id="clauseEditorModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Klausel bearbeiten</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="clauseEditorForm">
+                    <input type="hidden" id="editClauseId">
+                    <div class="mb-3">
+                        <label for="editClauseTitle" class="form-label">Titel</label>
+                        <input type="text" class="form-control" id="editClauseTitle" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editClauseContent" class="form-label">Inhalt</label>
+                        <textarea class="form-control" id="editClauseContent" rows="10" required></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn btn-primary" id="saveClauseChanges">Speichern</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.clause-item {
+    border-left: 4px solid #0d6efd;
+}
+.clause-content {
+    white-space: pre-line;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Klauseln hinzufügen
+    document.getElementById('addSelectedClauses').addEventListener('click', function() {
+        const selectedClauses = Array.from(document.querySelectorAll('.clause-checkbox:checked'))
+            .map(cb => cb.dataset.clauseId);
+        
+        if (selectedClauses.length === 0) {
+            alert('Bitte wählen Sie mindestens eine Klausel aus.');
+            return;
+        }
+        
+        fetch(`/contract-editor/${'{{ contract.id }}'}/add-standard-clause`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                clause_template_id: selectedClauses[0] // Für jetzt eine Klausel
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Fehler: ' + data.error);
+            }
+        });
+    });
+    
+    // Klausel bearbeiten
+    document.querySelectorAll('.edit-clause').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const clauseId = this.dataset.clauseId;
+            const clauseItem = document.querySelector(`.clause-item[data-clause-id="${clauseId}"]`);
+            const title = clauseItem.querySelector('h6').textContent;
+            const content = clauseItem.querySelector('.clause-content').textContent;
+            
+            document.getElementById('editClauseId').value = clauseId;
+            document.getElementById('editClauseTitle').value = title;
+            document.getElementById('editClauseContent').value = content;
+            
+            new bootstrap.Modal(document.getElementById('clauseEditorModal')).show();
+        });
+    });
+    
+    // Klauseländerungen speichern
+    document.getElementById('saveClauseChanges').addEventListener('click', function() {
+        const clauseId = document.getElementById('editClauseId').value;
+        const title = document.getElementById('editClauseTitle').value;
+        const content = document.getElementById('editClauseContent').value;
+        
+        fetch(`/contract-editor/${'{{ contract.id }}'}/clauses/${clauseId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                custom_title: title,
+                custom_content: content
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Fehler: ' + data.error);
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

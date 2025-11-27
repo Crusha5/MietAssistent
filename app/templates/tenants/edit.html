@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}Mieter bearbeiten - Rental Management{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-person-plus me-2"></i>Mieter bearbeiten
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="/tenants/{{ tenant.id }}/edit">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="first_name" class="form-label">Vorname *</label>
+                            <input type="text" class="form-control" id="first_name" name="first_name" value="{{ tenant.first_name }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="last_name" class="form-label">Nachname *</label>
+                            <input type="text" class="form-control" id="last_name" name="last_name" value="{{ tenant.last_name }}" required>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="email" class="form-label">E-Mail</label>
+                            <input type="email" class="form-control" id="email" name="email" value="{{ tenant.email or '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="phone" class="form-label">Telefon</label>
+                            <input type="tel" class="form-control" id="phone" name="phone" value="{{ tenant.phone or '' }}">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="date_of_birth" class="form-label">Geburtsdatum</label>
+                            <input type="date" class="form-control" id="date_of_birth" name="date_of_birth" 
+                                   value="{{ tenant.date_of_birth.strftime('%Y-%m-%d') if tenant.date_of_birth else '' }}">
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="form-check mt-4">
+                                <input class="form-check-input" type="checkbox" id="is_primary_tenant" 
+                                       name="is_primary_tenant" {% if tenant.is_primary_tenant %}checked{% endif %}>
+                                <label class="form-check-label" for="is_primary_tenant">
+                                    Hauptmieter
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="move_in_date" class="form-label">Einzugsdatum *</label>
+                            <input type="date" class="form-control" id="move_in_date" name="move_in_date" value="{{ tenant.move_in_date.strftime('%Y-%m-%d') }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="move_out_date" class="form-label">Auszugsdatum</label>
+                            <input type="date" class="form-control" id="move_out_date" name="move_out_date" value="{{ tenant.move_out_date.strftime('%Y-%m-%d') if tenant.move_out_date else '' }}">
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="apartment_id" class="form-label">Wohnung *</label>
+                            <select class="form-select" id="apartment_id" name="apartment_id" required>
+                                <option value="">Wohnung auswählen...</option>
+                                {% for apartment in apartments %}
+                                <option value="{{ apartment.id }}" 
+                                        {% if apartment.id == tenant.apartment_id %}selected{% endif %}>
+                                    {% if apartment.building %}
+                                        {{ apartment.building.name }} - {{ apartment.apartment_number }}
+                                        {% if apartment.unit_type != 'wohnung' %}
+                                            ({{ apartment.unit_type }})
+                                        {% endif %}
+                                    {% else %}
+                                        {{ apartment.apartment_number }}
+                                    {% endif %}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="emergency_contact_name" class="form-label">Notfallkontakt Name</label>
+                            <input type="text" class="form-control" id="emergency_contact_name" name="emergency_contact_name" 
+                                   value="{{ tenant.emergency_contact_name or '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="emergency_contact_phone" class="form-label">Notfallkontakt Telefon</label>
+                            <input type="tel" class="form-control" id="emergency_contact_phone" name="emergency_contact_phone" 
+                                   value="{{ tenant.emergency_contact_phone or '' }}">
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle me-1"></i>Änderungen speichern
+                        </button>
+                        <a href="/tenants" class="btn btn-outline-secondary">Abbrechen</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

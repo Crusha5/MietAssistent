@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block title %}Hauptzähler anlegen - MietAssistent{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-house-gear me-2"></i>Neuen Hauptzähler anlegen
+                </h5>
+            </div>
+            <div class="card-body">
+                
+
+                <form method="POST" action="{{ url_for('meters.create_meter') }}">
+                    <div class="row g-3">
+                        <!-- Grundinformationen -->
+                        <div class="col-md-6">
+                            <label for="meter_number" class="form-label">Zählernummer *</label>
+                            <input type="text" class="form-control" id="meter_number" name="meter_number" required 
+                                   placeholder="z.B. STROM_HAUPT_001">
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="meter_type_id" class="form-label">Zählertyp *</label>
+                            <select class="form-select" id="meter_type_id" name="meter_type_id" required>
+                                <option value="">Bitte auswählen...</option>
+                                {% for meter_type in meter_types %}
+                                <option value="{{ meter_type.id }}">
+                                    {{ meter_type.name }} ({{ meter_type.unit }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="col-12">
+                            <label for="description" class="form-label">Beschreibung</label>
+                            <input type="text" class="form-control" id="description" name="description" 
+                                   placeholder="z.B. Strom Hauptzähler EG Technikraum">
+                        </div>
+
+                        <!-- VERWENDET GLOBALE VARIABLE -->
+                        <div class="col-md-6">
+                            <label for="building_id" class="form-label">Gebäude *</label>
+                            <select class="form-select" id="building_id" name="building_id" required>
+                                <option value="">Bitte auswählen...</option>
+                                {% if all_buildings and all_buildings|length > 0 %}
+                                    {% for building in all_buildings %}
+                                    <option value="{{ building.id }}">
+                                        {{ building.name }} - {{ building.street }} {{ building.street_number }}
+                                    </option>
+                                    {% endfor %}
+                                {% endif %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="multiplier" class="form-label">Multiplikator</label>
+                            <input type="number" step="0.0001" class="form-control" id="multiplier" name="multiplier" value="1.0">
+                            <div class="form-text">Umrechnungsfaktor für Unterzähler</div>
+                        </div>
+
+                        <!-- Installation -->
+                        <div class="col-md-6">
+                            <label for="installation_date" class="form-label">Installationsdatum</label>
+                            <input type="date" class="form-control" id="installation_date" name="installation_date">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="location_description" class="form-label">Standort</label>
+                            <input type="text" class="form-control" id="location_description" name="location_description" 
+                                   placeholder="z.B. Keller, Technikraum">
+                        </div>
+
+                        <!-- Optionen -->
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="is_virtual_meter" name="is_virtual_meter" value="true">
+                                <label class="form-check-label" for="is_virtual_meter">
+                                    Virtueller Zähler
+                                </label>
+                            </div>
+                            <div class="form-text">Virtuelle Zähler haben kein physisches Gerät</div>
+                        </div>
+
+                        <!-- Technische Daten -->
+                        <div class="col-md-6">
+                            <label for="manufacturer" class="form-label">Hersteller</label>
+                            <input type="text" class="form-control" id="manufacturer" name="manufacturer">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="model" class="form-label">Modell</label>
+                            <input type="text" class="form-control" id="model" name="model">
+                        </div>
+
+                        <!-- Notizen -->
+                        <div class="col-12">
+                            <label for="notes" class="form-label">Notizen</label>
+                            <textarea class="form-control" id="notes" name="notes" rows="3" 
+                                      placeholder="Besonderheiten oder Anmerkungen..."></textarea>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        {% if all_buildings and all_buildings|length > 0 %}
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle me-1"></i>Hauptzähler anlegen
+                        </button>
+                        {% else %}
+                        <button type="button" class="btn btn-primary" disabled>
+                            <i class="bi bi-x-circle me-1"></i>Zuerst Gebäude anlegen
+                        </button>
+                        {% endif %}
+                        <a href="{{ url_for('meters.meters_list') }}" class="btn btn-outline-secondary">Abbrechen</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('✅ Template meters/create.html geladen');
+    
+    // Heutiges Datum setzen
+    var today = new Date().toISOString().split('T')[0];
+    var installationDateField = document.getElementById('installation_date');
+    if (installationDateField) {
+        installationDateField.value = today;
+    }
+    
+    // Debug-Info in Konsole
+    var buildingSelect = document.getElementById('building_id');
+    if (buildingSelect) {
+        console.log('🏢 Gebäude im Dropdown: ' + (buildingSelect.options.length - 1) + ' Optionen');
+        for (let i = 1; i < buildingSelect.options.length; i++) {
+            console.log('   - ' + buildingSelect.options[i].text + ' (Value: ' + buildingSelect.options[i].value + ')');
+        }
+    }
+});
+</script>
+{% endblock %}

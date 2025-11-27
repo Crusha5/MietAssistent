@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}Mieter anlegen - Rental Management{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-person-plus me-2"></i>Neuen Mieter anlegen
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="first_name" class="form-label">Vorname *</label>
+                            <input type="text" class="form-control" id="first_name" name="first_name" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="last_name" class="form-label">Nachname *</label>
+                            <input type="text" class="form-control" id="last_name" name="last_name" required>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="email" class="form-label">E-Mail</label>
+                            <input type="email" class="form-control" id="email" name="email">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="phone" class="form-label">Telefon</label>
+                            <input type="tel" class="form-control" id="phone" name="phone">
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="move_in_date" class="form-label">Einzugsdatum *</label>
+                            <input type="date" class="form-control" id="move_in_date" name="move_in_date" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="person_count" class="form-label">Personenanzahl *</label>
+                            <input type="number" step="0.5" min="0.5" class="form-control" id="person_count" name="person_count" value="1.0" required>
+                            <div class="form-text">Geben Sie die Anzahl der Personen an (z.B. 1,5 für eineinhalb Personen)</div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="rent" class="form-label">Miete (€) *</label>
+                            <input type="number" step="0.01" class="form-control" id="rent" name="rent" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="apartment_id" class="form-label">Wohnung *</label>
+                            <select class="form-select" id="apartment_id" name="apartment_id" required>
+                                <option value="">Wohnung auswählen...</option>
+                                {% for apartment in apartments %}
+                                <option value="{{ apartment.id }}">
+                                    {% if apartment.building %}
+                                        {{ apartment.building.name }} - {{ apartment.apartment_number }} ({{ apartment.building.street }} {{ apartment.building.street_number }})
+                                    {% else %}
+                                        {{ apartment.apartment_number }} - Kein Gebäude
+                                    {% endif %}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle me-1"></i>Mieter anlegen
+                        </button>
+                        <a href="/tenants" class="btn btn-outline-secondary">Abbrechen</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}Startseite - {{ project_profile.project.display_name }}{% endblock %}
+
+{% block content %}
+<div class="row align-items-center min-vh-75 py-5">
+    <div class="col-lg-6">
+        <h1 class="display-4 fw-bold text-primary mb-4">
+            <i class="bi bi-house-gear"></i><br>
+            Willkommen bei<br>{{ project_profile.project.display_name }}
+        </h1>
+        <p class="lead mb-4">
+            {{ project_profile.project.description }}
+        </p>
+        <div class="d-grid gap-2 d-md-flex justify-content-md-start">
+            {% if session.user_id %}
+                <a href="/dashboard" class="btn btn-primary btn-lg px-4 me-md-2">
+                    <i class="bi bi-speedometer2"></i> Zum Dashboard
+                </a>
+            {% else %}
+                <a href="/login" class="btn btn-primary btn-lg px-4 me-md-2">
+                    <i class="bi bi-box-arrow-in-right"></i> Anmelden
+                </a>
+                <a href="/api/auth/web-login" class="btn btn-outline-secondary btn-lg px-4">
+                    Demo ansehen
+                </a>
+            {% endif %}
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="row g-4">
+            <div class="col-md-6">
+                <div class="card stat-card h-100 border-0">
+                    <div class="card-body text-center">
+                        <div class="feature-icon bg-primary bg-opacity-10 text-primary mx-auto mb-3">
+                            <i class="bi bi-building"></i>
+                        </div>
+                        <h5 class="card-title">Wohnungsverwaltung</h5>
+                        <p class="card-text text-muted">Verwalten Sie alle Ihre Mietobjekte an einem Ort</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card stat-card h-100 border-0">
+                    <div class="card-body text-center">
+                        <div class="feature-icon bg-success bg-opacity-10 text-success mx-auto mb-3">
+                            <i class="bi bi-people"></i>
+                        </div>
+                        <h5 class="card-title">Mieterverwaltung</h5>
+                        <p class="card-text text-muted">Behalten Sie alle Mieterdaten im Überblick</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card stat-card h-100 border-0">
+                    <div class="card-body text-center">
+                        <div class="feature-icon bg-info bg-opacity-10 text-info mx-auto mb-3">
+                            <i class="bi bi-speedometer"></i>
+                        </div>
+                        <h5 class="card-title">Zählerstände</h5>
+                        <p class="card-text text-muted">Erfassen und verwalten Sie Zählerstände einfach</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card stat-card h-100 border-0">
+                    <div class="card-body text-center">
+                        <div class="feature-icon bg-warning bg-opacity-10 text-warning mx-auto mb-3">
+                            <i class="bi bi-calculator"></i>
+                        </div>
+                        <h5 class="card-title">Abrechnungen</h5>
+                        <p class="card-text text-muted">Erstellen Sie Nebenkostenabrechnungen</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-5">
+    <div class="col-12">
+        <div class="card border-0 bg-light">
+            <div class="card-body text-center py-5">
+                <h3 class="mb-3">Bereit zu starten?</h3>
+                <p class="text-muted mb-4">Melden Sie sich an oder erkunden Sie die Funktionen</p>
+                <div class="d-flex gap-2 justify-content-center flex-wrap">
+                    <a href="/login" class="btn btn-primary">
+                        <i class="bi bi-box-arrow-in-right"></i> Anmelden
+                    </a>
+                    <a href="/api/docs" class="btn btn-outline-primary">
+                        <i class="bi bi-code-slash"></i> API Dokumentation
+                    </a>
+                    <a href="/dashboard" class="btn btn-outline-secondary">
+                        <i class="bi bi-speedometer2"></i> Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

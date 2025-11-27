@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}RSS Feed hinzufügen - MietAssistent{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h2 mb-0">
+        <i class="bi bi-plus-circle text-primary"></i> RSS Feed hinzufügen
+    </h1>
+    <a href="{{ url_for('rss.manage_feeds') }}" class="btn btn-outline-primary">
+        <i class="bi bi-arrow-left"></i> Zurück
+    </a>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('rss.add_feed') }}">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label for="name" class="form-label">Feed Name *</label>
+                    <input type="text" class="form-control" id="name" name="name" required>
+                </div>
+                <div class="col-md-6">
+                    <label for="category" class="form-label">Kategorie</label>
+                    <select class="form-select" id="category" name="category">
+                        <option value="mietrecht">Mietrecht</option>
+                        <option value="immobilien">Immobilien</option>
+                        <option value="recht">Recht</option>
+                        <option value="news">News</option>
+                        <option value="general">Allgemein</option>
+                    </select>
+                </div>
+                <div class="col-12">
+                    <label for="url" class="form-label">Feed URL *</label>
+                    <input type="url" class="form-control" id="url" name="url" required>
+                    <div class="form-text">
+                        Die URL des RSS Feeds. Beispiel: https://example.com/feed.xml
+                    </div>
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary">Feed hinzufügen</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

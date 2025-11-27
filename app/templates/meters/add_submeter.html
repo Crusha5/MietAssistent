@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+
+{% block title %}Unterzähler anlegen - Rental Management{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-success text-white">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-plus-circle me-2"></i>Unterzähler anlegen
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Sie legen einen Unterzähler für <strong>{{ parent_meter.meter_number }}</strong> an.
+                    Gebäude: <strong>{{ parent_meter.building.name }}</strong>
+                </div>
+                
+                <form method="POST" action="{{ url_for('meters.add_submeter', meter_id=parent_meter.id) }}">
+                    <div class="row g-3">
+                        <!-- Grundinformationen -->
+                        <div class="col-md-6">
+                            <label for="meter_number" class="form-label">Zählernummer *</label>
+                            <input type="text" class="form-control" id="meter_number" name="meter_number" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="meter_type_id" class="form-label">Zählertyp *</label>
+                            <select class="form-select" id="meter_type_id" name="meter_type_id" required>
+                                <option value="">Bitte auswählen...</option>
+                                {% for meter_type in meter_types %}
+                                <option value="{{ meter_type.id }}">{{ meter_type.name }} ({{ meter_type.unit }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="col-12">
+                            <label for="description" class="form-label">Beschreibung</label>
+                            <input type="text" class="form-control" id="description" name="description" placeholder="z.B. Strom Wohnung 1">
+                        </div>
+
+                        <!-- Gebäude ist fest (vom Parent) -->
+                        <div class="col-md-6">
+                            <label class="form-label">Gebäude</label>
+                            <input type="text" class="form-control" value="{{ parent_meter.building.name }}" readonly>
+                            <div class="form-text">Unterzähler gehört zum gleichen Gebäude wie der Hauptzähler</div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="apartment_id" class="form-label">Wohnung zuweisen (optional)</label>
+                            <select class="form-select" id="apartment_id" name="apartment_id">
+                                <option value="">Keine spezifische Wohnung</option>
+                                {% for apartment in apartments %}
+                                <option value="{{ apartment.id }}">{{ apartment.apartment_number }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">Nur Wohnungen aus dem gleichen Gebäude</div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="multiplier" class="form-label">Multiplikator</label>
+                            <input type="number" step="0.0001" class="form-control" id="multiplier" name="multiplier" value="1.0">
+                            <div class="form-text">Umrechnungsfaktor für diesen Unterzähler (Standard: 1.0)</div>
+                        </div>
+
+                        <!-- Zusatzinformationen -->
+                        <div class="col-md-6">
+                            <label for="installation_date" class="form-label">Installationsdatum</label>
+                            <input type="date" class="form-control" id="installation_date" name="installation_date">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="location_description" class="form-label">Standortbeschreibung</label>
+                            <input type="text" class="form-control" id="location_description" name="location_description" placeholder="z.B. Wohnung 1, Küche">
+                        </div>
+
+                        <!-- Checkbox für virtuellen Zähler -->
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="is_virtual_meter" name="is_virtual_meter" value="true">
+                                <label class="form-check-label" for="is_virtual_meter">
+                                    Virtueller Zähler
+                                </label>
+                            </div>
+                            <div class="form-text">Virtuelle Zähler haben kein physisches Gerät</div>
+                        </div>
+
+                        <!-- Technische Daten -->
+                        <div class="col-md-6">
+                            <label for="manufacturer" class="form-label">Hersteller</label>
+                            <input type="text" class="form-control" id="manufacturer" name="manufacturer">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="model" class="form-label">Modell</label>
+                            <input type="text" class="form-control" id="model" name="model">
+                        </div>
+
+                        <!-- Notizen -->
+                        <div class="col-12">
+                            <label for="notes" class="form-label">Notizen</label>
+                            <textarea class="form-control" id="notes" name="notes" rows="3" placeholder="Besonderheiten oder Anmerkungen..."></textarea>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-check-circle me-1"></i>Unterzähler anlegen
+                        </button>
+                        <a href="{{ url_for('meters.meter_detail', meter_id=parent_meter.id) }}" class="btn btn-outline-secondary">Abbrechen</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Heutiges Datum als Standard für Installationsdatum setzen
+    const today = new Date().toISOString().split('T')[0];
+    const installationDateInput = document.getElementById('installation_date');
+    if (installationDateInput) {
+        installationDateInput.value = today;
+    }
+});
+</script>
+{% endblock %}

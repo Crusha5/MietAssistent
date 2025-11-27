@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+
+{% block title %}Zählerstand Details - MietAssistent{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h2 mb-0">
+        <i class="bi bi-speedometer2 text-primary me-2"></i>Zählerstand Details
+    </h1>
+    <div class="btn-group">
+        <a href="{{ url_for('meter_readings.meter_readings_list') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Zurück zur Liste
+        </a>
+        <a href="{{ url_for('meter_readings.create_meter_reading') }}?meter_id={{ reading.meter.id }}" class="btn btn-primary">
+            <i class="bi bi-plus-circle me-1"></i>Neuer Stand
+        </a>
+        <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#correctionModal">
+            <i class="bi bi-exclamation-triangle me-1"></i>Korrektur
+        </button>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-light">
+                <h5 class="card-title mb-0">Zählerstand Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <table class="table table-sm table-borderless">
+                            <tr>
+                                <th class="text-muted">Gebäude:</th>
+                                <td>
+                                    <strong>{{ reading.meter.building.name }}</strong><br>
+                                    <small class="text-muted">
+                                        {{ reading.meter.building.street }} {{ reading.meter.building.street_number }}<br>
+                                        {{ reading.meter.building.zip_code }} {{ reading.meter.building.city }}
+                                    </small>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Zählernummer:</th>
+                                <td><strong>{{ reading.meter.meter_number }}</strong></td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Wert:</th>
+                                <td>
+                                    <strong>{{ reading.reading_value }}</strong>
+                                    <small class="text-muted">{{ reading.meter.meter_type.unit }}</small>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Datum:</th>
+                                <td>{{ reading.reading_date.strftime('%d.%m.%Y') }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <table class="table table-sm table-borderless">
+                            <tr>
+                                <th class="text-muted">Typ:</th>
+                                <td>
+                                    <span class="badge {% if reading.reading_type == 'actual' %}bg-success{% elif reading.reading_type == 'estimated' %}bg-warning{% else %}bg-info{% endif %}">
+                                        {{ reading.reading_type }}
+                                    </span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Wohnung:</th>
+                                <td>
+                                    {% if reading.meter.apartment %}
+                                        {{ reading.meter.apartment.apartment_number }}
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Manuelle Erfassung:</th>
+                                <td>
+                                    {% if reading.is_manual_entry %}
+                                        <span class="badge bg-info">Ja</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Nein</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Korrektur von:</th>
+                                <td>
+                                    {% if reading.correction_of_id %}
+                                        <span class="badge bg-warning">Ja</span>
+                                        <a href="{{ url_for('meter_readings.reading_detail', reading_id=reading.correction_of_id) }}" class="btn btn-sm btn-outline-secondary ms-1">
+                                            Original anzeigen
+                                        </a>
+                                    {% else %}
+                                        <span class="badge bg-success">Original</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+
+                {% if reading.notes %}
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <strong>Notizen:</strong>
+                        <p class="mt-1">{{ reading.notes }}</p>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if reading.photo_path %}
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <strong>Foto:</strong>
+                        <div class="mt-2">
+                            <img src="{{ url_for('meter_readings.meter_photo', filename=reading.photo_path) }}"
+                                 alt="Zählerfoto" class="img-fluid rounded" style="max-height: 300px;">
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-light">
+                <h5 class="card-title mb-0">Metadaten</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm table-borderless">
+                    <tr>
+                        <th class="text-muted">Erfasst von:</th>
+                        <td>{{ reading.user.username if reading.user else 'System' }}</td>
+                    </tr>
+                    <tr>
+                        <th class="text-muted">Erfassungsdatum:</th>
+                        <td>{{ reading.created_at.strftime('%d.%m.%Y %H:%M') if reading.created_at else '-' }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Zählerinformationen -->
+        <div class="card border-0 shadow-sm mt-3">
+            <div class="card-header bg-light">
+                <h5 class="card-title mb-0">Zählerinformationen</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm table-borderless">
+                    <tr>
+                        <th class="text-muted">Zählertyp:</th>
+                        <td>{{ reading.meter.meter_type.name }}</td>
+                    </tr>
+                    <tr>
+                        <th class="text-muted">Kategorie:</th>
+                        <td>{{ reading.meter.meter_type.category }}</td>
+                    </tr>
+                    <tr>
+                        <th class="text-muted">Installationsdatum:</th>
+                        <td>{{ reading.meter.installation_date.strftime('%d.%m.%Y') if reading.meter.installation_date else '-' }}</td>
+                    </tr>
+                </table>
+                <a href="{{ url_for('meters.meter_detail', meter_id=reading.meter.id) }}" class="btn btn-outline-primary btn-sm w-100">
+                    <i class="bi bi-info-circle me-1"></i>Zählerdetails anzeigen
+                </a>
+            </div>
+        </div>
+
+        <!-- Korrektur-Historie -->
+        {% if correction_readings %}
+        <div class="card border-0 shadow-sm mt-3">
+            <div class="card-header bg-light">
+                <h5 class="card-title mb-0">Korrektur-Historie</h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group list-group-flush">
+                    {% for correction in correction_readings %}
+                    <a href="{{ url_for('meter_readings.reading_detail', reading_id=correction.id) }}" 
+                       class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>{{ correction.reading_value }} {{ reading.meter.meter_type.unit }}</strong><br>
+                            <small class="text-muted">{{ correction.reading_date.strftime('%d.%m.%Y') }}</small>
+                        </div>
+                        <span class="badge bg-warning">Korrektur</span>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Korrektur Modal -->
+<div class="modal fade" id="correctionModal" tabindex="-1" aria-labelledby="correctionModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title" id="correctionModalLabel">
+                    <i class="bi bi-exclamation-triangle me-2"></i>Korrektur erstellen
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{{ url_for('meter_readings.create_correction', reading_id=reading.id) }}">
+                <div class="modal-body">
+                    <div class="alert alert-warning">
+                        <strong>Hinweis:</strong> Eine Korrektur erstellt einen neuen Zählerstand und behält den ursprünglichen Wert für die Revisionssicherheit.
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="correction_value" class="form-label">Korrigierter Wert *</label>
+                        <input type="number" step="0.001" class="form-control" id="correction_value" name="correction_value" 
+                               value="{{ reading.reading_value }}" required>
+                        <div class="form-text">Aktueller Wert: {{ reading.reading_value }} {{ reading.meter.meter_type.unit }}</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="correction_date" class="form-label">Korrektur-Datum *</label>
+                        <input type="date" class="form-control" id="correction_date" name="correction_date" 
+                               value="{{ now().strftime('%Y-%m-%d') }}" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="correction_reason" class="form-label">Korrektur-Grund *</label>
+                        <textarea class="form-control" id="correction_reason" name="correction_reason" rows="3" 
+                                  placeholder="Bitte geben Sie den Grund für die Korrektur an..." required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="bi bi-check-circle me-1"></i>Korrektur speichern
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

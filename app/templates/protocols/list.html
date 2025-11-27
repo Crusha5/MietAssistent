@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Protokolle - MietAssistent{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h2 mb-0">
+        <i class="bi bi-clipboard-check text-primary me-2"></i>Protokolle
+    </h1>
+    <a href="{{ url_for('protocols.create_protocol') }}" class="btn btn-primary">
+        <i class="bi bi-plus-circle me-1"></i>Neues Protokoll
+    </a>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body">
+        {% if protocols %}
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead>
+                    <tr>
+                        <th>Datum</th>
+                        <th>Typ</th>
+                        <th>Vertrag</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for protocol in protocols %}
+                    <tr>
+                        <td>{{ protocol.protocol_date.strftime('%d.%m.%Y') }}</td>
+                        <td>
+                            <span class="badge bg-secondary">{{ protocol.protocol_type|replace('ueber','Über')|replace('rueck','Rück') }}</span>
+                        </td>
+                        <td>
+                            {% if protocol.protocol_contract %}
+                            <a href="{{ url_for('contracts.contract_detail', contract_id=protocol.contract_id) }}" class="text-decoration-none">
+                                {{ protocol.protocol_contract.contract_number or 'Vertrag' }}
+                            </a>
+                            {% else %}
+                                <span class="text-muted">Kein Vertrag verknüpft</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('protocols.protocol_detail', protocol_id=protocol.id) }}" class="btn btn-outline-primary">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a href="{{ url_for('protocols.edit_protocol', protocol_id=protocol.id) }}" class="btn btn-outline-secondary">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-4">
+            <i class="bi bi-clipboard-data fs-1 d-block mb-2"></i>
+            Noch keine Protokolle angelegt.
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

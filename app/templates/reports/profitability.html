@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}Rentabilität{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0"><i class="bi bi-graph-up-arrow me-2"></i>Rentabilität & Prognose</h1>
+    <a href="{{ url_for('reports_web.reports_home') }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Zurück</a>
+</div>
+<div class="row g-4">
+    <div class="col-lg-4">
+        <div class="card shadow-sm border-0">
+            <div class="card-body">
+                <h6 class="text-muted">Übersicht</h6>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span>Mieteinnahmen</span>
+                    <strong>{{ '%.2f'|format(summary.income) }} €</strong>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span>Betriebskosten</span>
+                    <strong>{{ '%.2f'|format(summary.costs) }} €</strong>
+                </div>
+                <div class="d-flex justify-content-between align-items-center">
+                    <span>Margin</span>
+                    <strong class="text-{% if summary.margin >=0 %}success{% else %}danger{% endif %}">{{ '%.2f'|format(summary.margin) }} €</strong>
+                </div>
+            </div>
+        </div>
+        <div class="card shadow-sm border-0 mt-3">
+            <div class="card-body">
+                <h6 class="text-muted">Prognose</h6>
+                <form class="row g-2" id="forecastForm">
+                    <div class="col-12">
+                        <label class="form-label">Monatliche Steigerung (%)</label>
+                        <input type="number" step="0.1" class="form-control" id="growth" value="2">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Zeitraum (Monate)</label>
+                        <input type="number" class="form-control" id="months" value="12">
+                    </div>
+                    <div class="col-12 d-grid">
+                        <button type="button" class="btn btn-primary" id="calcForecast">Prognose berechnen</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-8">
+        <div class="card shadow-sm border-0">
+            <div class="card-body">
+                <h5 class="card-title">Einheiten</h5>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Einheit</th>
+                                <th>Miete netto</th>
+                                <th>Nebenkosten</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for apt in apartments %}
+                            <tr>
+                                <td>{{ apt.get_full_identifier() }}</td>
+                                <td>{{ '%.2f'|format(apt.rent_net or 0) }} €</td>
+                                <td>{{ '%.2f'|format(apt.rent_additional or 0) }} €</td>
+                                <td>{{ apt.status }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="mt-4">
+                    <h6 class="text-muted">Prognose (vereinfachte Hochrechnung)</h6>
+                    <div id="forecastResult" class="p-3 bg-light rounded small">
+                        Bitte Parameter setzen und berechnen.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.getElementById('calcForecast').addEventListener('click', () => {
+        const months = parseInt(document.getElementById('months').value || '0');
+        const growth = parseFloat(document.getElementById('growth').value || '0') / 100;
+        const base = {{ summary.margin|default(0) }};
+        let total = 0;
+        let current = base;
+        for (let i = 0; i < months; i++) {
+            current = current * (1 + growth);
+            total += current;
+        }
+        document.getElementById('forecastResult').innerHTML = `Gesamterwartung über ${months} Monate: <strong>${total.toFixed(2)} €</strong>`;
+    });
+</script>
+{% endblock %}

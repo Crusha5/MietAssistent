@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% set show_sidebar = False %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0"><i class="bi bi-speedometer me-2"></i>Standard-Zählertypen einrichten</h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Das System richtet jetzt automatisch Standard-Zählertypen für Sie ein.
+                    </div>
+                    
+                    <div class="mb-4">
+                        <h5>Folgende Zählertypen werden angelegt:</h5>
+                        <div class="row mt-3">
+                            <div class="col-md-6">
+                                <h6>Strom:</h6>
+                                <ul class="list-unstyled">
+                                    <li><i class="bi bi-check text-success me-2"></i>Strom</li>
+                                    <li><i class="bi bi-check text-success me-2"></i>Strom Allgemeinstrom</li>
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>Wasser & Heizung:</h6>
+                                <ul class="list-unstyled">
+                                    <li><i class="bi bi-check text-success me-2"></i>Wasser</li>
+                                    <li><i class="bi bi-check text-success me-2"></i>Heizung</li>
+                                    <li><i class="bi bi-check text-success me-2"></i>Gas</li>
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>Erneuerbare Energien</h6>
+                                <ul class="list-unstyled">
+                                    <li><i class="bi bi-check text-success me-2"></i>Strom Wärmepumpe</li>
+                                    <li><i class="bi bi-check text-success me-2"></i>Strom Wallbox</li>
+                                    <li><i class="bi bi-check text-success me-2"></i>Strom PV-Einspeisung</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <form id="meterTypesForm">
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{{ url_for('setup.setup_apartment') }}" class="btn btn-secondary">
+                                <i class="bi bi-arrow-left me-2"></i>Zurück
+                            </a>
+                            <button type="submit" class="btn btn-success">
+                                Zählertypen anlegen <i class="bi bi-check-lg ms-2"></i>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('meterTypesForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const submitBtn = this.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Zählertypen werden angelegt...';
+    
+    try {
+        const response = await fetch('/setup/meter-types', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({})
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            window.location.href = '/setup/complete';
+        } else {
+            alert('Fehler: ' + result.message);
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = 'Zählertypen anlegen <i class="bi bi-check-lg ms-2"></i>';
+        }
+    } catch (error) {
+        alert('Netzwerkfehler: ' + error.message);
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = 'Zählertypen anlegen <i class="bi bi-check-lg ms-2"></i>';
+    }
+});
+</script>
+{% endblock %}

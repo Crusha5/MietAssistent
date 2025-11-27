@@ -1,0 +1,338 @@
+{% extends "base.html" %}
+
+{% block title %}{{ building.name }} - Gebäudedetails{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">{{ building.name }}</h1>
+        <div>
+            <a href="{{ url_for('buildings.buildings_list') }}" class="btn btn-secondary">
+                <i class="bi bi-arrow-left me-2"></i>Zurück zur Übersicht
+            </a>
+            <a href="{{ url_for('buildings.edit_building', building_id=building.id) }}" class="btn btn-primary">
+                <i class="bi bi-pencil me-2"></i>Bearbeiten
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistik-Karten -->
+    <div class="row">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                Wohnungen gesamt
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ apartment_count }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-building fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Vermietet
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ occupied_count }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-people fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                Gesamtfläche
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ "%.0f"|format(total_area) }} m²</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-arrows-fullscreen fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                Zähler
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ meter_count }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-speedometer2 fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Gebäudeinformationen -->
+        <div class="col-lg-6">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Gebäudeinformationen</h6>
+                </div>
+                <div class="card-body">
+                    <table class="table table-bordered">
+                        <tr>
+                            <th style="width: 40%">Name</th>
+                            <td>{{ building.name }}</td>
+                        </tr>
+                        <tr>
+                            <th>Adresse</th>
+                            <td>
+                                {{ building.street }} {{ building.street_number }}<br>
+                                {{ building.zip_code }} {{ building.city }}<br>
+                                {{ building.country }}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Baujahr</th>
+                            <td>{{ building.year_built or 'Nicht angegeben' }}</td>
+                        </tr>
+                        <tr>
+                            <th>Gesamtfläche</th>
+                            <td>{{ building.total_area_sqm or 'Nicht angegeben' }} m²</td>
+                        </tr>
+                        <tr>
+                            <th>Energieeffizienzklasse</th>
+                            <td>
+                                {% if building.energy_efficiency_class %}
+                                <span class="badge bg-secondary">{{ building.energy_efficiency_class }}</span>
+                                {% else %}
+                                Nicht angegeben
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% if building.notes %}
+                        <tr>
+                            <th>Notizen</th>
+                            <td>{{ building.notes }}</td>
+                        </tr>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Zählerübersicht -->
+        <div class="col-lg-6">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary">Zählerübersicht</h6>
+                    <a href="{{ url_for('meters.create_meter') }}" class="btn btn-primary btn-sm">
+                        <i class="bi bi-plus-circle me-1"></i>Neuer Zähler
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if meters %}
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Zählernummer</th>
+                                    <th>Typ</th>
+                                    <th>Standort</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for meter in meters %}
+                                <tr>
+                                    <td>
+                                        <a href="{{ url_for('meters.meter_detail', meter_id=meter.id) }}" class="text-decoration-none">
+                                            {{ meter.meter_number }}
+                                        </a>
+                                    </td>
+                                    <td>
+                                        {% if meter.meter_type %}
+                                        <span class="badge bg-info">{{ meter.meter_type.name }}</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">Unbekannt</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ meter.location_description or '-' }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-3">
+                        <i class="bi bi-speedometer2 display-6 text-muted"></i>
+                        <p class="text-muted mt-2">Keine Zähler für dieses Gebäude gefunden</p>
+                        <a href="{{ url_for('meters.create_meter') }}" class="btn btn-primary btn-sm">
+                            Ersten Zähler anlegen
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Wohnungen Tabelle -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center">
+            <h6 class="m-0 font-weight-bold text-primary">Wohnungen in diesem Gebäude</h6>
+            <a href="{{ url_for('apartments.create_apartment') }}" class="btn btn-primary">
+                <i class="bi bi-plus-circle me-1"></i>Neue Wohnung
+            </a>
+        </div>
+        <div class="card-body">
+            {% if apartments %}
+            <div class="table-responsive">
+                <table class="table table-bordered" width="100%" cellspacing="0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Wohnungsnummer</th>
+                            <th>Etage</th>
+                            <th>Fläche (m²)</th>
+                            <th>Zimmer</th>
+                            <th>Kaltmiete</th>
+                            <th>Status</th>
+                            <th>Mieter</th>
+                            <th>Aktionen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for apartment in apartments %}
+                        <tr>
+                            <td>
+                                <strong>{{ apartment.apartment_number }}</strong>
+                                {% if apartment.unit_type != 'wohnung' %}
+                                <br><small class="text-muted">{{ apartment.unit_type|title }}</small>
+                                {% endif %}
+                            </td>
+                            <td>{{ apartment.floor or '-' }}</td>
+                            <td>{{ apartment.area_sqm or '-' }}</td>
+                            <td>{{ apartment.room_count or '-' }}</td>
+                            <td>
+                                {% if apartment.rent_net %}
+                                {{ "%.2f"|format(apartment.rent_net) }} €
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if apartment.status == 'occupied' %}
+                                <span class="badge bg-success">Vermietet</span>
+                                {% elif apartment.status == 'vacant' %}
+                                <span class="badge bg-secondary">Frei</span>
+                                {% elif apartment.status == 'reserved' %}
+                                <span class="badge bg-warning">Reserviert</span>
+                                {% elif apartment.status == 'maintenance' %}
+                                <span class="badge bg-danger">In Wartung</span>
+                                {% else %}
+                                <span class="badge bg-light text-dark">{{ apartment.status }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if apartment.tenants %}
+                                    {% for tenant in apartment.tenants %}
+                                        {% if not tenant.move_out_date %}
+                                        <div>{{ tenant.first_name }} {{ tenant.last_name }}</div>
+                                        {% endif %}
+                                    {% endfor %}
+                                {% else %}
+                                <span class="text-muted">Keine Mieter</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{{ url_for('apartments.apartment_detail', apartment_id=apartment.id) }}" 
+                                       class="btn btn-outline-primary" title="Details anzeigen">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    <a href="{{ url_for('apartments.edit_apartment', apartment_id=apartment.id) }}" 
+                                       class="btn btn-outline-secondary" title="Bearbeiten">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-building display-1 text-muted"></i>
+                <h4 class="text-muted mt-3">Keine Wohnungen gefunden</h4>
+                <p class="text-muted">Legen Sie die erste Wohnung für dieses Gebäude an.</p>
+                <a href="{{ url_for('apartments.create_apartment') }}" class="btn btn-primary">
+                    <i class="bi bi-plus-circle me-1"></i>Erste Wohnung anlegen
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Änderungshistorie -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center">
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="bi bi-clock-history me-2"></i>Änderungshistorie
+            </h6>
+            <a href="{{ url_for('settings_web.revisions_overview') }}" class="btn btn-outline-secondary btn-sm">
+                Globale Revisionen
+            </a>
+        </div>
+        <div class="card-body">
+            {% if revision_logs %}
+            <div class="list-group list-group-flush">
+                {% for log in revision_logs %}
+                <div class="list-group-item">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="small text-muted">{{ log.created_at.strftime('%d.%m.%Y %H:%M') }}</div>
+                            <div class="fw-semibold text-uppercase small">{{ log.action }}</div>
+                            <div class="small">{{ log.user.first_name ~ ' ' ~ log.user.last_name if log.user else 'System' }}</div>
+                        </div>
+                        <span class="badge bg-light text-dark">ID: {{ log.record_id }}</span>
+                    </div>
+                    <ul class="list-unstyled mb-0 small mt-2">
+                        {% for line in log.human_changes %}
+                        <li>• {{ line }}</li>
+                        {% else %}
+                        <li class="text-muted">Keine Details vorhanden</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center text-muted py-3">
+                <i class="bi bi-clock-history display-6 d-block mb-2"></i>
+                Keine Revisionen für dieses Gebäude vorhanden.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

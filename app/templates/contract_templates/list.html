@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}Vertragsvorlagen - MietAssistent{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h2 mb-0">
+        <i class="bi bi-layers text-primary me-2"></i>Klausel-Templates
+    </h1>
+    <a href="{{ url_for('contract_templates.create_template') }}" class="btn btn-primary">
+        <i class="bi bi-plus-circle me-1"></i>Neue Klausel
+    </a>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body">
+        {% if templates %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>Name</th>
+                        <th>Titel</th>
+                        <th>Kategorie</th>
+                        <th>Unterklauseln</th>
+                        <th>Pflicht</th>
+                        <th>Status</th>
+                        <th>Sortierung</th>
+                        <th>Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for template in templates %}
+                    <tr>
+                        <td><strong>{{ template.name }}</strong></td>
+                        <td>{{ template.title }}</td>
+                        <td>{{ template.category or '-' }}</td>
+                        <td>
+                            {% set tpl_subclauses = subclauses.get(template.id, []) %}
+                            {% if tpl_subclauses %}
+                                <span class="badge bg-info text-dark">{{ tpl_subclauses|length }}x x.*</span>
+                            {% else %}
+                                <span class="text-muted">–</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if template.is_mandatory %}
+                                <span class="badge bg-warning text-dark">Pflicht</span>
+                            {% else %}
+                                <span class="badge bg-light text-dark">Optional</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge {% if template.is_active %}bg-success{% else %}bg-secondary{% endif %}"> {{ 'Aktiv' if template.is_active else 'Inaktiv' }}</span>
+                        </td>
+                        <td>{{ template.sort_order or 0 }}</td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('contract_templates.edit_template', template_id=template.id) }}"
+                                   class="btn btn-outline-primary">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="{{ url_for('contract_templates.preview_template', template_id=template.id) }}"
+                                   class="btn btn-outline-info">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <form action="{{ url_for('contract_templates.delete_template', template_id=template.id) }}"
+                                      method="POST" class="d-inline">
+                                    <button type="submit" class="btn btn-outline-danger"
+                                            onclick="return confirm('Vorlage wirklich löschen?')">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-layers display-1 text-muted"></i>
+            <h4 class="text-muted mt-3">Keine Klauseln gefunden</h4>
+            <p class="text-muted">Lege deine erste Klausel für den Tree-Editor an.</p>
+            <a href="{{ url_for('contract_templates.create_template') }}" class="btn btn-primary">
+                <i class="bi bi-plus-circle me-1"></i>Neue Klausel erstellen
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

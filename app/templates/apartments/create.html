@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Neue Wohnung/Einheit anlegen</h1>
+        <a href="{{ url_for('apartments.apartments_list') }}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left me-2"></i>Zurück zur Übersicht
+        </a>
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Wohnungsdaten</h6>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('apartments.create_apartment') }}">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="building_id" class="form-label">Gebäude *</label>
+                            <select class="form-control" id="building_id" name="building_id" required>
+                                <option value="">Bitte Gebäude wählen</option>
+                                {% for building in buildings %}
+                                <option value="{{ building.id }}">{{ building.name }} - {{ building.street }} {{ building.street_number }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="apartment_number" class="form-label">Einheiten-Nummer *</label>
+                            <input type="text" class="form-control" id="apartment_number" name="apartment_number" required placeholder="z.B. 1, EG-Links, A1">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label for="floor" class="form-label">Etage</label>
+                            <input type="text" class="form-control" id="floor" name="floor" placeholder="z.B. EG, 1, 2, DG">
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label for="area_sqm" class="form-label">Fläche (m²) *</label>
+                            <input type="number" step="0.01" class="form-control" id="area_sqm" name="area_sqm" required min="1">
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label for="room_count" class="form-label">Anzahl Zimmer</label>
+                            <input type="number" class="form-control" id="room_count" name="room_count" min="1" value="1">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="unit_type" class="form-label">Einheitentyp *</label>
+                            <select class="form-control" id="unit_type" name="unit_type" required>
+                                <option value="wohnung">Wohnung</option>
+                                <option value="gewerbe">Gewerbeeinheit</option>
+                                <option value="garage">Garage</option>
+                                <option value="keller">Kellerabteil</option>
+                                <option value="lager">Lagerraum</option>
+                                <option value="abstellraum">Abstellraum</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="status" class="form-label">Status</label>
+                            <select class="form-control" id="status" name="status">
+                                <option value="vacant">Leer</option>
+                                <option value="occupied">Bewohnt</option>
+                                <option value="reserved">Reserviert</option>
+                                <option value="maintenance">In Wartung</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="rent_net" class="form-label">Kaltmiete (€)</label>
+                            <input type="number" step="0.01" class="form-control" id="rent_net" name="rent_net" value="0">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="rent_additional" class="form-label">Nebenkosten (€)</label>
+                            <input type="number" step="0.01" class="form-control" id="rent_additional" name="rent_additional" value="0">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-3 d-flex align-items-center justify-content-between">
+                    <div>
+                        <h6 class="mb-1">Ausstattung</h6>
+                        <div class="text-muted small" id="equipmentSummary">Bitte auswählen…</div>
+                    </div>
+                    <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#equipmentModal">
+                        <i class="bi bi-tools me-1"></i>Ausstattung festlegen
+                    </button>
+                </div>
+
+                <div class="d-flex justify-content-between">
+                    <a href="{{ url_for('apartments.apartments_list') }}" class="btn btn-secondary">
+                        <i class="bi bi-x-circle me-2"></i>Abbrechen
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-circle me-2"></i>Wohnung anlegen
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Ausstattung-Modal -->
+<div class="modal fade" id="equipmentModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Ausstattung auswählen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="has_balcony" name="has_balcony">
+                    <label class="form-check-label" for="has_balcony">Mit Balkon</label>
+                </div>
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="has_terrace" name="has_terrace">
+                    <label class="form-check-label" for="has_terrace">Mit Terrasse</label>
+                </div>
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="has_garage" name="has_garage">
+                    <label class="form-check-label" for="has_garage">Mit Garage/Stellplatz</label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Schließen</button>
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal" id="equipmentSave">Übernehmen</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const summary = document.getElementById('equipmentSummary');
+    const checkboxes = ['has_balcony','has_terrace','has_garage'].map(id => document.getElementById(id));
+
+    function updateSummary() {
+        const labels = checkboxes.filter(cb => cb.checked).map(cb => cb.nextElementSibling.innerText.trim());
+        summary.textContent = labels.length ? labels.join(', ') : 'Keine Ausstattung gewählt';
+    }
+
+    checkboxes.forEach(cb => cb.addEventListener('change', updateSummary));
+    document.getElementById('equipmentSave').addEventListener('click', updateSummary);
+});
+</script>
+{% endblock %}
+{% endblock %}

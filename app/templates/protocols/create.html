@@ -1,0 +1,365 @@
+{% extends "base.html" %}
+
+{% block title %}Protokoll erstellen - MietAssistent{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h2 mb-0">
+        <i class="bi bi-clipboard-plus text-primary me-2"></i>Protokoll erstellen
+    </h1>
+    <a href="{% if contract_id %}{{ url_for('contracts.contract_detail', contract_id=contract_id) }}{% else %}{{ url_for('protocols.protocols_list') }}{% endif %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i>Zurück
+    </a>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body">
+        <form method="POST" enctype="multipart/form-data">
+            <input type="hidden" name="contract_id" value="{{ contract_id }}">
+            <input type="hidden" name="keys_json" id="keys_json" value='{{ protocol_payload.keys|tojson if protocol_payload else "[]" }}'>
+            <input type="hidden" name="inventory_json" id="inventory_json" value='{{ protocol_payload.inventory|tojson if protocol_payload else "[]" }}'>
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Protokolltyp</label>
+                    {% set selected_type = request.form.protocol_type or (protocol.protocol_type if protocol else 'uebernahme') %}
+                    <select class="form-select" name="protocol_type" required>
+                        <option value="uebernahme" {% if selected_type=='uebernahme' %}selected{% endif %}>Übernahmeprotokoll (Mieter übernimmt)</option>
+                        <option value="ruecknahme" {% if selected_type=='ruecknahme' %}selected{% endif %}>Rücknahmeprotokoll (Mieter übergibt)</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Datum</label>
+                    {% set date_val = request.form.protocol_date or (protocol.protocol_date.strftime('%Y-%m-%d') if protocol else (now().strftime('%Y-%m-%d') if now else '')) %}
+                    <input type="date" class="form-control" name="protocol_date" value="{{ date_val }}" required>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Schlüsselanzahl</label>
+                    <input type="number" name="key_count" min="0" class="form-control" placeholder="Automatisch" value="{{ protocol_payload.key_count if protocol_payload else '' }}" readonly>
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Zustand / Räume</label>
+                    <textarea class="form-control" name="condition_summary" rows="3" placeholder="Zustand der Räume, Sauberkeit, sichtbare Mängel">{{ protocol_payload.condition_summary if protocol_payload else '' }}</textarea>
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Schlüssel</label>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <small class="text-muted">Füge alle übergebenen Schlüssel mit kurzer Beschreibung hinzu.</small>
+                        <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#keysModal">
+                            <i class="bi bi-key"></i> Schlüssel hinzufügen
+                        </button>
+                    </div>
+                    <div id="keysList" class="border rounded p-3 bg-light small text-muted">Noch keine Schlüssel erfasst.</div>
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Inventar / Ausstattung</label>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <small class="text-muted">Erfasse Möbel, Geräte und technische Ausstattung inkl. Zustand.</small>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#inventoryModal">
+                            <i class="bi bi-box-seam"></i> Inventar hinzufügen
+                        </button>
+                    </div>
+                    <div id="inventoryList" class="border rounded p-3 bg-light small text-muted">Noch kein Inventar erfasst.</div>
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Zählerstände</label>
+                    <p class="text-muted small mb-2">Die Zähler werden automatisch aus der Wohnung/ dem Gebäude übernommen. Trage nur die abgelesenen Werte und optional ein Foto ein.</p>
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Typ</th>
+                                    <th>Nummer</th>
+                                    <th>Ort</th>
+                                    <th>Letzter Stand</th>
+                                    <th>Wert</th>
+                                    <th>Foto</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for meter in meters %}
+                                {% set existing_entry = None %}
+                                {% if protocol_payload and protocol_payload.meter_entries %}
+                                    {% for entry in protocol_payload.meter_entries %}
+                                        {% if entry.id == meter.id %}
+                                            {% set existing_entry = entry %}
+                                        {% endif %}
+                                    {% endfor %}
+                                {% endif %}
+                                <tr>
+                                    <td>{{ meter.meter_type.name if meter.meter_type else 'Zähler' }} ({{ meter.meter_type.unit if meter.meter_type else '' }})</td>
+                                    <td class="fw-semibold">{{ meter.meter_number }}</td>
+                                    <td>{{ meter.location_description or '–' }}</td>
+                                    <td class="text-muted">{{ meter.latest_reading_value if meter.latest_reading_value is not none else '—' }}</td>
+                                    <td style="max-width: 140px;">
+                                        <input type="number" step="0.01" class="form-control form-control-sm" name="meter_readings[{{ meter.id }}]" placeholder="Wert" value="{{ existing_entry.reading_value if existing_entry else '' }}">
+                                    </td>
+                                    <td>
+                                        <input type="file" class="form-control form-control-sm" name="meter_photo_{{ meter.id }}" accept="image/*">
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Zählerstände / Hinweise</label>
+                    <textarea class="form-control" name="meter_notes" rows="3" placeholder="Zählerstände, Fotos, Besonderheiten">{{ protocol_payload.meter_notes if protocol_payload else '' }}</textarea>
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Raum- / Checklisten-Notizen</label>
+                    <textarea class="form-control" name="room_notes" rows="3" placeholder="Prüfpunkte je Raum, fehlende Schlüssel, offene To-dos">{{ protocol_payload.room_notes if protocol_payload else '' }}</textarea>
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Schäden / Beanstandungen</label>
+                    <textarea class="form-control" name="damages" rows="3" placeholder="Kratzer, fehlende Ausstattung, Reparaturbedarf">{{ protocol_payload.damages if protocol_payload else '' }}</textarea>
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Notizen</label>
+                    <textarea class="form-control" name="notes" rows="3">{{ protocol_payload.notes if protocol_payload else '' }}</textarea>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Übergabevermerke</label>
+                    <textarea class="form-control" name="handover_notes" rows="3" placeholder="Besondere Hinweise bei Übergabe/Rücknahme">{{ protocol_payload.handover_notes if protocol_payload else '' }}</textarea>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Nacharbeiten / To-dos</label>
+                    <textarea class="form-control" name="follow_up_notes" rows="3" placeholder="Reparaturen, Reinigung, nächste Schritte">{{ protocol_payload.follow_up_notes if protocol_payload else '' }}</textarea>
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Ausgefülltes Protokoll (PDF/Bilder)</label>
+                    <input type="file" class="form-control" name="protocol_upload" accept="application/pdf,image/*" multiple>
+                    <div class="form-text">Wenn das Protokoll ausgedruckt und unterschrieben wurde, lade die Dateien hier erneut hoch.</div>
+                </div>
+            </div>
+            <div class="d-flex justify-content-end mt-4">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-save me-1"></i>Speichern
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+ 
+<!-- Schlüssel Modal -->
+<div class="modal fade" id="keysModal" tabindex="-1" aria-labelledby="keysModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="keysModalLabel">Schlüssel hinzufügen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Bezeichnung</label>
+                    <input type="text" class="form-control" id="keyTitle" placeholder="z.B. Wohnungstür, Keller, Briefkasten">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Ort / Zugehörigkeit</label>
+                    <input type="text" class="form-control" id="keyLocation" placeholder="Wohnung, Keller, Garage ...">
+                </div>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Anzahl Schlüssel</label>
+                        <input type="number" min="1" value="1" class="form-control" id="keyQuantity" placeholder="1">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Beschreibung</label>
+                        <textarea class="form-control" id="keyDescription" rows="1" placeholder="Zustand, Besonderheiten"></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn btn-primary" id="addKeyBtn">Hinzufügen</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Inventar Modal -->
+<div class="modal fade" id="inventoryModal" tabindex="-1" aria-labelledby="inventoryModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="inventoryModalLabel">Inventar hinzufügen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Bezeichnung *</label>
+                    <input type="text" class="form-control" id="invName" placeholder="z.B. Herd, Kühlschrank, Rauchmelder">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Standort / Raum</label>
+                    <input type="text" class="form-control" id="invLocation" placeholder="Küche, Bad, Treppenhaus">
+                </div>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Anzahl</label>
+                        <input type="number" min="1" value="1" class="form-control" id="invQuantity">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Zustand</label>
+                        <select class="form-select" id="invCondition">
+                            <option value="">Bitte wählen…</option>
+                            <option value="neu">Neu</option>
+                            <option value="gut">Gut</option>
+                            <option value="abgenutzt">Abgenutzt</option>
+                            <option value="beschaedigt">Beschädigt</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <label class="form-label">Schäden / Auffälligkeiten</label>
+                    <textarea class="form-control" id="invDamages" rows="2" placeholder="Kratzer, fehlende Teile, Reparaturbedarf"></textarea>
+                </div>
+                <div class="mt-3">
+                    <label class="form-label">Notizen</label>
+                    <textarea class="form-control" id="invNotes" rows="2" placeholder="Garantie, Seriennummer, letzte Wartung"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn btn-primary" id="addInventoryBtn">Hinzufügen</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const list = document.getElementById('keysList');
+        const storage = document.getElementById('keys_json');
+        const addBtn = document.getElementById('addKeyBtn');
+        const modalEl = document.getElementById('keysModal');
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+
+        const render = (items) => {
+            if (!items.length) {
+                list.innerHTML = 'Noch keine Schlüssel erfasst.';
+                document.querySelector('input[name="key_count"]').value = '';
+                return;
+            }
+            list.innerHTML = items.map((item, idx) => `
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div>
+                        <div class="fw-semibold">${item.title || 'Schlüssel ' + (idx + 1)} <span class="badge bg-light text-dark border">${item.quantity || 1}×</span></div>
+                        <div class="text-muted small">${item.location || ''}</div>
+                        <div class="text-muted small">${item.description || ''}</div>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-danger" data-index="${idx}"><i class="bi bi-trash"></i></button>
+                </div>
+            `).join('');
+
+            const totalKeys = items.reduce((sum, entry) => sum + (parseInt(entry.quantity, 10) || 1), 0);
+            document.querySelector('input[name="key_count"]').value = totalKeys;
+
+            list.querySelectorAll('button[data-index]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const current = JSON.parse(storage.value || '[]');
+                    current.splice(parseInt(btn.dataset.index), 1);
+                    storage.value = JSON.stringify(current);
+                    render(current);
+                });
+            });
+        };
+
+        addBtn.addEventListener('click', () => {
+            const title = document.getElementById('keyTitle').value.trim();
+            const description = document.getElementById('keyDescription').value.trim();
+            const location = document.getElementById('keyLocation').value.trim();
+            const quantity = parseInt(document.getElementById('keyQuantity').value, 10) || 1;
+
+            if (!title && !location && !description) {
+                alert('Bitte gib mindestens eine Bezeichnung oder einen Ort für den Schlüssel an.');
+                return;
+            }
+
+            const current = JSON.parse(storage.value || '[]');
+            current.push({ title, description, location, quantity });
+            storage.value = JSON.stringify(current.filter(item => (item.title || item.location || item.description)));
+            render(JSON.parse(storage.value || '[]'));
+
+            document.getElementById('keyTitle').value = '';
+            document.getElementById('keyDescription').value = '';
+            document.getElementById('keyLocation').value = '';
+            document.getElementById('keyQuantity').value = '1';
+            modal.hide();
+        });
+
+        const initialKeys = (JSON.parse(storage.value || '[]') || []).filter(item => (item.title || item.location || item.description));
+        storage.value = JSON.stringify(initialKeys);
+        render(initialKeys);
+
+        // Inventar-Handling
+        const invList = document.getElementById('inventoryList');
+        const invStorage = document.getElementById('inventory_json');
+        const invBtn = document.getElementById('addInventoryBtn');
+        const invModalEl = document.getElementById('inventoryModal');
+        const invModal = bootstrap.Modal.getOrCreateInstance(invModalEl);
+
+        const renderInventory = (items) => {
+            if (!items.length) {
+                invList.innerHTML = 'Noch kein Inventar erfasst.';
+                return;
+            }
+            invList.innerHTML = items.map((item, idx) => `
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div>
+                        <div class="fw-semibold">${item.name || 'Inventar ' + (idx + 1)} <span class="badge bg-light text-dark border">${item.quantity || 1}×</span></div>
+                        <div class="text-muted small">${item.location || ''} ${item.condition ? '• ' + item.condition : ''}</div>
+                        <div class="text-muted small">${item.damages || ''}</div>
+                        <div class="text-muted small">${item.notes || ''}</div>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-danger" data-index="${idx}"><i class="bi bi-trash"></i></button>
+                </div>
+            `).join('');
+
+            invList.querySelectorAll('button[data-index]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const current = JSON.parse(invStorage.value || '[]');
+                    current.splice(parseInt(btn.dataset.index), 1);
+                    invStorage.value = JSON.stringify(current);
+                    renderInventory(current);
+                });
+            });
+        };
+
+        if (invBtn) {
+            invBtn.addEventListener('click', () => {
+                const name = document.getElementById('invName').value.trim();
+                const location = document.getElementById('invLocation').value.trim();
+                const quantity = parseInt(document.getElementById('invQuantity').value, 10) || 1;
+                const condition = document.getElementById('invCondition').value;
+                const damages = document.getElementById('invDamages').value.trim();
+                const notes = document.getElementById('invNotes').value.trim();
+
+                if (!name && !location && !damages && !notes) {
+                    alert('Bitte gib mindestens eine Bezeichnung oder einen Standort an.');
+                    return;
+                }
+
+                const current = JSON.parse(invStorage.value || '[]');
+                current.push({ name, location, quantity, condition, damages, notes });
+                invStorage.value = JSON.stringify(current.filter(item => (item.name || item.location || item.notes || item.damages)));
+                renderInventory(JSON.parse(invStorage.value || '[]'));
+
+                document.getElementById('invName').value = '';
+                document.getElementById('invLocation').value = '';
+                document.getElementById('invQuantity').value = '1';
+                document.getElementById('invCondition').value = '';
+                document.getElementById('invDamages').value = '';
+                document.getElementById('invNotes').value = '';
+                invModal.hide();
+            });
+        }
+
+        const initialInventory = (JSON.parse(invStorage.value || '[]') || []).filter(item => (item.name || item.location || item.notes || item.damages));
+        invStorage.value = JSON.stringify(initialInventory);
+        renderInventory(initialInventory);
+    });
+</script>
+{% endblock %}
+{% endblock %}

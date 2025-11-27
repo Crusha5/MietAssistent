@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Test der globalen Variable all_buildings</h2>
+
+<div class="alert alert-info">
+    <h4>Globale Variable all_buildings:</h4>
+    <p>Anzahl: {{ all_buildings|length }}</p>
+    
+    <h5>Gebäude Details:</h5>
+    <ul>
+        {% for building in all_buildings %}
+        <li>
+            <strong>{{ building.name }}</strong><br>
+            ID: {{ building.id }}<br>
+            Adresse: {{ building.street }} {{ building.street_number }}<br>
+            Wohnungen: {{ building.apartments|length }}
+        </li>
+        {% endfor %}
+    </ul>
+</div>
+{% endblock %}

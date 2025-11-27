@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block title %}Vermieter verwalten{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h1 class="h4 mb-0">Vermieter</h1>
+        <p class="text-muted small mb-0">Bearbeite, archiviere oder erstelle neue Vermieter.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('settings_web.settings_home') }}">Zurück</a>
+        {% if user.role == 'admin' %}
+        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#landlordModal">
+            <i class="bi bi-plus-lg"></i> Neuer Vermieter
+        </button>
+        {% else %}
+        <span class="badge bg-secondary">Nur Admins können Vermieter anlegen</span>
+        {% endif %}
+    </div>
+</div>
+<div class="card shadow-sm border-0">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Typ</th>
+                        <th>Kontakt</th>
+                        <th>Status</th>
+                        <th class="text-end">Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for landlord in landlords %}
+                    <tr>
+                        <td>{{ landlord.company_name or (landlord.first_name ~ ' ' ~ landlord.last_name) }}</td>
+                        <td>{{ 'Unternehmen' if landlord.type == 'company' else 'Natürliche Person' }}</td>
+                        <td>
+                            <div class="small text-muted">{{ landlord.email or '—' }}</div>
+                            <div class="small text-muted">{{ landlord.phone or '' }}</div>
+                        </td>
+                        <td>
+                            {% if landlord.is_active %}
+                            <span class="badge bg-success">Aktiv</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Archiviert</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            {% if user.role == 'admin' %}
+                            <button class="btn btn-sm btn-outline-secondary btn-edit-landlord" data-id="{{ landlord.id }}" data-type="{{ landlord.type }}" data-first-name="{{ landlord.first_name or '' }}" data-last-name="{{ landlord.last_name or '' }}" data-company="{{ landlord.company_name or '' }}" data-legal="{{ landlord.legal_form or '' }}" data-tax="{{ landlord.tax_id or '' }}" data-vat="{{ landlord.vat_id or '' }}" data-street="{{ landlord.street or '' }}" data-number="{{ landlord.street_number or '' }}" data-zip="{{ landlord.zip_code or '' }}" data-city="{{ landlord.city or '' }}" data-country="{{ landlord.country or '' }}" data-phone="{{ landlord.phone or '' }}" data-email="{{ landlord.email or '' }}" data-website="{{ landlord.website or '' }}" data-bank="{{ landlord.bank_name or '' }}" data-iban="{{ landlord.iban or '' }}" data-bic="{{ landlord.bic or '' }}" data-account-holder="{{ landlord.account_holder or '' }}" data-representative="{{ landlord.representative or '' }}" data-active="{{ '1' if landlord.is_active else '0' }}">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger btn-delete-landlord" data-id="{{ landlord.id }}">
+                                <i class="bi bi-archive"></i>
+                            </button>
+                            {% else %}
+                            <span class="badge bg-light text-muted">Keine Berechtigung</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="5" class="text-center text-muted py-3">Keine Vermieter vorhanden.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% include 'contracts/landlord_modal.html' %}
+{% endblock %}
+{% block extra_js %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const saveLandlordBtn = document.getElementById('saveLandlord');
+    const landlordForm = document.getElementById('landlordForm');
+    const landlordIdField = document.getElementById('landlord_id_field');
+    const modalTitle = document.querySelector('#landlordModal .modal-title');
+    const landlordModalEl = document.getElementById('landlordModal');
+    const landlordModal = landlordModalEl ? bootstrap.Modal.getOrCreateInstance(landlordModalEl) : null;
+
+    function fillForm(button) {
+        const type = button.dataset.type || 'natural';
+        document.getElementById('type_natural').checked = type !== 'company';
+        document.getElementById('type_company').checked = type === 'company';
+        document.getElementById('naturalPersonFields').style.display = type === 'company' ? 'none' : 'block';
+        document.getElementById('companyFields').style.display = type === 'company' ? 'block' : 'none';
+        document.getElementById('first_name').value = button.dataset.firstName || '';
+        document.getElementById('last_name').value = button.dataset.lastName || '';
+        document.getElementById('company_name').value = button.dataset.company || '';
+        document.getElementById('legal_form').value = button.dataset.legal || '';
+        document.getElementById('tax_id').value = button.dataset.tax || '';
+        document.getElementById('vat_id').value = button.dataset.vat || '';
+        document.getElementById('street').value = button.dataset.street || '';
+        document.getElementById('street_number').value = button.dataset.number || '';
+        document.getElementById('zip_code').value = button.dataset.zip || '';
+        document.getElementById('city').value = button.dataset.city || '';
+        document.getElementById('country').value = button.dataset.country || 'Deutschland';
+        document.getElementById('phone').value = button.dataset.phone || '';
+        document.getElementById('email').value = button.dataset.email || '';
+        document.getElementById('website').value = button.dataset.website || '';
+        document.getElementById('bank_name').value = button.dataset.bank || '';
+        document.getElementById('iban').value = button.dataset.iban || '';
+        document.getElementById('bic').value = button.dataset.bic || '';
+        document.getElementById('account_holder').value = button.dataset.accountHolder || '';
+        document.getElementById('representative').value = button.dataset.representative || '';
+        landlordIdField.value = button.dataset.id;
+        if (modalTitle) modalTitle.textContent = 'Vermieter bearbeiten';
+    }
+
+    document.querySelectorAll('.btn-edit-landlord').forEach(btn => {
+        btn.addEventListener('click', function() {
+            fillForm(btn);
+            if (landlordModal) {
+                landlordModal.show();
+            }
+        });
+    });
+
+    document.querySelectorAll('.btn-delete-landlord').forEach(btn => {
+        btn.addEventListener('click', function() {
+            if (!confirm('Vermieter archivieren?')) return;
+            fetch(`/api/landlords/${btn.dataset.id}`, { method: 'DELETE' })
+                .then(resp => resp.json())
+                .then(data => {
+                    if (!data.success) {
+                        alert(data.error || 'Keine Berechtigung.');
+                        return;
+                    }
+                    location.reload();
+                })
+                .catch(() => alert('Archivierung fehlgeschlagen'));
+        });
+    });
+
+    if (saveLandlordBtn && landlordForm) {
+        saveLandlordBtn.addEventListener('click', function() {
+            const payload = Object.fromEntries(new FormData(landlordForm).entries());
+            const landlordId = landlordIdField.value;
+            const method = landlordId ? 'PUT' : 'POST';
+            const url = landlordId ? `/api/landlords/${landlordId}` : '/api/landlords';
+            fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+                .then(resp => resp.json())
+                .then(data => {
+                    if (!data.success) {
+                        alert(data.error || 'Keine Berechtigung.');
+                        return;
+                    }
+                    location.reload();
+                })
+                .catch(() => alert('Speichern fehlgeschlagen'));
+        });
+    }
+});
+</script>
+{% endblock %}

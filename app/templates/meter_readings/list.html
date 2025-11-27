@@ -1,0 +1,405 @@
+{% extends "base.html" %}
+
+{% block title %}Zählerstände - MietAssistent{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h2 mb-0">
+        <i class="bi bi-speedometer2 text-primary me-2"></i>Zählerstände
+    </h1>
+    <div>
+        <a href="{{ url_for('meter_readings.create_meter_reading') }}" class="btn btn-primary me-2">
+            <i class="bi bi-plus-circle me-1"></i>Neuer Zählerstand
+        </a>
+        <div class="btn-group">
+            <button type="button" class="btn btn-success dropdown-toggle" data-bs-toggle="dropdown">
+                <i class="bi bi-download me-1"></i>Export
+            </button>
+            <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="{{ url_for('meter_readings.export_csv', **base_url_args) }}">
+                    <i class="bi bi-file-earmark-spreadsheet me-2"></i>CSV Export
+                </a></li>
+                <li><a class="dropdown-item" href="{{ url_for('meter_readings.export_excel', **base_url_args) }}">
+                    <i class="bi bi-file-earmark-excel me-2"></i>Excel Export
+                </a></li>
+                <li><a class="dropdown-item" href="{{ url_for('meter_readings.export_pdf', **base_url_args) }}">
+                    <i class="bi bi-file-earmark-pdf me-2"></i>PDF Export
+                </a></li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- Filter Section - Einklappbar -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">
+            <i class="bi bi-funnel me-2"></i>Filter
+            {% set has_active_filters = false %}
+            {% if current_filters %}
+                {% if current_filters.building_id and current_filters.building_id != 'all' %}
+                    {% set has_active_filters = true %}
+                {% elif current_filters.apartment_id and current_filters.apartment_id != 'all' %}
+                    {% set has_active_filters = true %}
+                {% elif current_filters.meter_type_id and current_filters.meter_type_id != 'all' %}
+                    {% set has_active_filters = true %}
+                {% elif current_filters.category and current_filters.category != 'all' %}
+                    {% set has_active_filters = true %}
+                {% elif current_filters.show_only_submeters %}
+                    {% set has_active_filters = true %}
+                {% elif current_filters.date_from %}
+                    {% set has_active_filters = true %}
+                {% elif current_filters.date_to %}
+                    {% set has_active_filters = true %}
+                {% endif %}
+            {% endif %}
+            
+            {% if has_active_filters %}
+            <span class="badge bg-warning ms-2">Aktiv</span>
+            {% endif %}
+        </h5>
+        <button class="btn btn-sm btn-outline-secondary toggle-filter-btn" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse" aria-expanded="false" aria-controls="filterCollapse">
+            <i class="bi bi-chevron-down collapse-icon"></i>
+        </button>
+    </div>
+    <div class="collapse {% if not filter_collapsed %}show{% endif %}" id="filterCollapse">
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('meter_readings.meter_readings_list') }}">
+                <!-- Verstecktes Feld für per_page, damit es beim Filtern erhalten bleibt -->
+                <input type="hidden" name="per_page" value="{{ current_filters.per_page if current_filters else 25 }}">
+                
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label for="building_id" class="form-label">Gebäude</label>
+                        <select class="form-select" id="building_id" name="building_id">
+                            <option value="all">Alle Gebäude</option>
+                            {% for building in buildings %}
+                            <option value="{{ building.id }}" 
+                                {% if current_filters and current_filters.building_id == building.id %}selected{% endif %}>
+                                {{ building.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-3">
+                        <label for="apartment_id" class="form-label">Wohnung</label>
+                        <select class="form-select" id="apartment_id" name="apartment_id">
+                            <option value="all">Alle Wohnungen</option>
+                            {% for apartment in apartments %}
+                            <option value="{{ apartment.id }}"
+                                {% if current_filters and current_filters.apartment_id == apartment.id %}selected{% endif %}>
+                                {{ apartment.apartment_number }} ({{ apartment.building.name }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-2">
+                        <label for="meter_type_id" class="form-label">Zählertyp</label>
+                        <select class="form-select" id="meter_type_id" name="meter_type_id">
+                            <option value="all">Alle Typen</option>
+                            {% for meter_type in meter_types %}
+                            <option value="{{ meter_type.id }}"
+                                {% if current_filters and current_filters.meter_type_id == meter_type.id %}selected{% endif %}>
+                                {{ meter_type.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-2">
+                        <label for="category" class="form-label">Kategorie</label>
+                        <select class="form-select" id="category" name="category">
+                            <option value="all">Alle Kategorien</option>
+                            {% for cat in categories %}
+                            <option value="{{ cat }}"
+                                {% if current_filters and current_filters.category == cat %}selected{% endif %}>
+                                {{ cat|title }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-2">
+                        <label for="show_only_submeters" class="form-label">Zähler-Typ</label>
+                        <select class="form-select" id="show_only_submeters" name="show_only_submeters">
+                            <option value="">Alle Zähler</option>
+                            <option value="1" {% if current_filters and current_filters.show_only_submeters %}selected{% endif %}>Nur Unterzähler</option>
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-3">
+                        <label for="date_from" class="form-label">Datum von</label>
+                        <input type="date" class="form-control" id="date_from" name="date_from" 
+                               value="{{ current_filters.date_from if current_filters and current_filters.date_from }}">
+                    </div>
+                    
+                    <div class="col-md-3">
+                        <label for="date_to" class="form-label">Datum bis</label>
+                        <input type="date" class="form-control" id="date_to" name="date_to" 
+                               value="{{ current_filters.date_to if current_filters and current_filters.date_to }}">
+                    </div>
+                    
+                    <div class="col-md-6 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary me-2">
+                            <i class="bi bi-funnel me-1"></i>Filtern
+                        </button>
+                        <a href="{{ url_for('meter_readings.meter_readings_list') }}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-clockwise me-1"></i>Zurücksetzen
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Paginierung und Einträge pro Seite -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="text-muted">
+        <strong>{{ pagination.total }}</strong> Einträge gefunden
+        {% if pagination.total > pagination.per_page %}
+        - Zeige {{ ((pagination.page - 1) * pagination.per_page) + 1 }} bis {{ ((pagination.page - 1) * pagination.per_page) + readings|length }} 
+        {% endif %}
+    </div>
+    
+    <div class="d-flex align-items-center">
+        <span class="text-muted me-2">Einträge pro Seite:</span>
+        <div class="btn-group btn-group-sm">
+            {% set url_25 = url_for('meter_readings.meter_readings_list', per_page=25, **base_url_args) %}
+            {% set url_50 = url_for('meter_readings.meter_readings_list', per_page=50, **base_url_args) %}
+            {% set url_100 = url_for('meter_readings.meter_readings_list', per_page=100, **base_url_args) %}
+            
+            <a href="{{ url_25 }}" 
+               class="btn btn-outline-secondary {% if current_filters.per_page == 25 %}active{% endif %}">25</a>
+            <a href="{{ url_50 }}" 
+               class="btn btn-outline-secondary {% if current_filters.per_page == 50 %}active{% endif %}">50</a>
+            <a href="{{ url_100 }}" 
+               class="btn btn-outline-secondary {% if current_filters.per_page == 100 %}active{% endif %}">100</a>
+        </div>
+    </div>
+</div>
+
+<!-- Ergebnisse -->
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-light">
+        <h5 class="card-title mb-0">
+            <i class="bi bi-list me-2"></i>Zählerstände 
+        </h5>
+    </div>
+    <div class="card-body p-0">
+        {% if readings %}
+        <div class="table-responsive">
+            <table class="table table-hover table-sm mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Datum</th>
+                        <th>Gebäude</th>
+                        <th>Zähler</th>
+                        <th>Zähler-Typ</th>
+                        <th>Wohnung</th>
+                        <th>Kategorie</th>
+                        <th>Wert</th>
+                        <th>Einheit</th>
+                        <th>Ablese-Typ</th>
+                        <th>Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for reading in readings %}
+                    <tr>
+                        <td>
+                            <strong>{{ reading.reading_date.strftime('%d.%m.%Y') }}</strong>
+                        </td>
+                        <td>
+                            <strong>{{ reading.meter.building.name }}</strong>
+                            {% if reading.meter.building.street %}
+                            <br><small class="text-muted">{{ reading.meter.building.street }} {{ reading.meter.building.street_number }}</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <strong>{{ reading.meter.meter_number }}</strong>
+                                {% if reading.meter.parent_meter_id %}
+                                <span class="badge bg-warning ms-2" title="Unterzähler">U</span>
+                                {% else %}
+                                <span class="badge bg-success ms-2" title="Hauptzähler">H</span>
+                                {% endif %}
+                            </div>
+                            {% if reading.meter.description %}
+                            <br><small class="text-muted">{{ reading.meter.description }}</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if reading.meter.parent_meter_id %}
+                                <span class="badge bg-warning">Unterzähler</span>
+                                {% if reading.meter.parent_meter %}
+                                    <br><small class="text-muted">von {{ reading.meter.parent_meter.meter_number }}</small>
+                                {% endif %}
+                            {% else %}
+                                <span class="badge bg-success">Hauptzähler</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if reading.meter.apartment %}
+                                {{ reading.meter.apartment.apartment_number }}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-info">{{ reading.meter.meter_type.category|title }}</span>
+                        </td>
+                        <td>
+                            <strong>{{ reading.reading_value }}</strong>
+                        </td>
+                        <td>{{ reading.meter.meter_type.unit }}</td>
+                        <td>
+                            <span class="badge {% if reading.reading_type == 'actual' %}bg-success{% elif reading.reading_type == 'estimated' %}bg-warning{% else %}bg-secondary{% endif %}">
+                                {{ reading.reading_type }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('meter_readings.reading_detail', reading_id=reading.id) }}" 
+                                   class="btn btn-outline-primary" title="Details anzeigen">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Paginierung Navigation -->
+        {% if pagination.pages > 1 %}
+        <div class="card-footer bg-light">
+            <nav aria-label="Seitennavigation">
+                <ul class="pagination pagination-sm justify-content-center mb-0">
+                    {# Zurück-Button #}
+                    <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+                        {% if pagination.has_prev %}
+                            {% set prev_url = url_for('meter_readings.meter_readings_list', page=pagination.prev_num, per_page=current_filters.per_page, **base_url_args) %}
+                        {% else %}
+                            {% set prev_url = '#' %}
+                        {% endif %}
+                        <a class="page-link" href="{{ prev_url }}" aria-label="Vorherige">
+                            <i class="bi bi-chevron-left"></i>
+                        </a>
+                    </li>
+                    
+                    {# Seitenzahlen #}
+                    {% for page_num in pagination.iter_pages(left_edge=2, left_current=2, right_current=3, right_edge=2) %}
+                        {% if page_num %}
+                            {% set page_url = url_for('meter_readings.meter_readings_list', page=page_num, per_page=current_filters.per_page, **base_url_args) %}
+                            <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
+                                <a class="page-link" href="{{ page_url }}">
+                                    {{ page_num }}
+                                </a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link">…</span>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {# Weiter-Button #}
+                    <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+                        {% if pagination.has_next %}
+                            {% set next_url = url_for('meter_readings.meter_readings_list', page=pagination.next_num, per_page=current_filters.per_page, **base_url_args) %}
+                        {% else %}
+                            {% set next_url = '#' %}
+                        {% endif %}
+                        <a class="page-link" href="{{ next_url }}" aria-label="Nächste">
+                            <i class="bi bi-chevron-right"></i>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+        
+        {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-speedometer2 display-1 text-muted"></i>
+            <h4 class="text-muted mt-3">Keine Zählerstände gefunden</h4>
+            <p class="text-muted">Passen Sie die Filtereinstellungen an oder erfassen Sie neue Zählerstände.</p>
+            <a href="{{ url_for('meter_readings.create_meter_reading') }}" class="btn btn-primary">
+                <i class="bi bi-plus-circle me-1"></i>Ersten Zählerstand erfassen
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.collapse-icon {
+    transition: transform 0.3s ease;
+}
+.collapsed .collapse-icon {
+    transform: rotate(180deg);
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Filter-Zustand in Session speichern
+    const filterCollapse = document.getElementById('filterCollapse');
+    const toggleBtn = document.querySelector('.toggle-filter-btn');
+    
+    if (filterCollapse && toggleBtn) {
+        filterCollapse.addEventListener('show.bs.collapse', function() {
+            // Filter wird geöffnet - Zustand in Session speichern
+            saveFilterState(false);
+            updateToggleIcon(false);
+        });
+        
+        filterCollapse.addEventListener('hide.bs.collapse', function() {
+            // Filter wird geschlossen - Zustand in Session speichern
+            saveFilterState(true);
+            updateToggleIcon(true);
+        });
+        
+        // Initialen Icon-Zustand setzen
+        updateToggleIcon({{ 'false' if not filter_collapsed else 'true' }});
+    }
+    
+    function saveFilterState(collapsed) {
+        // AJAX-Request zum Speichern des Filter-Zustands
+        fetch('{{ url_for("meter_readings.toggle_filter") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({collapsed: collapsed})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success) {
+                console.error('Fehler beim Speichern des Filter-Zustands:', data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Fehler beim Speichern des Filter-Zustands:', error);
+        });
+    }
+    
+    function updateToggleIcon(collapsed) {
+        const icon = toggleBtn.querySelector('.collapse-icon');
+        if (icon) {
+            if (collapsed) {
+                icon.className = 'bi bi-chevron-down collapse-icon';
+            } else {
+                icon.className = 'bi bi-chevron-up collapse-icon';
+            }
+        }
+    }
+});
+</script>
+{% endblock %}

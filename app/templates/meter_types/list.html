@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block title %}Zählertypen - MietAssistent{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h2 mb-0">
+        <i class="bi bi-tags text-primary me-2"></i>Zählertypen
+    </h1>
+    <a href="{{ url_for('meter_types.create_meter_type') }}" class="btn btn-primary">
+        <i class="bi bi-plus-circle me-1"></i>Neuer Zählertyp
+    </a>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body">
+        {% if meter_types %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>Name</th>
+                        <th>Kategorie</th>
+                        <th>Einheit</th>
+                        <th>Dezimalstellen</th>
+                        <th>Status</th>
+                        <th>Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for meter_type in meter_types %}
+                    <tr>
+                        <td>
+                            <strong>{{ meter_type.name }}</strong>
+                        </td>
+                        <td>
+                            <span class="badge bg-info">{{ meter_type.category }}</span>
+                        </td>
+                        <td>{{ meter_type.unit }}</td>
+                        <td>{{ meter_type.decimal_places }}</td>
+                        <td>
+                            {% if meter_type.is_active %}
+                                <span class="badge bg-success">Aktiv</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Inaktiv</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('meter_types.edit_meter_type', meter_type_id=meter_type.id) }}" 
+                                   class="btn btn-outline-primary" title="Bearbeiten">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <form method="POST" action="{{ url_for('meter_types.toggle_meter_type', meter_type_id=meter_type.id) }}" class="d-inline">
+                                    <button type="submit" class="btn btn-outline-warning" title="{% if meter_type.is_active %}Deaktivieren{% else %}Aktivieren{% endif %}">
+                                        <i class="bi bi-{% if meter_type.is_active %}pause{% else %}play{% endif %}"></i>
+                                    </button>
+                                </form>
+                                <form method="POST" action="{{ url_for('meter_types.delete_meter_type', meter_type_id=meter_type.id) }}" class="d-inline" onsubmit="return confirm('Sind Sie sicher, dass Sie diesen Zählertyp löschen möchten?');">
+                                    <button type="submit" class="btn btn-outline-danger" title="Löschen">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-tags display-1 text-muted"></i>
+            <h4 class="text-muted mt-3">Keine Zählertypen gefunden</h4>
+            <p class="text-muted">Legen Sie Ihren ersten Zählertyp an.</p>
+            <a href="{{ url_for('meter_types.create_meter_type') }}" class="btn btn-primary">
+                <i class="bi bi-plus-circle me-1"></i>Ersten Zählertyp anlegen
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

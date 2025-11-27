@@ -1,0 +1,788 @@
+{% extends "base.html" %}
+
+{% block title %}Vertragsinhalt bearbeiten - {{ contract.contract_number }} - MietAssistent{% endblock %}
+
+{% block extra_css %}
+<!-- Summernote CSS -->
+<link href="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-lite.min.css" rel="stylesheet">
+<style>
+.clause-item {
+    border-left: 4px solid #0d6efd;
+    transition: all 0.3s ease;
+}
+.clause-item.sortable-ghost {
+    opacity: 0.5;
+    background-color: #f8f9fa;
+}
+.sort-handle {
+    cursor: move;
+    color: #6c757d;
+}
+.sort-mode .sort-handle {
+    color: #0d6efd;
+}
+.clause-content {
+    white-space: pre-line;
+}
+.note-editor .note-toolbar {
+    background-color: #f8f9fa;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h2 mb-0">
+        <i class="bi bi-file-text text-primary me-2"></i>Vertragsinhalt bearbeiten
+    </h1>
+    <div class="btn-group">
+        <a href="{{ url_for('contracts.contract_detail', contract_id=contract.id) }}" 
+           class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Zurück zum Vertrag
+        </a>
+        <button id="toggleSortMode" class="btn btn-outline-warning">
+            <i class="bi bi-arrows-move me-1"></i>Reihenfolge anpassen
+        </button>
+    </div>
+</div>
+
+<!-- Alert Bereich für Meldungen -->
+<div id="alertContainer"></div>
+
+{% if not clauses_by_category %}
+<div class="alert alert-warning">
+    <i class="bi bi-exclamation-triangle me-2"></i>
+    <strong>Klausel-Vorlagen nicht verfügbar</strong>
+    <p class="mb-0 mt-2">Die Standard-Klauselvorlagen konnten nicht geladen werden.</p>
+</div>
+{% endif %}
+
+<div class="row">
+    <div class="col-lg-4">
+        <!-- Standard-Klauseln -->
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-layers me-2"></i>Standard-Klauseln
+                </h5>
+                <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#newClauseModal">
+                    <i class="bi bi-plus-lg"></i> Neu
+                </button>
+            </div>
+            <div class="card-body p-0">
+                {% if clauses_by_category %}
+                <div class="list-group list-group-flush">
+                    {% for category, clauses in clauses_by_category.items() %}
+                    <div class="list-group-item">
+                        <h6 class="mb-2">{{ category|title }}</h6>
+                        {% for clause in clauses %}
+                        <div class="form-check mb-2">
+                            <input class="form-check-input clause-checkbox" 
+                                type="checkbox" 
+                                value="{{ clause.id }}"
+                                id="clause_{{ clause.id }}"
+                                data-clause-name="{{ clause.title if clause.title else clause.name }}"
+                                {% if clause.is_mandatory %}checked disabled title="Diese Klausel ist Pflicht und bereits enthalten"{% endif %}>
+                            <label class="form-check-label small" for="clause_{{ clause.id }}">
+                                {{ clause.title if clause.title else clause.name }}
+                                {% if clause.is_mandatory %}
+                                <span class="badge bg-warning ms-1">Pflicht</span>
+                                {% endif %}
+                            </label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-3">
+                    <i class="bi bi-layers display-4 text-muted"></i>
+                    <p class="text-muted mt-2">Keine Klausel-Vorlagen verfügbar</p>
+                </div>
+                {% endif %}
+            </div>
+            {% if clauses_by_category %}
+            <div class="card-footer">
+                <button id="addSelectedClauses" class="btn btn-primary w-100">
+                    <i class="bi bi-plus-circle me-1"></i>Ausgewählte Klauseln hinzufügen
+                </button>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Info-Box -->
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-light">
+                <h6 class="card-title mb-0">
+                    <i class="bi bi-info-circle me-2"></i>Information
+                </h6>
+            </div>
+            <div class="card-body">
+                <p class="small text-muted">
+                    <strong>Reihenfolge anpassen:</strong> Aktivieren Sie den "Reihenfolge anpassen"-Modus, um Klauseln per Drag & Drop zu sortieren.
+                </p>
+                <p class="small text-muted">
+                    <strong>Textformatierung:</strong> Verwenden Sie den Editor für fette Schrift, Kursiv, Listen und mehr.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-8">
+        <!-- Aktuelle Vertragsklauseln -->
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Vertragsinhalt</h5>
+                <span class="badge bg-primary">{{ contract.clauses|length if contract.clauses else 0 }} Klauseln</span>
+            </div>
+            <div class="card-body">
+                <div id="clausesContainer" class="sortable-container">
+                    {% if contract.clauses %}
+                        {% for clause in contract.clauses|sort(attribute='sort_order') %}
+                        <div class="clause-item card mb-3 position-relative" data-clause-id="{{ clause.id }}">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <div class="d-flex align-items-center">
+                                    <i class="bi bi-grip-vertical sort-handle me-2" style="display: none;"></i>
+                                    <h6 class="mb-0 clause-title">
+                                        {% if clause.custom_title %}
+                                            {{ clause.custom_title }}
+                                        {% elif clause.template and clause.template.title %}
+                                            {{ clause.template.title }}
+                                        {% else %}
+                                            Klausel {{ loop.index + 4 }}
+                                        {% endif %}
+                                    </h6>
+                                </div>
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-outline-primary edit-clause" 
+                                            data-clause-id="{{ clause.id }}">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    {% if not clause.template or not clause.template.is_mandatory %}
+                                    <button class="btn btn-outline-danger delete-clause" 
+                                            data-clause-id="{{ clause.id }}">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="clause-content">
+                                    {% if clause.custom_content %}
+                                        {{ clause.custom_content|safe }}
+                                    {% elif clause.template and clause.template.content %}
+                                        {{ clause.template.content|safe }}
+                                    {% else %}
+                                        Kein Inhalt
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="bi bi-file-text display-4 text-muted"></i>
+                        <p class="text-muted mt-3">Noch keine Klauseln hinzugefügt</p>
+                        <p class="text-muted small">Wählen Sie Standard-Klauseln aus oder erstellen Sie eigene Inhalte.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Neue Klausel Modal -->
+<div class="modal fade" id="newClauseModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Neue Klausel erstellen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="newClauseForm">
+                    <div class="mb-3">
+                        <label for="newClauseTitle" class="form-label">Titel *</label>
+                        <input type="text" class="form-control" id="newClauseTitle" required 
+                               placeholder="z.B. § 5 Haustierregelung">
+                    </div>
+                    <div class="mb-3">
+                        <label for="newClauseContent" class="form-label">Inhalt *</label>
+                        <textarea class="form-control" id="newClauseContent" rows="10" required></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn btn-primary" id="createNewClause">Klausel erstellen</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Klausel Editor Modal -->
+<div class="modal fade" id="clauseEditorModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Klausel bearbeiten</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="clauseEditorForm">
+                    <input type="hidden" id="editClauseId">
+                    <div class="mb-3">
+                        <label for="editClauseTitle" class="form-label">Titel *</label>
+                        <input type="text" class="form-control" id="editClauseTitle" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editClauseContent" class="form-label">Inhalt *</label>
+                        <textarea class="form-control" id="editClauseContent" rows="10" required></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn btn-primary" id="saveClauseChanges">Speichern</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Summernote JS -->
+<script src="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-lite.min.js"></script>
+<!-- SortableJS -->
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+
+<script>
+// Global variables
+let sortable = null;
+let isSortMode = false;
+
+// Alert function
+function showAlert(message, type) {
+    const alertContainer = document.getElementById('alertContainer');
+    const alert = document.createElement('div');
+    alert.className = `alert alert-${type} alert-dismissible fade show`;
+    alert.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    alertContainer.appendChild(alert);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (alert.parentNode) {
+            alert.remove();
+        }
+    }, 5000);
+}
+
+// Summernote Initialisierung
+$(document).ready(function() {
+    $('#newClauseContent').summernote({
+        height: 300,
+        toolbar: [
+            ['style', ['style']],
+            ['font', ['bold', 'italic', 'underline', 'clear']],
+            ['fontname', ['fontname']],
+            ['color', ['color']],
+            ['para', ['ul', 'ol', 'paragraph']],
+            ['table', ['table']],
+            ['insert', ['link', 'picture', 'video']],
+            ['view', ['fullscreen', 'codeview', 'help']]
+        ],
+        styleTags: ['p', 'blockquote', 'pre', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6']
+    });
+    
+    $('#editClauseContent').summernote({
+        height: 300,
+        toolbar: [
+            ['style', ['style']],
+            ['font', ['bold', 'italic', 'underline', 'clear']],
+            ['fontname', ['fontname']],
+            ['color', ['color']],
+            ['para', ['ul', 'ol', 'paragraph']],
+            ['table', ['table']],
+            ['insert', ['link', 'picture', 'video']],
+            ['view', ['fullscreen', 'codeview', 'help']]
+        ],
+        styleTags: ['p', 'blockquote', 'pre', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6']
+    });
+
+    // Initialize all event listeners
+    initializeEventListeners();
+});
+
+function initializeEventListeners() {
+    // Sortier-Modus umschalten
+    const toggleSortBtn = document.getElementById('toggleSortMode');
+    if (toggleSortBtn) {
+        toggleSortBtn.addEventListener('click', toggleSortMode);
+    }
+
+    // Neue Klausel erstellen
+    const createNewClauseBtn = document.getElementById('createNewClause');
+    if (createNewClauseBtn) {
+        createNewClauseBtn.addEventListener('click', createNewClause);
+    }
+
+    // Ausgewählte Klauseln hinzufügen
+    const addSelectedClausesBtn = document.getElementById('addSelectedClauses');
+    if (addSelectedClausesBtn) {
+        addSelectedClausesBtn.addEventListener('click', addSelectedClauses);
+    }
+
+    // Klauseländerungen speichern
+    const saveClauseChangesBtn = document.getElementById('saveClauseChanges');
+    if (saveClauseChangesBtn) {
+        saveClauseChangesBtn.addEventListener('click', saveClauseChanges);
+    }
+
+    // Klausel bearbeiten Buttons
+    document.querySelectorAll('.edit-clause').forEach(btn => {
+        btn.addEventListener('click', function() {
+            editClause(this.dataset.clauseId);
+        });
+    });
+
+    // Klausel löschen Buttons
+    document.querySelectorAll('.delete-clause').forEach(btn => {
+        btn.addEventListener('click', function() {
+            deleteClause(this.dataset.clauseId);
+        });
+    });
+}
+
+function toggleSortMode() {
+    isSortMode = !isSortMode;
+    const container = document.getElementById('clausesContainer');
+    
+    if (isSortMode) {
+        // Sortier-Modus aktivieren
+        container.classList.add('sort-mode');
+        document.querySelectorAll('.sort-handle').forEach(handle => {
+            handle.style.display = 'block';
+        });
+        
+        // SortableJS initialisieren
+        sortable = new Sortable(container, {
+            handle: '.sort-handle',
+            animation: 150,
+            ghostClass: 'sortable-ghost',
+            onEnd: function(evt) {
+                updateClauseOrder();
+            }
+        });
+        
+        this.classList.remove('btn-outline-warning');
+        this.classList.add('btn-warning');
+        this.innerHTML = '<i class="bi bi-check-circle me-1"></i>Reihenfolge speichern';
+        
+        showAlert('Sortier-Modus aktiviert. Ziehen Sie Klauseln per Drag & Drop in die gewünschte Reihenfolge.', 'info');
+    } else {
+        // Sortier-Modus deaktivieren
+        container.classList.remove('sort-mode');
+        document.querySelectorAll('.sort-handle').forEach(handle => {
+            handle.style.display = 'none';
+        });
+        
+        if (sortable) {
+            sortable.destroy();
+        }
+        
+        this.classList.remove('btn-warning');
+        this.classList.add('btn-outline-warning');
+        this.innerHTML = '<i class="bi bi-arrows-move me-1"></i>Reihenfolge anpassen';
+        
+        showAlert('Sortier-Modus deaktiviert.', 'info');
+    }
+}
+
+function updateClauseOrder() {
+    const clauseOrder = [];
+    document.querySelectorAll('.clause-item').forEach((item, index) => {
+        clauseOrder.push({
+            clause_id: item.dataset.clauseId,
+            sort_order: index
+        });
+    });
+    
+    fetch(`/contract-editor/{{ contract.id }}/update-clause-order`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            clause_order: clauseOrder
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            updateParagraphNumbers();
+            showAlert('Reihenfolge erfolgreich aktualisiert.', 'success');
+        } else {
+            showAlert('Fehler: ' + data.error, 'danger');
+        }
+    })
+    .catch(error => {
+        showAlert('Netzwerkfehler: ' + error, 'danger');
+    });
+}
+
+function updateParagraphNumbers() {
+    document.querySelectorAll('.clause-title').forEach((titleElement, index) => {
+        const currentText = titleElement.textContent;
+        const newText = currentText.replace(/§ \d+/, `§ ${index + 5}`);
+        titleElement.textContent = newText;
+    });
+}
+
+// Korrigierte createNewClause Funktion
+function createNewClause() {
+    console.log('🚀 createNewClause aufgerufen');
+    
+    const title = document.getElementById('newClauseTitle').value;
+    const content = $('#newClauseContent').summernote('code');
+    
+    console.log('📝 Titel:', title);
+    console.log('📝 Inhalt Länge:', content.length);
+    
+    if (!title || !content || content === '<p><br></p>' || content.trim() === '') {
+        showAlert('Bitte füllen Sie Titel und Inhalt aus.', 'warning');
+        return;
+    }
+    
+    fetch(`/contract-editor/{{ contract.id }}/create-custom-clause`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            title: title,
+            content: content
+        })
+    })
+    .then(response => {
+        console.log('📨 Response Status:', response.status);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('✅ Server Response:', data);
+        if (data.success) {
+            // Modal schließen
+            const modal = bootstrap.Modal.getInstance(document.getElementById('newClauseModal'));
+            if (modal) modal.hide();
+            
+            // ✅ KORREKTUR: Summernote korrekt zurücksetzen
+            $('#newClauseContent').summernote('code', '');
+            document.getElementById('newClauseForm').reset();
+            
+            showAlert('Klausel erfolgreich erstellt!', 'success');
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showAlert('Fehler: ' + (data.error || 'Unbekannter Fehler'), 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('❌ Fetch Error:', error);
+        showAlert('Netzwerkfehler: ' + error.message, 'danger');
+    });
+}
+
+// Korrigierte addSelectedClauses Funktion
+function addSelectedClauses() {
+    console.log('🚀 addSelectedClauses aufgerufen');
+    
+    const selectedClauses = Array.from(document.querySelectorAll('.clause-checkbox:checked:not(:disabled)'))
+        .map(cb => ({
+            id: cb.value,
+            name: cb.dataset.clauseName
+        }));
+    
+    console.log('✅ Auswählbare Klauseln:', selectedClauses);
+    
+    // ✅ KORREKTUR: Bessere Fehlermeldung für Pflichtklauseln
+    if (selectedClauses.length === 0) {
+        const mandatoryClauses = document.querySelectorAll('.clause-checkbox:checked:disabled');
+        if (mandatoryClauses.length > 0) {
+            showAlert('Alle ausgewählten Klauseln sind Pflicht und bereits enthalten. Bitte wählen Sie eine nicht-Pflicht Klausel aus.', 'warning');
+        } else {
+            showAlert('Bitte wählen Sie mindestens eine Klausel aus.', 'warning');
+        }
+        return;
+    }
+    
+    // Vereinfacht: Nur die erste ausgewählte Klausel hinzufügen
+    const firstClause = selectedClauses[0];
+    console.log('📝 Füge Klausel hinzu:', firstClause);
+    
+    fetch(`/contract-editor/{{ contract.id }}/add-clause`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            clause_template_id: firstClause.id
+        })
+    })
+    .then(response => {
+        console.log('📨 Response Status:', response.status);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('✅ Server Response:', data);
+        if (data.success) {
+            showAlert('Klausel erfolgreich hinzugefügt!', 'success');
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showAlert('Fehler: ' + (data.error || 'Unbekannter Fehler'), 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('❌ Fetch Error:', error);
+        showAlert('Netzwerkfehler: ' + error.message, 'danger');
+    });
+}
+
+// Vereinfachte addClauses Funktion
+function addClauses(clauses) {
+    console.log('Adding clauses:', clauses);
+    
+    let successCount = 0;
+    let errorCount = 0;
+    
+    // Klauseln nacheinander hinzufügen
+    const addNextClause = (index) => {
+        if (index >= clauses.length) {
+            // Alle Klauseln verarbeitet
+            if (errorCount === 0) {
+                showAlert(`${successCount} Klausel(n) erfolgreich hinzugefügt.`, 'success');
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                showAlert(`${successCount} Klausel(n) hinzugefügt, ${errorCount} Fehler.`, 'warning');
+                setTimeout(() => window.location.reload(), 1500);
+            }
+            return;
+        }
+        
+        const clause = clauses[index];
+        console.log(`Adding clause ${index + 1}/${clauses.length}:`, clause);
+        
+        fetch(`/contract-editor/{{ contract.id }}/add-clause`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                clause_template_id: clause.id
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => { throw new Error(err.error || 'Network error') });
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log(`Clause ${clause.id} response:`, data);
+            if (data.success) {
+                successCount++;
+            } else {
+                errorCount++;
+                console.error(`Failed to add clause ${clause.id}:`, data.error);
+            }
+            // Nächste Klausel verarbeiten
+            addNextClause(index + 1);
+        })
+        .catch(error => {
+            console.error(`Error adding clause ${clause.id}:`, error);
+            errorCount++;
+            // Trotzdem nächste Klausel versuchen
+            addNextClause(index + 1);
+        });
+    };
+    
+    // Erste Klausel starten
+    addNextClause(0);
+}
+
+function editClause(clauseId) {
+    const clauseItem = document.querySelector(`.clause-item[data-clause-id="${clauseId}"]`);
+    if (!clauseItem) {
+        showAlert('Klausel nicht gefunden.', 'danger');
+        return;
+    }
+    
+    const title = clauseItem.querySelector('.clause-title').textContent.trim();
+    const contentElement = clauseItem.querySelector('.clause-content');
+    const content = contentElement.innerHTML;
+    
+    document.getElementById('editClauseId').value = clauseId;
+    document.getElementById('editClauseTitle').value = title;
+    $('#editClauseContent').summernote('code', content);
+    
+    new bootstrap.Modal(document.getElementById('clauseEditorModal')).show();
+}
+
+function saveClauseChanges() {
+    const clauseId = document.getElementById('editClauseId').value;
+    const title = document.getElementById('editClauseTitle').value;
+    const content = $('#editClauseContent').summernote('code');
+    
+    if (!title || !content) {
+        showAlert('Bitte füllen Sie Titel und Inhalt aus.', 'warning');
+        return;
+    }
+    
+    fetch(`/contract-editor/{{ contract.id }}/clauses/${clauseId}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            custom_title: title,
+            custom_content: content
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const modal = bootstrap.Modal.getInstance(document.getElementById('clauseEditorModal'));
+            if (modal) {
+                modal.hide();
+            }
+            showAlert('Klausel erfolgreich aktualisiert!', 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showAlert('Fehler: ' + data.error, 'danger');
+        }
+    })
+    .catch(error => {
+        showAlert('Netzwerkfehler: ' + error, 'danger');
+    });
+}
+
+function deleteClause(clauseId) {
+    if (!confirm('Möchten Sie diese Klausel wirklich löschen?')) {
+        return;
+    }
+    
+    fetch(`/contract-editor/{{ contract.id }}/clauses/${clauseId}`, {
+        method: 'DELETE'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('Klausel erfolgreich gelöscht!', 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showAlert('Fehler: ' + data.error, 'danger');
+        }
+    })
+    .catch(error => {
+        showAlert('Netzwerkfehler: ' + error, 'danger');
+    });
+}
+</script>
+{% endblock %}
+
+<!-- Test-Button im Debug-Bereich hinzufügen -->
+<div class="mt-4 border-top pt-3">
+    <div class="card border-info">
+        <div class="card-header bg-info text-white">
+            <h6 class="mb-0">
+                <i class="bi bi-wrench me-2"></i>Test-Bereich
+            </h6>
+        </div>
+        <div class="card-body">
+            <div class="btn-group">
+                <button class="btn btn-outline-primary btn-sm" onclick="createTestClauses()">
+                    <i class="bi bi-plus-circle me-1"></i>2 Test-Klauseln erstellen
+                </button>
+                <button class="btn btn-outline-warning btn-sm" onclick="testSortMode()">
+                    <i class="bi bi-arrows-move me-1"></i>Sortierung testen
+                </button>
+                <button class="btn btn-outline-success btn-sm" onclick="clearTestClauses()">
+                    <i class="bi bi-trash me-1"></i>Test-Klauseln löschen
+                </button>
+            </div>
+            <div id="testOutput" class="mt-2 small"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Test-Funktionen
+function createTestClauses() {
+    fetch(`/contract-editor/{{ contract.id }}/create-test-clauses`)
+    .then(response => response.json())
+    .then(data => {
+        const output = document.getElementById('testOutput');
+        if (data.success) {
+            output.innerHTML = `<div class="text-success">✅ ${data.message}</div>`;
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            output.innerHTML = `<div class="text-danger">❌ Fehler: ${data.error}</div>`;
+        }
+    })
+    .catch(error => {
+        document.getElementById('testOutput').innerHTML = 
+            `<div class="text-danger">❌ Netzwerkfehler: ${error}</div>`;
+    });
+}
+
+function testSortMode() {
+    const toggleBtn = document.getElementById('toggleSortMode');
+    if (toggleBtn) {
+        toggleBtn.click();
+        
+        const output = document.getElementById('testOutput');
+        const clauseCount = document.querySelectorAll('.clause-item').length;
+        
+        if (clauseCount >= 2) {
+            output.innerHTML = `<div class="text-info">🔄 Sortier-Modus aktiviert. Ziehen Sie jetzt die Klauseln per Drag & Drop!</div>`;
+        } else {
+            output.innerHTML = `<div class="text-warning">⚠️ Bitte erstellen Sie zuerst Test-Klauseln (mind. 2 benötigt)</div>`;
+        }
+    }
+}
+
+function clearTestClauses() {
+    if (!confirm('Möchten Sie alle Test-Klauseln löschen?')) return;
+    
+    // Lösche alle Klauseln die "Test-Klausel" im Titel haben
+    const testClauses = document.querySelectorAll('.clause-item');
+    let deletedCount = 0;
+    
+    testClauses.forEach(clause => {
+        const title = clause.querySelector('.clause-title').textContent;
+        if (title.includes('Test-Klausel')) {
+            const clauseId = clause.dataset.clauseId;
+            fetch(`/contract-editor/{{ contract.id }}/clauses/${clauseId}`, {
+                method: 'DELETE'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) deletedCount++;
+            });
+        }
+    });
+    
+    const output = document.getElementById('testOutput');
+    output.innerHTML = `<div class="text-info">🗑️ Test-Klauseln werden gelöscht...</div>`;
+    setTimeout(() => {
+        location.reload();
+    }, 1500);
+}
+</script>

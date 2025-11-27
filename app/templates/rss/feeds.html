@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block title %}RSS Feeds verwalten - MietAssistent{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h2 mb-0">
+        <i class="bi bi-gear text-primary"></i> RSS Feeds verwalten
+    </h1>
+    <div class="btn-group">
+        <a href="{{ url_for('rss.rss_dashboard') }}" class="btn btn-outline-primary">
+            <i class="bi bi-arrow-left"></i> Zurück
+        </a>
+        <a href="{{ url_for('rss.add_feed') }}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Neuen Feed hinzufügen
+        </a>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body">
+        {% if feeds %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>URL</th>
+                        <th>Kategorie</th>
+                        <th>Aktiv</th>
+                        <th>Letzte Aktualisierung</th>
+                        <th>Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for feed in feeds %}
+                    <tr>
+                        <td>{{ feed.name }}</td>
+                        <td>
+                            <a href="{{ feed.url }}" target="_blank" class="text-truncate d-inline-block" style="max-width: 200px;">
+                                {{ feed.url }}
+                            </a>
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary">{{ feed.category }}</span>
+                        </td>
+                        <td>
+                            {% if feed.is_active %}
+                            <span class="badge bg-success">Aktiv</span>
+                            {% else %}
+                            <span class="badge bg-danger">Inaktiv</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if feed.last_updated %}
+                            {{ feed.last_updated.strftime('%d.%m.%Y %H:%M') }}
+                            {% else %}
+                            <span class="text-muted">Noch nie</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <form method="POST" action="{{ url_for('rss.update_feed', feed_id=feed.id) }}" class="d-inline">
+                                    <button type="submit" class="btn btn-outline-primary btn-sm" title="Feed aktualisieren">
+                                        <i class="bi bi-arrow-clockwise"></i>
+                                    </button>
+                                </form>
+                                <a href="{{ url_for('rss.edit_feed', feed_id=feed.id) }}" class="btn btn-outline-secondary btn-sm" title="Bearbeiten">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <form method="POST" action="{{ url_for('rss.delete_feed', feed_id=feed.id) }}" class="d-inline" onsubmit="return confirm('Sind Sie sicher, dass Sie diesen Feed löschen möchten?');">
+                                    <button type="submit" class="btn btn-outline-danger btn-sm" title="Löschen">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-4">
+            <i class="bi bi-rss display-4 text-muted"></i>
+            <p class="text-muted mt-3">Noch keine Feeds konfiguriert</p>
+            <a href="{{ url_for('rss.add_feed') }}" class="btn btn-primary">Ersten Feed hinzufügen</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

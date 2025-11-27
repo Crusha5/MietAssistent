@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Zählertyp bearbeiten - MietAssistent{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-tags me-2"></i>Zählertyp bearbeiten: {{ meter_type.name }}
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('meter_types.edit_meter_type', meter_type_id=meter_type.id) }}">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="name" class="form-label">Name *</label>
+                            <input type="text" class="form-control" id="name" name="name" value="{{ meter_type.name }}" required>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="category" class="form-label">Kategorie *</label>
+                            <select class="form-select" id="category" name="category" required>
+                                <option value="">Bitte auswählen...</option>
+                                <option value="electricity" {% if meter_type.category == 'electricity' %}selected{% endif %}>Strom</option>
+                                <option value="water" {% if meter_type.category == 'water' %}selected{% endif %}>Wasser</option>
+                                <option value="gas" {% if meter_type.category == 'gas' %}selected{% endif %}>Gas</option>
+                                <option value="heating" {% if meter_type.category == 'heating' %}selected{% endif %}>Heizung</option>
+                                <option value="renewable" {% if meter_type.category == 'renewable' %}selected{% endif %}>Erneuerbare</option>
+                                <option value="special" {% if meter_type.category == 'special' %}selected{% endif %}>Sonderzähler</option>
+                                <option value="other" {% if meter_type.category == 'other' %}selected{% endif %}>Sonstiges</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="unit" class="form-label">Einheit *</label>
+                            <input type="text" class="form-control" id="unit" name="unit" value="{{ meter_type.unit }}" required>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="decimal_places" class="form-label">Dezimalstellen</label>
+                            <input type="number" class="form-control" id="decimal_places" name="decimal_places" value="{{ meter_type.decimal_places }}" min="0" max="4">
+                        </div>
+
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="is_active" name="is_active" value="true" {% if meter_type.is_active %}checked{% endif %}>
+                                <label class="form-check-label" for="is_active">
+                                    Zählertyp ist aktiv
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle me-1"></i>Änderungen speichern
+                        </button>
+                        <a href="{{ url_for('meter_types.meter_types_list') }}" class="btn btn-outline-secondary">Abbrechen</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

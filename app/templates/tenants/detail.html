@@ -1,0 +1,584 @@
+{% extends "base.html" %}
+
+{% block title %}{{ tenant.first_name }} {{ tenant.last_name }} - Mieterdetails{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header mit Aktionen -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">
+            <i class="bi bi-person me-2"></i>{{ tenant.first_name }} {{ tenant.last_name }}
+            {% if tenant.is_primary_tenant %}
+                <span class="badge bg-primary ms-2">Hauptmieter</span>
+            {% endif %}
+        </h1>
+        <div>
+            <a href="{{ url_for('tenants.tenants_list') }}" class="btn btn-secondary">
+                <i class="bi bi-arrow-left me-2"></i>Zurück
+            </a>
+            <a href="{{ url_for('tenants.edit_tenant', tenant_id=tenant.id) }}" class="btn btn-primary">
+                <i class="bi bi-pencil me-2"></i>Bearbeiten
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Persönliche Informationen -->
+        <div class="col-lg-6">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="bi bi-person-vcard me-2"></i>Persönliche Informationen
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <strong>Vorname:</strong><br>
+                            {{ tenant.first_name }}
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Nachname:</strong><br>
+                            {{ tenant.last_name }}
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <strong>E-Mail:</strong><br>
+                            {{ tenant.email or 'Nicht angegeben' }}
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Telefon:</strong><br>
+                            {{ tenant.phone or 'Nicht angegeben' }}
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <strong>Geburtsdatum:</strong><br>
+                            {% if tenant.date_of_birth %}
+                                {{ tenant.date_of_birth.strftime('%d.%m.%Y') }}
+                            {% else %}
+                                <span class="text-muted">Nicht angegeben</span>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Status:</strong><br>
+                            {% if tenant.status == 'moved_out' %}
+                                <span class="badge bg-secondary">Ausgezogen</span>
+                            {% else %}
+                                <span class="badge bg-success">Aktiv</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mietinformationen -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="bi bi-house me-2"></i>Mietinformationen
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% if tenant.apartment %}
+                    <div class="row">
+                        <div class="col-md-6">
+                            <strong>Wohnung:</strong><br>
+                            <a href="{{ url_for('apartments.apartment_detail', apartment_id=tenant.apartment.id) }}" 
+                               class="text-decoration-none">
+                                {{ tenant.apartment.apartment_number }}
+                            </a>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Gebäude:</strong><br>
+                            {% if tenant.apartment.building %}
+                                <a href="{{ url_for('buildings.building_detail', building_id=tenant.apartment.building.id) }}" 
+                                   class="text-decoration-none">
+                                    {{ tenant.apartment.building.name }}
+                                </a>
+                            {% else %}
+                                <span class="text-muted">Nicht zugewiesen</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <strong>Einzugsdatum:</strong><br>
+                            {{ tenant.move_in_date.strftime('%d.%m.%Y') }}
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Auszugsdatum:</strong><br>
+                            {% if tenant.move_out_date %}
+                                {{ tenant.move_out_date.strftime('%d.%m.%Y') }}
+                            {% else %}
+                                <span class="text-muted">Aktiv</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <strong>Nettomiete:</strong><br>
+                            {% if tenant.apartment.rent_net %}
+                                {{ "%.2f"|format(tenant.apartment.rent_net) }} €
+                            {% else %}
+                                <span class="text-muted">Nicht festgelegt</span>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Nebenkosten:</strong><br>
+                            {% if tenant.apartment.rent_additional %}
+                                {{ "%.2f"|format(tenant.apartment.rent_additional) }} €
+                            {% else %}
+                                <span class="text-muted">Nicht festgelegt</span>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4">
+                            <strong>Kaution:</strong><br>
+                            {% if tenant.apartment.deposit %}
+                                {{ "%.2f"|format(tenant.apartment.deposit) }} €
+                            {% else %}
+                                <span class="text-muted">Nicht festgelegt</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% else %}
+                    <p class="text-muted">Keine Wohnung zugewiesen</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Rechte Spalte -->
+        <div class="col-lg-6">
+            {% if latest_contract %}
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 fw-bold text-primary">Vertrag</h6>
+                    <a href="{{ url_for('contracts.contract_detail', contract_id=latest_contract.id) }}" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-box-arrow-up-right"></i>
+                    </a>
+                </div>
+                <div class="card-body">
+                    <p class="mb-1"><strong>Nummer:</strong> {{ latest_contract.contract_number }}</p>
+                    <p class="mb-1"><strong>Zeitraum:</strong> {{ latest_contract.start_date.strftime('%d.%m.%Y') }} {% if latest_contract.end_date %}– {{ latest_contract.end_date.strftime('%d.%m.%Y') }}{% else %}(unbefristet){% endif %}</p>
+                    <p class="mb-1"><strong>Nettomiete:</strong> {{ "%.2f"|format(latest_contract.rent_net) }} €</p>
+                    <p class="mb-0"><strong>Nebenkosten:</strong> {{ "%.2f"|format(latest_contract.rent_additional) }} €</p>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Mitmieter -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="bi bi-people me-2"></i>Mitmieter
+                    </h6>
+                    {% if tenant.apartment and not tenant.move_out_date %}
+                    <a href="{{ url_for('tenants.create_tenant') }}?apartment_id={{ tenant.apartment.id }}" 
+                       class="btn btn-primary btn-sm">
+                        <i class="bi bi-person-plus me-1"></i>Mitmieter hinzufügen
+                    </a>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% if tenant.apartment %}
+                        {% set co_tenants = tenant.apartment.tenants|rejectattr('id', 'equalto', tenant.id)|list %}
+                        {% if co_tenants %}
+                            <div class="list-group">
+                                {% for co_tenant in co_tenants %}
+                                <a href="{{ url_for('tenants.tenant_detail', tenant_id=co_tenant.id) }}" 
+                                   class="list-group-item list-group-item-action">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <h6 class="mb-1">{{ co_tenant.first_name }} {{ co_tenant.last_name }}</h6>
+                                        {% if co_tenant.is_primary_tenant %}
+                                            <small class="text-primary">Hauptmieter</small>
+                                        {% endif %}
+                                    </div>
+                                    <p class="mb-1 small">
+                                        {% if co_tenant.email %}{{ co_tenant.email }}{% endif %}
+                                        {% if co_tenant.phone %} | {{ co_tenant.phone }}{% endif %}
+                                    </p>
+                                    <small class="text-muted">Eingezogen: {{ co_tenant.move_in_date.strftime('%d.%m.%Y') }}</small>
+                                </a>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p class="text-muted">Keine weiteren Mitmieter</p>
+                        {% endif %}
+                    {% else %}
+                        <p class="text-muted">Keine Wohnung zugewiesen</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Zählerstände -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="bi bi-speedometer me-2"></i>Zählerstände
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% if tenant.apartment and tenant.apartment.meters %}
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Zähler</th>
+                                        <th>Letzter Stand</th>
+                                        <th>Datum</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for meter in tenant.apartment.meters %}
+                                    <tr>
+                                        <td>
+                                            <small>
+                                                <strong>{{ meter.meter_type.name }}</strong><br>
+                                                <span class="text-muted">{{ meter.meter_number }}</span>
+                                            </small>
+                                        </td>
+                                        <td>
+                                            {% if meter.readings %}
+                                                {{ "%.2f"|format(meter.readings[-1].reading_value) }} {{ meter.meter_type.unit }}
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if meter.readings %}
+                                                <small>{{ meter.readings[-1].reading_date.strftime('%d.%m.%Y') }}</small>
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        <a href="{{ url_for('meter_readings.meter_readings_list') }}?apartment_id={{ tenant.apartment.id }}" 
+                           class="btn btn-outline-primary btn-sm">
+                            Alle Zählerstände anzeigen
+                        </a>
+                    {% else %}
+                        <p class="text-muted">Keine Zähler zugewiesen</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Notfallkontakt -->
+            {% if tenant.emergency_contact_name or tenant.emergency_contact_phone %}
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">
+                        <i class="bi bi-telephone me-2"></i>Notfallkontakt
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <p>
+                        <strong>{{ tenant.emergency_contact_name }}</strong><br>
+                        {{ tenant.emergency_contact_phone }}
+                    </p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Dokumente -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center">
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="bi bi-files me-2"></i>Dokumente
+            </h6>
+            <a href="{{ url_for('documents.upload_document') }}?tenant_id={{ tenant.id }}" 
+               class="btn btn-primary btn-sm">
+                <i class="bi bi-upload me-1"></i>Dokument hochladen
+            </a>
+        </div>
+        <div class="card-body">
+            {% set tenant_documents = documents | selectattr('documentable_id', 'equalto', tenant.id) | list %}
+            {% if tenant_documents %}
+                <div class="row">
+                    {% for document in tenant_documents %}
+                    <div class="col-md-4 mb-3">
+                        <div class="card document-card">
+                            <div class="card-body">
+                                <div class="d-flex align-items-center">
+                                    <i class="bi bi-file-earmark-text text-primary me-3 fs-4"></i>
+                                    <div class="flex-grow-1">
+                                        <h6 class="card-title mb-1">{{ document.file_name }}</h6>
+                                        <p class="card-text small text-muted mb-1">
+                                            {{ document.document_type }} • {{ document.file_size // 1024 }} KB
+                                        </p>
+                                        <small class="text-muted">{{ document.created_at.strftime('%d.%m.%Y') }}</small>
+                                    </div>
+                                </div>
+                                <div class="mt-3">
+                                    <a href="{{ url_for('documents.download_document', document_id=document.id) }}" 
+                                       class="btn btn-outline-primary btn-sm me-1">
+                                        <i class="bi bi-download"></i>
+                                    </a>
+                                    <form method="POST" 
+                                          action="{{ url_for('documents.delete_document', document_id=document.id) }}" 
+                                          class="d-inline"
+                                          onsubmit="return confirm('Dokument wirklich löschen?')">
+                                        <button type="submit" class="btn btn-outline-danger btn-sm">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="text-muted">Noch keine Dokumente vorhanden</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Änderungshistorie -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center">
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="bi bi-clock-history me-2"></i>Änderungshistorie
+            </h6>
+            <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#auditLogModal">
+                <i class="bi bi-list-ul me-1"></i>Vollständige Historie
+            </button>
+        </div>
+        <div class="card-body">
+            {% if audit_logs %}
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover">
+                        <thead>
+                            <tr>
+                                <th>Datum & Uhrzeit</th>
+                                <th>Aktion</th>
+                                <th>Beschreibung</th>
+                                <th>Geändert von</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in audit_logs[:5] %}
+                            <tr>
+                                <td>
+                                    <small>{{ log.created_at.strftime('%d.%m.%Y %H:%M') }}</small>
+                                </td>
+                                <td>
+                                    {% if log.action == 'created' %}
+                                        <span class="badge bg-success">Erstellt</span>
+                                    {% elif log.action == 'updated' %}
+                                        <span class="badge bg-primary">Geändert</span>
+                                    {% elif log.action == 'moved_out' %}
+                                        <span class="badge bg-warning">Auszug</span>
+                                    {% elif log.action == 'reactivated' %}
+                                        <span class="badge bg-info">Reaktiviert</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ log.action }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <small>
+                                        {% if log.field_changed %}
+                                            {{ log.field_changed }}: 
+                                            {% if log.old_value %}
+                                                <del class="text-danger">{{ log.old_value|truncate(30) }}</del> →
+                                            {% endif %}
+                                            <span class="text-success">{{ log.new_value|truncate(30) }}</span>
+                                        {% else %}
+                                            {{ log.description }}
+                                        {% endif %}
+                                    </small>
+                                </td>
+                                    <td>
+                                        <small>
+                                            {% if log.user %}
+                                                {{ log.user.first_name }} {{ log.user.last_name }}
+                                            {% elif log.user_id %}
+                                                Benutzer #{{ log.user_id }}
+                                            {% else %}
+                                                System
+                                            {% endif %}
+                                        </small>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% if audit_logs|length > 5 %}
+                    <p class="text-muted text-center mb-0">
+                        <small>Zeige die 5 neuesten Einträge von {{ audit_logs|length }} insgesamt</small>
+                    </p>
+                {% endif %}
+            {% else %}
+                <p class="text-muted text-center">Noch keine Änderungen protokolliert</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Aktionen -->
+    <div class="card shadow">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Aktionen</h6>
+        </div>
+        <div class="card-body">
+            <div class="btn-group">
+                {% if tenant.status == 'active' %}
+                <form method="POST" action="{{ url_for('tenants.move_out_tenant', tenant_id=tenant.id) }}" 
+                      class="d-inline" onsubmit="return confirm('Möchten Sie den Auszug dieses Mieters wirklich erfassen?')">
+                    <button type="submit" class="btn btn-warning">
+                        <i class="bi bi-box-arrow-right me-1"></i>Auszug erfassen
+                    </button>
+                </form>
+                {% else %}
+                <form method="POST" action="{{ url_for('tenants.reactivate_tenant', tenant_id=tenant.id) }}" 
+                      class="d-inline" onsubmit="return confirm('Möchten Sie diesen Mieter wirklich reaktivieren?')">
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-arrow-clockwise me-1"></i>Reaktivieren
+                    </button>
+                </form>
+                {% endif %}
+                
+                <a href="{{ url_for('tenants.edit_tenant', tenant_id=tenant.id) }}" class="btn btn-primary ms-2">
+                    <i class="bi bi-pencil me-1"></i>Daten bearbeiten
+                </a>
+                
+                <a href="{{ url_for('tenants.tenants_list') }}" class="btn btn-secondary ms-2">
+                    <i class="bi bi-list me-1"></i>Zurück zur Liste
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal für vollständige Historie -->
+<div class="modal fade" id="auditLogModal" tabindex="-1" aria-labelledby="auditLogModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="auditLogModalLabel">
+                    <i class="bi bi-clock-history me-2"></i>Vollständige Änderungshistorie
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                {% if audit_logs %}
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Datum & Uhrzeit</th>
+                                <th>Aktion</th>
+                                <th>Feld</th>
+                                <th>Alter Wert</th>
+                                <th>Neuer Wert</th>
+                                <th>Geändert von</th>
+                                <th>IP</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in audit_logs %}
+                            <tr>
+                                <td>
+                                    <small>{{ log.created_at.strftime('%d.%m.%Y %H:%M') }}</small>
+                                </td>
+                                <td>
+                                    {% if log.action == 'created' %}
+                                        <span class="badge bg-success">Erstellt</span>
+                                    {% elif log.action == 'updated' %}
+                                        <span class="badge bg-primary">Geändert</span>
+                                    {% elif log.action == 'moved_out' %}
+                                        <span class="badge bg-warning">Auszug</span>
+                                    {% elif log.action == 'reactivated' %}
+                                        <span class="badge bg-info">Reaktiviert</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ log.action }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <small>{{ log.field_changed or '-' }}</small>
+                                </td>
+                                <td>
+                                    <small class="text-danger">
+                                        {% if log.old_value %}
+                                            {{ log.old_value|truncate(50) }}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </small>
+                                </td>
+                                <td>
+                                    <small class="text-success">
+                                        {% if log.new_value %}
+                                            {{ log.new_value|truncate(50) }}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </small>
+                                <td>
+                                    <td>
+                                        <small>
+                                            {% if log.user %}
+                                                {{ log.user.first_name }} {{ log.user.last_name }}
+                                            {% elif log.user_id %}
+                                                Benutzer #{{ log.user_id }}
+                                            {% else %}
+                                                System
+                                            {% endif %}
+                                        </small>
+                                    </td>
+                                <td>
+                                    <small class="text-muted">{{ log.ip_address or '-' }}</small>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted text-center">Noch keine Änderungen protokolliert</p>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Schließen</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.document-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    border: 1px solid #e3e6f0;
+}
+.document-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.audit-log-item {
+    border-left: 4px solid #dee2e6;
+    padding-left: 1rem;
+    margin-bottom: 1rem;
+}
+
+.audit-log-item.created { border-left-color: #198754; }
+.audit-log-item.updated { border-left-color: #0d6efd; }
+.audit-log-item.moved_out { border-left-color: #ffc107; }
+.audit-log-item.reactivated { border-left-color: #0dcaf0; }
+
+.audit-log-badge {
+    font-size: 0.7em;
+}
+</style>
+{% endblock %}

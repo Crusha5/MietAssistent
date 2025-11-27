@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+
+{% block title %}RSS Einträge - MietAssistent{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h2 mb-0">
+        <i class="bi bi-list-ul text-primary"></i> Alle RSS Einträge
+    </h1>
+    <div class="btn-group">
+        <a href="{{ url_for('rss.rss_dashboard') }}" class="btn btn-outline-primary">
+            <i class="bi bi-arrow-left"></i> Zurück
+        </a>
+        <form method="POST" action="{{ url_for('rss.mark_all_read') }}" class="d-inline">
+            <button type="submit" class="btn btn-outline-success">
+                <i class="bi bi-check-all"></i> Alle lesen
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Filter -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('rss.rss_items') }}" class="row g-3">
+            <div class="col-md-4">
+                <label for="feed_id" class="form-label">Feed</label>
+                <select name="feed_id" id="feed_id" class="form-select">
+                    <option value="all" {% if selected_feed == 'all' %}selected{% endif %}>Alle Feeds</option>
+                    {% for feed in feeds %}
+                    <option value="{{ feed.id }}" {% if selected_feed == feed.id %}selected{% endif %}>
+                        {{ feed.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label for="category" class="form-label">Kategorie</label>
+                <select name="category" id="category" class="form-select">
+                    <option value="all" {% if selected_category == 'all' %}selected{% endif %}>Alle Kategorien</option>
+                    <option value="mietrecht" {% if selected_category == 'mietrecht' %}selected{% endif %}>Mietrecht</option>
+                    <option value="immobilien" {% if selected_category == 'immobilien' %}selected{% endif %}>Immobilien</option>
+                    <option value="recht" {% if selected_category == 'recht' %}selected{% endif %}>Recht</option>
+                    <option value="news" {% if selected_category == 'news' %}selected{% endif %}>News</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label"> </label>
+                <div class="form-check mt-2">
+                    <input class="form-check-input" type="checkbox" name="show_read" id="show_read" 
+                           {% if show_read %}checked{% endif %}>
+                    <label class="form-check-label" for="show_read">
+                        Gelesene anzeigen
+                    </label>
+                </div>
+            </div>
+            <div class="col-12">
+                <button type="submit" class="btn btn-primary">Filter anwenden</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Items Liste -->
+<div class="card border-0 shadow-sm">
+    <div class="card-body">
+        {% if items %}
+        <div class="list-group list-group-flush">
+            {% for item in items %}
+            <div class="list-group-item px-0">
+                <div class="d-flex w-100 justify-content-between align-items-start mb-2">
+                    <h6 class="mb-1">
+                        <a href="{{ item.link }}" target="_blank" class="text-decoration-none">
+                            {{ item.title }}
+                        </a>
+                        {% if not item.is_read %}
+                        <span class="badge bg-primary ms-2">Neu</span>
+                        {% endif %}
+                        {% if item.is_starred %}
+                        <span class="badge bg-warning ms-1"><i class="bi bi-star-fill"></i></span>
+                        {% endif %}
+                    </h6>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-secondary btn-sm toggle-star" 
+                                data-item-id="{{ item.id }}"
+                                title="{% if item.is_starred %}Favorit entfernen{% else %}Als Favorit markieren{% endif %}">
+                            <i class="bi {% if item.is_starred %}bi-star-fill text-warning{% else %}bi-star{% endif %}"></i>
+                        </button>
+                        {% if not item.is_read %}
+                        <button class="btn btn-outline-primary btn-sm mark-read" 
+                                data-item-id="{{ item.id }}"
+                                title="Als gelesen markieren">
+                            <i class="bi bi-check"></i>
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+                {% if item.image_url %}
+                <div class="mb-2">
+                    <img src="{{ item.image_url }}" alt="Vorschaubild" style="max-height:180px;max-width:100%;object-fit:cover;" class="rounded border">
+                </div>
+                {% endif %}
+                <p class="mb-1 text-muted small">{{ item.description|striptags|truncate(300) }}</p>
+                <div class="d-flex justify-content-between align-items-center mt-2">
+                    <small class="text-muted">
+                        <i class="bi bi-{{ item.feed.category }}"></i> {{ item.feed.name }}
+                    </small>
+                    <small class="text-muted">{{ item.published_date.strftime('%d.%m.%Y %H:%M') }}</small>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-4">
+            <i class="bi bi-inbox display-4 text-muted"></i>
+            <p class="text-muted mt-3">Keine Einträge gefunden</p>
+            <a href="{{ url_for('rss.rss_dashboard') }}" class="btn btn-primary">Zurück zum Dashboard</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Als gelesen markieren
+    document.querySelectorAll('.mark-read').forEach(button => {
+        button.addEventListener('click', function() {
+            const itemId = this.dataset.itemId;
+            fetch(`/rss/items/${itemId}/mark-read`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            }).then(response => response.json())
+              .then(data => {
+                  if (data.success) {
+                      this.closest('.list-group-item').querySelector('.badge')?.remove();
+                      this.remove();
+                  }
+              });
+        });
+    });
+
+    // Favorit umschalten
+    document.querySelectorAll('.toggle-star').forEach(button => {
+        button.addEventListener('click', function() {
+            const itemId = this.dataset.itemId;
+            const icon = this.querySelector('i');
+            
+            fetch(`/rss/items/${itemId}/toggle-star`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            }).then(response => response.json())
+              .then(data => {
+                  if (data.success) {
+                      if (data.is_starred) {
+                          icon.classList.remove('bi-star');
+                          icon.classList.add('bi-star-fill', 'text-warning');
+                      } else {
+                          icon.classList.remove('bi-star-fill', 'text-warning');
+                          icon.classList.add('bi-star');
+                      }
+                  }
+              });
+        });
+    });
+});
+</script>
+{% endblock %}

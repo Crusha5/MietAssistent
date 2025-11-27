@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+
+{% block title %}Klausel-Template bearbeiten - MietAssistent{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-lite.min.css" rel="stylesheet">
+<style>
+    .subclause-card {
+        border: 1px dashed var(--bs-border-color);
+        border-radius: 0.5rem;
+        padding: 1rem;
+        margin-bottom: 0.75rem;
+        background: color-mix(in srgb, var(--bs-body-bg) 92%, transparent);
+    }
+    .subclause-children {
+        border-left: 2px dashed var(--bs-border-color);
+        margin-left: 1.25rem;
+        padding-left: 1rem;
+    }
+    .sticky-actions {
+        position: sticky;
+        bottom: 0;
+        background: var(--bs-body-bg);
+        padding-top: 0.5rem;
+    }
+    [data-bs-theme="dark"] .note-editor,
+    body[data-bs-theme="dark"] .note-editor {
+        background: #0f172a;
+        color: #e2e8f0;
+        border-color: #1f2937;
+    }
+    [data-bs-theme="dark"] .note-editor .note-editing-area .note-editable,
+    body[data-bs-theme="dark"] .note-editor .note-editing-area .note-editable {
+        background: #0f172a;
+        color: #e2e8f0;
+    }
+    [data-bs-theme="dark"] .note-editor .note-toolbar,
+    body[data-bs-theme="dark"] .note-editor .note-toolbar {
+        background: #111827;
+        border-bottom-color: #1f2937;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h2 mb-0">
+        <i class="bi bi-pencil-square text-primary me-2"></i>Klausel-Template bearbeiten
+    </h1>
+    <a href="{{ url_for('contract_templates.templates_list') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i>Zurück
+    </a>
+</div>
+
+<form method="POST">
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Interner Name</label>
+                            <input type="text" class="form-control" name="name" value="{{ template.name }}" required>
+                            <div class="form-text">Nur intern sichtbar.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Kategorie</label>
+                            <input type="text" class="form-control" name="category" value="{{ template.category }}">
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label">Titel (ohne §)</label>
+                            <input type="text" class="form-control" name="title" value="{{ template.title }}" required>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Sortierung</label>
+                            <input type="number" class="form-control" name="sort_order" value="{{ template.sort_order or 0 }}">
+                        </div>
+                        <div class="col-md-2 d-flex align-items-center">
+                            <div class="form-check mt-4">
+                                <input class="form-check-input" type="checkbox" name="is_mandatory" id="is_mandatory" {% if template.is_mandatory %}checked{% endif %}>
+                                <label class="form-check-label" for="is_mandatory">Pflicht</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <label class="form-label">Inhalt</label>
+                        <textarea id="content" class="form-control" name="content" rows="12" required>{{ template.content }}</textarea>
+                        <div class="form-text">Der Titel erhält im PDF automatisch das §-Präfix.</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center bg-light">
+                    <div>
+                        <h5 class="mb-0">Unterklauseln</h5>
+                        <small class="text-muted">Passe Unterpunkte mit Platzhalter-Nummern wie <strong>x.1</strong> oder <strong>x.1.2</strong> an.</small>
+                    </div>
+                    <button class="btn btn-outline-primary btn-sm" type="button" id="addSubclause">
+                        <i class="bi bi-plus-circle me-1"></i>Unterklausel
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="subclauseList"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body d-flex flex-column justify-content-between">
+                    <div class="mb-3">
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" name="is_active" id="is_active" {% if template.is_active %}checked{% endif %}>
+                            <label class="form-check-label" for="is_active">Im Tree-Editor anzeigen</label>
+                        </div>
+                        <p class="text-muted small mb-0">Unterklauseln werden mit <strong>x</strong> als Platzhalter nummeriert und beim Einfügen automatisch ersetzt.</p>
+                    </div>
+                    <div class="sticky-actions text-end">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save me-1"></i>Speichern
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <input type="hidden" name="subclauses" id="subclausesField">
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.6.4/dist/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-lite.min.js"></script>
+<script>
+    const subclauses = {{ subclauses | tojson | safe }} || [];
+
+    function syncHiddenField() {
+        document.getElementById('subclausesField').value = JSON.stringify(subclauses);
+    }
+
+    function destroySubclauseEditors(container) {
+        $(container).find('.subclause-editor').each(function() {
+            if ($(this).data('summernote')) {
+                $(this).summernote('destroy');
+            }
+        });
+    }
+
+    function initSubclauseEditor(textarea, item) {
+        $(textarea).summernote({
+            height: 180,
+            toolbar: [
+                ['style', ['style']],
+                ['font', ['bold', 'italic', 'underline', 'clear']],
+                ['para', ['ul', 'ol', 'paragraph']],
+                ['insert', ['link']],
+                ['view', ['codeview']]
+            ],
+            callbacks: {
+                onChange: function(contents) {
+                    item.content = contents;
+                    syncHiddenField();
+                }
+            }
+        });
+    }
+
+    function renderSubclauses(scope = subclauses, prefix = 'x') {
+        const container = document.getElementById('subclauseList');
+        destroySubclauseEditors(container);
+        container.innerHTML = '';
+
+        scope.forEach((item, idx) => {
+            const number = `${prefix}.${idx + 1}`;
+            container.appendChild(renderSubclauseCard(item, number, scope, () => renderSubclauses()));
+        });
+
+        syncHiddenField();
+    }
+
+    function renderSubclauseCard(item, number, scope, rerender) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'subclause-card';
+
+        wrapper.innerHTML = `
+            <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap">
+                <div class="flex-grow-1">
+                    <label class="form-label mb-1">${number}</label>
+                    <input type="text" class="form-control form-control-sm mb-2" placeholder="Titel der Unterklausel" value="${item.title || ''}">
+                    <textarea class="form-control subclause-editor" rows="3" placeholder="Inhalt oder Ergänzungen">${item.content || ''}</textarea>
+                </div>
+                <div class="d-flex flex-column gap-2 align-items-end">
+                    <button type="button" class="btn btn-outline-primary btn-sm add-child"><i class="bi bi-plus-lg me-1"></i>Unterpunkt</button>
+                    <button type="button" class="btn btn-outline-danger btn-sm remove-item"><i class="bi bi-trash"></i></button>
+                </div>
+            </div>
+            <div class="subclause-children mt-3" ${item.children && item.children.length ? '' : 'style="display:none;"'}></div>
+        `;
+
+        const titleInput = wrapper.querySelector('input');
+        const contentArea = wrapper.querySelector('textarea');
+        const childrenContainer = wrapper.querySelector('.subclause-children');
+
+        titleInput.addEventListener('input', (e) => { item.title = e.target.value; syncHiddenField(); });
+
+        wrapper.querySelector('.remove-item').addEventListener('click', () => {
+            const index = scope.indexOf(item);
+            if (index >= 0) {
+                scope.splice(index, 1);
+                rerender();
+            }
+        });
+
+        wrapper.querySelector('.add-child').addEventListener('click', () => {
+            item.children = item.children || [];
+            item.children.push({ title: '', content: '', children: [] });
+            childrenContainer.style.display = '';
+            rerender();
+        });
+
+        if (item.children && item.children.length) {
+            childrenContainer.style.display = '';
+            item.children.forEach((child, childIdx) => {
+                const childNumber = `${number}.${childIdx + 1}`;
+                const childCard = renderSubclauseCard(child, childNumber, item.children, rerender);
+                childrenContainer.appendChild(childCard);
+            });
+        }
+
+        initSubclauseEditor(contentArea, item);
+        return wrapper;
+    }
+
+    document.getElementById('addSubclause').addEventListener('click', () => {
+        subclauses.push({ title: '', content: '', children: [] });
+        renderSubclauses();
+    });
+
+    $(document).ready(function() {
+        $('#content').summernote({
+            height: 260,
+            toolbar: [
+                ['style', ['bold', 'italic', 'underline', 'clear']],
+                ['para', ['ul', 'ol', 'paragraph']],
+                ['insert', ['link']],
+                ['view', ['codeview']]
+            ]
+        });
+    });
+
+    renderSubclauses();
+</script>
+{% endblock %}

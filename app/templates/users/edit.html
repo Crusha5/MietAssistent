@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Benutzer bearbeiten' if user else 'Benutzer anlegen' }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8 col-xl-7">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-person-plus me-2"></i>{{ 'Benutzer bearbeiten' if user else 'Benutzer anlegen' }}</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Nutzername *</label>
+                            <input type="text" name="username" class="form-control" value="{{ user.username if user else '' }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Rolle *</label>
+                            <select name="role" class="form-select">
+                                <option value="user" {% if user and user.role=='user' %}selected{% endif %}>User</option>
+                                <option value="admin" {% if user and user.role=='admin' %}selected{% endif %}>Admin</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Vorname</label>
+                            <input type="text" name="first_name" class="form-control" value="{{ user.first_name if user else '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Nachname</label>
+                            <input type="text" name="last_name" class="form-control" value="{{ user.last_name if user else '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">E-Mail</label>
+                            <input type="email" name="email" class="form-control" value="{{ user.email if user else '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Telefon</label>
+                            <input type="text" name="phone" class="form-control" value="{{ user.phone if user else '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Vermieter-Zuordnung</label>
+                            <div class="input-group">
+                                <select name="landlord_id" id="user_landlord_select" class="form-select">
+                                    <option value="">Kein Vermieter</option>
+                                    {% for landlord in landlords %}
+                                        <option value="{{ landlord.id }}" {% if user and user.landlord_id == landlord.id %}selected{% endif %}>
+                                            {{ landlord.company_name or landlord.first_name ~ ' ' ~ landlord.last_name }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                                <button class="btn btn-outline-secondary" type="button" data-bs-toggle="modal" data-bs-target="#landlordModal">
+                                    <i class="bi bi-plus-lg"></i>
+                                </button>
+                            </div>
+                            <div class="form-text">Zugeordnete Benutzer sehen das Vermieter-Dashboard.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Passwort {% if user %}(leer lassen = unverändert){% endif %}</label>
+                            <input type="password" name="password" class="form-control" {% if not user %}required{% endif %}>
+                        </div>
+                        <div class="col-md-6 d-flex align-items-center">
+                            <div class="form-check mt-4">
+                                <input class="form-check-input" type="checkbox" value="1" id="is_active" name="is_active" {% if not user or user.is_active %}checked{% endif %}>
+                                <label class="form-check-label" for="is_active">
+                                    Konto aktiv
+                                </label>
+                                <div class="form-text">Nur Administratoren können Benutzer deaktivieren.</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 d-flex align-items-center">
+                            <div class="form-check mt-4">
+                                <input class="form-check-input" type="checkbox" value="1" id="is_landlord" name="is_landlord" {% if user and user.is_landlord %}checked{% endif %}>
+                                <label class="form-check-label" for="is_landlord">
+                                    Vermieter-Dashboard aktivieren
+                                </label>
+                                <div class="form-text">Erlaubt Zugriff auf Vermieter-Kennzahlen.</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-4 d-flex justify-content-between">
+                        <a href="{{ url_for('users.list_users') }}" class="btn btn-outline-secondary">Abbrechen</a>
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i>Speichern</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% include 'contracts/landlord_modal.html' %}
+
+{% block extra_js %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const landlordSelect = document.getElementById('user_landlord_select');
+
+    function renderOptions(list, selectedId) {
+        if (!landlordSelect) return;
+        landlordSelect.innerHTML = '<option value="">Kein Vermieter</option>';
+        list.forEach(item => {
+            const opt = document.createElement('option');
+            opt.value = item.id;
+            opt.textContent = item.name;
+            if (item.id === selectedId) opt.selected = true;
+            landlordSelect.appendChild(opt);
+        });
+    }
+
+    function loadLandlords(selectedId) {
+        fetch('/api/landlords')
+            .then(r => r.json())
+            .then(data => renderOptions(data, selectedId))
+            .catch(() => {});
+    }
+
+    const landlordForm = document.getElementById('landlordForm');
+    const saveLandlordBtn = document.getElementById('saveLandlord');
+    if (landlordForm && saveLandlordBtn) {
+        saveLandlordBtn.addEventListener('click', function() {
+            const payload = Object.fromEntries(new FormData(landlordForm).entries());
+            fetch('/api/landlords', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+                .then(resp => resp.json())
+                .then(data => {
+                    if (data.landlord_id) {
+                        const modalEl = document.getElementById('landlordModal');
+                        const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+                        modal.hide();
+                        landlordForm.reset();
+                        document.getElementById('type_natural').checked = true;
+                        document.getElementById('naturalPersonFields').style.display = 'block';
+                        document.getElementById('companyFields').style.display = 'none';
+                        loadLandlords(data.landlord_id);
+                    }
+                })
+                .catch(() => {});
+        });
+    }
+
+    loadLandlords(landlordSelect ? landlordSelect.value : '');
+});
+</script>
+{% endblock %}

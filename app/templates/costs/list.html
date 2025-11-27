@@ -1,0 +1,472 @@
+{% extends "base.html" %}
+
+{% block title %}Betriebskosten - MietAssistent{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* sorgt dafür, dass alle Formularfelder oberhalb des fixierten Footers erreichbar bleiben */
+    #costModal .modal-body {
+        max-height: calc(100vh - 220px);
+        overflow-y: auto;
+        padding-bottom: 6rem;
+    }
+
+    #costModal .modal-footer {
+        position: sticky;
+        bottom: 0;
+        z-index: 2;
+        background-color: var(--bs-body-bg);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h2 mb-0">
+        <i class="bi bi-cash-coin text-primary me-2"></i>Betriebskosten
+    </h1>
+    <div class="d-flex gap-2">
+        <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#categoryModal">
+            <i class="bi bi-tags"></i> Kategorien
+        </button>
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#costModal">
+            <i class="bi bi-plus-lg me-1"></i>Neue Kosten erfassen
+        </button>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body">
+        <div class="row g-3 align-items-end mb-3">
+            <div class="col-md-4">
+                <label class="form-label">Suche</label>
+                <input type="search" id="costSearch" class="form-control" placeholder="Beschreibung, Rechnung, Zeitraum">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Gebäude</label>
+                <select id="filterBuilding" class="form-select">
+                    <option value="">Alle</option>
+                    {% for b in buildings %}
+                    <option value="{{ b.id }}">{{ b.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Kategorie</label>
+                <select id="filterCategory" class="form-select">
+                    <option value="">Alle</option>
+                    {% for c in categories %}
+                    <option value="{{ c.id }}">{{ c.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Status</label>
+                <select id="filterStatus" class="form-select">
+                    <option value="active">Aktiv</option>
+                    <option value="archived">Archiviert</option>
+                    <option value="all">Alle</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-sm align-middle" id="costTable">
+                <thead class="table-light">
+                    <tr>
+                        <th>Beschreibung</th>
+                        <th>Zeitraum</th>
+                        <th>Betrag (brutto)</th>
+                        <th>Kategorie</th>
+                        <th>Gebäude</th>
+                        <th>Status</th>
+                        <th class="text-end">Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cost in costs %}
+                    <tr data-building="{{ cost.building_id }}" data-category="{{ cost.cost_category_id }}" data-status="{{ 'archived' if cost.is_archived else 'active' }}" data-text="{{ (cost.description or '') }} {{ (cost.invoice_number or '') }} {{ cost.vendor_invoice_number or '' }} {{ cost.system_invoice_number or '' }}">
+                        <td class="fw-semibold">{{ cost.description or '–' }}</td>
+                        <td>
+                            {{ cost.billing_period_start.strftime('%d.%m.%Y') if cost.billing_period_start else '–' }}
+                            –
+                            {% if cost.billing_period_end %}
+                                {{ cost.billing_period_end.strftime('%d.%m.%Y') }}
+                            {% elif cost.until_consumed %}
+                                bis Verbrauch
+                            {% else %}
+                                –
+                            {% endif %}
+                        </td>
+                        <td>{{ "%.2f"|format(cost.amount_gross or cost.amount_net or 0) }} €</td>
+                        <td>{{ cost.cost_category.name if cost.cost_category else '–' }}</td>
+                        <td>{{ cost.building.name if cost.building else '–' }}</td>
+                        <td>
+                            {% if cost.is_archived %}
+                                <span class="badge text-bg-secondary">Archiviert</span>
+                            {% else %}
+                                <span class="badge text-bg-success">Aktiv</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#costModal" data-mode="edit"
+                                    data-id="{{ cost.id }}"
+                                    data-description="{{ cost.description or '' }}"
+                                    data-building="{{ cost.building_id }}"
+                                    data-category="{{ cost.cost_category_id }}"
+                                    data-distribution="{{ cost.distribution_method }}"
+                                    data-net="{{ cost.amount_net }}"
+                                    data-tax="{{ cost.tax_rate }}"
+                                    data-gross="{{ cost.amount_gross }}"
+                                    data-system-number="{{ cost.system_invoice_number }}"
+                                    data-start="{{ cost.billing_period_start }}"
+                                    data-end="{{ cost.billing_period_end }}"
+                                    data-invoice-date="{{ cost.invoice_date }}"
+                                    data-invoice-number="{{ cost.invoice_number }}"
+                                    data-vendor-number="{{ cost.vendor_invoice_number }}"
+                                    data-document="{{ cost.document_path }}"
+                                    data-allocation="{{ cost.allocation_percent }}"
+                                    data-until-consumed="{{ 1 if cost.until_consumed else 0 }}">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                {% if cost.is_archived %}
+                                <form method="POST" action="{{ url_for('costs.restore_cost', cost_id=cost.id) }}" class="d-inline m-0">
+                                    <button class="btn btn-outline-success" type="submit" title="Reaktivieren">
+                                        <i class="bi bi-arrow-counterclockwise"></i>
+                                    </button>
+                                </form>
+                                {% else %}
+                                <form method="POST" action="{{ url_for('costs.archive_cost', cost_id=cost.id) }}" class="d-inline m-0">
+                                    <button class="btn btn-outline-secondary" type="submit" title="Archivieren">
+                                        <i class="bi bi-archive"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                                <form method="POST" action="{{ url_for('costs.delete_cost', cost_id=cost.id) }}" class="d-inline m-0" onsubmit="return confirm('Kostenposition wirklich löschen?');">
+                                    <button class="btn btn-outline-danger" type="submit">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted">Noch keine Kosten erfasst.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+<div class="modal fade" id="categoryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Kostenkategorien verwalten</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-3">
+                    <div class="col-lg-6">
+                        <form method="POST" action="{{ url_for('costs.add_category') }}">
+                            <h6 class="mb-3">Neue Kategorie anlegen</h6>
+                            <div class="mb-3">
+                                <label class="form-label">Name</label>
+                                <input type="text" name="name" class="form-control" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Beschreibung</label>
+                                <textarea name="description" class="form-control" rows="3"></textarea>
+                            </div>
+                            <div class="text-end">
+                                <button type="submit" class="btn btn-primary btn-sm">
+                                    <i class="bi bi-save me-1"></i>Speichern
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="col-lg-6">
+                        <h6 class="mb-3">Bestehende Kategorien</h6>
+                        <div class="list-group small">
+                            {% for cat in categories %}
+                            <div class="list-group-item">
+                                <form method="POST" action="{{ url_for('costs.update_category', category_id=cat.id) }}" class="row g-2 align-items-center">
+                                    <div class="col-md-5">
+                                        <input type="text" name="name" class="form-control form-control-sm" value="{{ cat.name }}" required>
+                                    </div>
+                                    <div class="col-md-5">
+                                        <input type="text" name="description" class="form-control form-control-sm" value="{{ cat.description or '' }}" placeholder="Beschreibung">
+                                    </div>
+                                    <div class="col-md-2 d-flex justify-content-end align-items-center gap-2">
+                                        <div class="form-check form-switch mb-0">
+                                            <input class="form-check-input" type="checkbox" name="is_active" {% if cat.is_active %}checked{% endif %}>
+                                        </div>
+                                        <button type="submit" class="btn btn-sm btn-outline-primary" title="Speichern">
+                                            <i class="bi bi-check"></i>
+                                        </button>
+                                    </div>
+                                </form>
+                                <form method="POST" action="{{ url_for('costs.delete_category', category_id=cat.id) }}" class="text-end mt-2" onsubmit="return confirm('Kategorie wirklich löschen?');">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                        <i class="bi bi-trash"></i> Löschen
+                                    </button>
+                                </form>
+                            </div>
+                            {% else %}
+                            <div class="list-group-item text-muted">Noch keine Kategorien vorhanden.</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Schließen</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="costModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <form method="POST" id="costForm" enctype="multipart/form-data">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="costModalTitle">Neue Kosten erfassen</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body pb-4">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label">Beschreibung</label>
+                            <input type="text" name="description" id="costDescription" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Gebäude</label>
+                            <select name="building_id" id="costBuilding" class="form-select" required>
+                                {% for b in buildings %}
+                                <option value="{{ b.id }}">{{ b.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Kategorie</label>
+                            <select name="cost_category_id" id="costCategory" class="form-select" required>
+                                {% for c in categories %}
+                                <option value="{{ c.id }}">{{ c.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Verteilung</label>
+                            <select name="distribution_method" id="costDistribution" class="form-select">
+                                <option value="by_area">Nach Fläche</option>
+                                <option value="by_usage">Nach Verbrauch</option>
+                                <option value="by_units">Nach Wohneinheit</option>
+                                <option value="manual">Manuell</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">System-Rechnungsnummer</label>
+                            <input type="text" name="system_invoice_number" id="system_invoice_number" class="form-control" value="{{ default_system_number }}" readonly>
+                            <div class="form-text">Eindeutige Kennung für Analysen</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Rechnungsnummer (Rechnungsersteller)</label>
+                            <input type="text" name="vendor_invoice_number" id="vendor_invoice_number" class="form-control" placeholder="z.B. RE-2024-015" autocomplete="off">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Netto</label>
+                            <input type="number" step="0.01" name="amount_net" id="amount_net" class="form-control" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Steuer %</label>
+                            <input type="number" step="0.01" name="tax_rate" id="tax_rate" class="form-control" value="0">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Brutto</label>
+                            <input type="number" step="0.01" name="amount_gross" id="amount_gross" class="form-control" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Beginn</label>
+                            <input type="date" name="billing_period_start" id="billing_period_start" class="form-control" required>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <label class="form-label mb-0">Ende</label>
+                                <div class="form-check form-switch mb-0">
+                                    <input class="form-check-input" type="checkbox" id="until_consumed" name="until_consumed">
+                                    <label class="form-check-label small" for="until_consumed">bis Verbrauch</label>
+                                </div>
+                            </div>
+                            <input type="date" name="billing_period_end" id="billing_period_end" class="form-control">
+                            <div class="form-text">Bei "bis Verbrauch" wird das Ende automatisch ermittelt.</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Rechnungsdatum</label>
+                            <input type="date" name="invoice_date" id="invoice_date" class="form-control">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Rechnungsnummer (intern)</label>
+                            <input type="text" name="invoice_number" id="invoice_number" class="form-control" placeholder="Interne Referenz">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Originalrechnung hochladen</label>
+                            <input type="file" name="invoice_document" id="invoice_document" class="form-control" accept=".pdf,.jpg,.jpeg,.png">
+                            <div class="form-text" id="existingDocumentHint" hidden></div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Prozentuale Umlage (optional)</label>
+                            <div class="input-group">
+                                <input type="number" step="0.01" name="allocation_percent" id="allocation_percent" class="form-control" placeholder="z.B. 15">
+                                <span class="input-group-text">%</span>
+                            </div>
+                            <div class="form-text">Verteile Modernisierungs- oder Kreditkosten anteilig pro Monat.</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer position-sticky bottom-0 bg-body border-top">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Schließen</button>
+                    <button class="btn btn-primary" type="submit">
+                        <i class="bi bi-save me-1"></i>Speichern
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const net = document.getElementById('amount_net');
+        const tax = document.getElementById('tax_rate');
+        const gross = document.getElementById('amount_gross');
+        const untilConsumed = document.getElementById('until_consumed');
+        const billingEnd = document.getElementById('billing_period_end');
+
+        function updateGross() {
+            const netVal = parseFloat(net.value || 0);
+            const taxVal = parseFloat(tax.value || 0);
+            gross.value = (netVal * (1 + taxVal / 100)).toFixed(2);
+        }
+
+        function updateNet() {
+            const grossVal = parseFloat(gross.value || 0);
+            const taxVal = parseFloat(tax.value || 0);
+            if (taxVal >= 0) {
+                net.value = (grossVal / (1 + taxVal / 100)).toFixed(2);
+            }
+        }
+
+        net?.addEventListener('input', updateGross);
+        tax?.addEventListener('input', () => { updateGross(); updateNet(); });
+        gross?.addEventListener('input', updateNet);
+
+        untilConsumed?.addEventListener('change', () => {
+            if (untilConsumed.checked) {
+                billingEnd.value = '';
+                billingEnd.setAttribute('disabled', 'disabled');
+            } else {
+                billingEnd.removeAttribute('disabled');
+            }
+        });
+
+        const costModal = document.getElementById('costModal');
+        const costForm = document.getElementById('costForm');
+        const title = document.getElementById('costModalTitle');
+        const fields = {
+            description: document.getElementById('costDescription'),
+            building: document.getElementById('costBuilding'),
+            category: document.getElementById('costCategory'),
+            distribution: document.getElementById('costDistribution'),
+            net: document.getElementById('amount_net'),
+            tax: document.getElementById('tax_rate'),
+            gross: document.getElementById('amount_gross'),
+            system: document.getElementById('system_invoice_number'),
+            vendorNumber: document.getElementById('vendor_invoice_number'),
+            start: document.getElementById('billing_period_start'),
+            end: document.getElementById('billing_period_end'),
+            invoiceDate: document.getElementById('invoice_date'),
+            invoiceNumber: document.getElementById('invoice_number'),
+            allocation: document.getElementById('allocation_percent'),
+            untilConsumed: document.getElementById('until_consumed')
+        };
+        const documentHint = document.getElementById('existingDocumentHint');
+
+        costModal?.addEventListener('show.bs.modal', event => {
+            const button = event.relatedTarget;
+            const isEdit = button?.getAttribute('data-mode') === 'edit';
+            costForm.action = isEdit ? `/costs/${button.getAttribute('data-id')}/update` : '/costs/';
+            title.textContent = isEdit ? 'Kosten bearbeiten' : 'Neue Kosten erfassen';
+
+            if (!isEdit) {
+                costForm.reset();
+                fields.system.value = '{{ default_system_number }}';
+                documentHint.hidden = true;
+                documentHint.textContent = '';
+            }
+
+            fields.description.value = button?.getAttribute('data-description') || '';
+            fields.building.value = button?.getAttribute('data-building') || (fields.building.options[0]?.value || '');
+            fields.category.value = button?.getAttribute('data-category') || (fields.category.options[0]?.value || '');
+            fields.distribution.value = button?.getAttribute('data-distribution') || 'manual';
+            fields.net.value = button?.getAttribute('data-net') || '';
+            fields.tax.value = button?.getAttribute('data-tax') || 0;
+            fields.gross.value = button?.getAttribute('data-gross') || '';
+            fields.system.value = button?.getAttribute('data-system-number') || '{{ default_system_number }}';
+            fields.vendorNumber.value = button?.getAttribute('data-vendor-number') || '';
+            fields.start.value = button?.getAttribute('data-start') || '';
+            fields.end.value = button?.getAttribute('data-end') || '';
+            fields.invoiceDate.value = button?.getAttribute('data-invoice-date') || '';
+            fields.invoiceNumber.value = button?.getAttribute('data-invoice-number') || '';
+            fields.allocation.value = button?.getAttribute('data-allocation') || '';
+            const consumedChecked = button?.getAttribute('data-until-consumed') === '1';
+            fields.untilConsumed.checked = consumedChecked;
+            fields.end.toggleAttribute('disabled', consumedChecked);
+
+            const existingDocument = button?.getAttribute('data-document');
+            if (existingDocument) {
+                const fileName = existingDocument.split('/').pop();
+                documentHint.hidden = false;
+                documentHint.textContent = `Aktueller Anhang: ${fileName}`;
+            } else {
+                documentHint.hidden = true;
+                documentHint.textContent = '';
+            }
+        });
+
+        const searchInput = document.getElementById('costSearch');
+        const filterBuilding = document.getElementById('filterBuilding');
+        const filterCategory = document.getElementById('filterCategory');
+        const filterStatus = document.getElementById('filterStatus');
+        const tableRows = document.querySelectorAll('#costTable tbody tr');
+
+        function applyFilters() {
+            const searchText = (searchInput.value || '').toLowerCase();
+            const building = filterBuilding.value;
+            const category = filterCategory.value;
+            const status = filterStatus.value;
+
+            tableRows.forEach(row => {
+                const rowStatus = row.dataset.status;
+                const matchesStatus = status === 'all' || status === rowStatus;
+                const matchesBuilding = !building || row.dataset.building === building;
+                const matchesCategory = !category || row.dataset.category === category;
+                const text = (row.dataset.text || '').toLowerCase();
+                const matchesSearch = !searchText || text.includes(searchText);
+                row.style.display = matchesStatus && matchesBuilding && matchesCategory && matchesSearch ? '' : 'none';
+            });
+        }
+
+        searchInput?.addEventListener('input', applyFilters);
+        filterBuilding?.addEventListener('change', applyFilters);
+        filterCategory?.addEventListener('change', applyFilters);
+        filterStatus?.addEventListener('change', applyFilters);
+        applyFilters();
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+
+{% block title %}Protokoll {{ protocol.protocol_type }} - MietAssistent{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h2 mb-0">
+        <i class="bi bi-clipboard-data text-primary me-2"></i>Protokoll
+    </h1>
+    <div class="btn-group">
+        {% if contract %}
+        <a href="{{ url_for('contracts.contract_detail', contract_id=contract.id) }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Zurück zum Vertrag
+        </a>
+        {% endif %}
+        <a href="{{ url_for('protocols.edit_protocol', protocol_id=protocol.id) }}" class="btn btn-outline-primary">
+            <i class="bi bi-pencil-square me-1"></i>Bearbeiten
+        </a>
+        <a href="{{ url_for('protocols.create_protocol', contract_id=contract.id if contract else None) }}" class="btn btn-primary">
+            <i class="bi bi-plus-circle me-1"></i>Neues Protokoll
+        </a>
+        <a href="{{ url_for('protocols.download_protocol_pdf', protocol_id=protocol.id) }}" class="btn btn-outline-primary">
+            <i class="bi bi-filetype-pdf me-1"></i>PDF herunterladen
+        </a>
+        <div class="btn-group">
+            <button class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                Exporte
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li><a class="dropdown-item" href="{{ url_for('protocols.export_protocols', fmt='csv') }}">CSV</a></li>
+                <li><a class="dropdown-item" href="{{ url_for('protocols.export_protocols', fmt='xlsx') }}">Excel</a></li>
+                <li><a class="dropdown-item" href="{{ url_for('protocols.export_protocols', fmt='pdf') }}">PDF Übersicht</a></li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+        <div>
+            <span class="badge bg-primary me-2">{{ protocol.protocol_date.strftime('%d.%m.%Y') }}</span>
+            <span class="badge bg-secondary">{{ protocol.protocol_type|replace('ueber','Über')|replace('rueck','Rück') }}</span>
+        </div>
+        {% if contract %}
+        <span class="text-muted">Vertrag {{ contract.contract_number }}</span>
+        {% endif %}
+    </div>
+    <div class="card-body">
+        <div class="mb-3">
+            <h6 class="text-muted">Zustand / Räume</h6>
+            <p class="mb-0">{{ protocol_data.condition_summary or '—' }}</p>
+        </div>
+        <div class="mb-3">
+            <h6 class="text-muted">Schlüssel</h6>
+            {% if protocol_keys %}
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Bezeichnung</th>
+                                <th>Ort</th>
+                                <th class="text-end">Anzahl</th>
+                                <th>Hinweise</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for key in protocol_keys %}
+                            <tr>
+                                <td class="fw-semibold">{{ key.title or 'Schlüssel ' ~ loop.index }}</td>
+                                <td>{{ key.location or '—' }}</td>
+                                <td class="text-end">{{ key.quantity or 1 }}</td>
+                                <td class="text-muted small">{{ key.description or '—' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="small text-muted mt-1">Gesamt: {{ protocol_data.key_count or protocol_keys|length }} Schlüssel</div>
+            {% else %}
+                <p class="mb-0 text-muted">Keine Schlüssel erfasst.</p>
+            {% endif %}
+        </div>
+        <div class="mb-3">
+            <h6 class="text-muted">Inventar / Ausstattung</h6>
+            {% if protocol_inventory %}
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Bezeichnung</th>
+                            <th>Raum</th>
+                            <th>Zustand</th>
+                            <th class="text-end">Anzahl</th>
+                            <th>Schäden / Notizen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in protocol_inventory %}
+                        <tr>
+                            <td class="fw-semibold">{{ item.name }}</td>
+                            <td>{{ item.location or '—' }}</td>
+                            <td>{{ item.condition or '—' }}</td>
+                            <td class="text-end">{{ item.quantity or 1 }}</td>
+                            <td>
+                                <div class="small text-danger">{{ item.damages or '' }}</div>
+                                <div class="small text-muted">{{ item.notes or '' }}</div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+                <p class="mb-0 text-muted">Keine Inventarposten erfasst.</p>
+            {% endif %}
+        </div>
+        <div class="mb-3">
+            <h6 class="text-muted">Zählerstände</h6>
+            {% if protocol_meter_entries %}
+            <div class="table-responsive">
+                <table class="table table-sm align-middle">
+                    <thead>
+                        <tr>
+                            <th>Typ</th>
+                            <th>Nummer</th>
+                            <th>Ort</th>
+                            <th>Wert</th>
+                            <th>Foto</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in protocol_meter_entries %}
+                        <tr>
+                            <td>{{ entry.type }} {{ '(' ~ entry.unit ~ ')' if entry.unit }}</td>
+                            <td>{{ entry.number }}</td>
+                            <td>{{ entry.location or '' }}</td>
+                            <td>{{ entry.reading_value or '' }}</td>
+                            <td>
+                                {% if entry.photo %}
+                                    <a href="{{ url_for('protocols.protocol_photo', filename=entry.photo) }}" class="badge bg-success text-decoration-none" target="_blank">Foto ansehen</a>
+                                {% else %}
+                                    <span class="text-muted"></span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+                <p class="mb-0 text-muted">Keine Zählerstände erfasst.</p>
+            {% endif %}
+        </div>
+        <div class="mb-3">
+            <h6 class="text-muted">Zählerstände / Hinweise</h6>
+            <p class="mb-0">{{ protocol_data.meter_notes or '—' }}</p>
+        </div>
+        <div class="mb-3">
+            <h6 class="text-muted">Raum- / Checklisten-Notizen</h6>
+            <p class="mb-0">{{ protocol_data.room_notes or '—' }}</p>
+        </div>
+        <div class="mb-3">
+            <h6 class="text-muted">Schäden / Beanstandungen</h6>
+            <p class="mb-0">{{ protocol_data.damages or '—' }}</p>
+        </div>
+        <div class="mb-3">
+            <h6 class="text-muted">Schlüsselanzahl</h6>
+            <p class="mb-0">{{ protocol_data.key_count or protocol_keys|length or '—' }}</p>
+        </div>
+        <div class="mb-3">
+            <h6 class="text-muted">Notizen</h6>
+            <p class="mb-0">{{ protocol_data.notes or '—' }}</p>
+        </div>
+        <div class="row g-3">
+            <div class="col-md-6">
+                <h6 class="text-muted">Übergabevermerke</h6>
+                <p class="mb-0">{{ protocol_data.handover_notes or '—' }}</p>
+            </div>
+            <div class="col-md-6">
+                <h6 class="text-muted">Nacharbeiten / To-dos</h6>
+                <p class="mb-0">{{ protocol_data.follow_up_notes or '—' }}</p>
+            </div>
+        </div>
+        {% if protocol_attachments %}
+        <div class="mb-3">
+            <h6 class="text-muted">Hochgeladene Dokumente</h6>
+            <ul class="mb-0">
+                {% for file in protocol_attachments %}
+                <li><a href="{{ url_for('protocols.protocol_photo', filename=file) }}" target="_blank">{{ file }}</a></li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

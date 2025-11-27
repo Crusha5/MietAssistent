@@ -1,0 +1,612 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Rental Management{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h2 mb-0">Dashboard</h1>
+    <div class="btn-group">
+        <button class="btn btn-outline-primary btn-sm" onclick="refreshStats()">
+            <i class="bi bi-arrow-clockwise"></i> Aktualisieren
+        </button>
+    </div>
+</div>
+
+{% if show_landlord_dashboard %}
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0"><i class="bi bi-speedometer2 text-primary me-2"></i>Vermieter-Cockpit</h5>
+    </div>
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-4 col-lg-3">
+                <div class="p-3 border rounded-3 h-100">
+                    <div class="text-muted small">Einnahmen / Monat</div>
+                    <div class="display-6 fw-semibold">{{ '%.2f'|format(landlord_dashboard.income) }} €</div>
+                </div>
+            </div>
+            <div class="col-md-4 col-lg-3">
+                <div class="p-3 border rounded-3 h-100">
+                    <div class="text-muted small">Ausgaben</div>
+                    <div class="display-6 fw-semibold text-danger">{{ '%.2f'|format(landlord_dashboard.expenses) }} €</div>
+                </div>
+            </div>
+            <div class="col-md-4 col-lg-3">
+                <div class="p-3 border rounded-3 h-100">
+                    <div class="text-muted small">Fällige Termine</div>
+                    <div class="display-6 fw-semibold">{{ landlord_dashboard.due_dates }}</div>
+                </div>
+            </div>
+            <div class="col-md-4 col-lg-3">
+                <div class="p-3 border rounded-3 h-100">
+                    <div class="text-muted small">Offene Protokolle</div>
+                    <div class="display-6 fw-semibold">{{ landlord_dashboard.open_protocols }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="row g-3 mt-2">
+            <div class="col-md-4">
+                <div class="p-3 border rounded-3 h-100">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-muted small">Belegverwaltungsstatus</div>
+                            <div class="h4 mb-0">{{ landlord_dashboard.document_status }}%</div>
+                        </div>
+                        <i class="bi bi-folder-check text-primary fs-3"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="p-3 border rounded-3 h-100">
+                    <div class="text-muted small">Heizkostenverbrauch (letzte Werte)</div>
+                    <div class="h4 mb-0">{{ landlord_dashboard.heat_usage or 0 }}</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="p-3 border rounded-3 h-100">
+                    <div class="text-muted small">Betriebskostenvergleich</div>
+                    {% if landlord_dashboard.building_costs %}
+                    <ul class="mb-0 small list-unstyled">
+                        {% for building, cost in landlord_dashboard.building_costs.items() %}
+                        <li class="d-flex justify-content-between border-bottom py-1">
+                            <span>Gebäude {{ building }}</span>
+                            <span class="fw-semibold">{{ '%.2f'|format(cost) }} €</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <div class="text-muted">Keine Kostendaten</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="row g-3 mt-3">
+            <div class="col-lg-6">
+                <h6 class="mb-2">Einnahme erfassen</h6>
+                <form class="row g-2" method="post" action="{{ url_for('main.add_income_entry') }}">
+                    <div class="col-md-4">
+                        <input type="number" step="0.01" name="amount" class="form-control" placeholder="Betrag" required>
+                    </div>
+                    <div class="col-md-4">
+                        <input type="date" name="received_on" class="form-control" value="{{ now.strftime('%Y-%m-%d') }}">
+                    </div>
+                    <div class="col-md-4">
+                        <select name="income_type" class="form-select">
+                            <option value="rent">Miete</option>
+                            <option value="service_charge">Nebenkosten</option>
+                            <option value="extra">Sonderzahlung</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <select name="contract_id" class="form-select" id="income_contract_select" required>
+                            <option value="">Vertrag wählen</option>
+                            {% for contract in contract_options %}
+                            <option value="{{ contract.id }}" data-tenant="{{ contract.tenant_id }}">
+                                {{ contract.label }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <select name="tenant_id" class="form-select" id="income_tenant_select">
+                            <option value="">Mieter (optional)</option>
+                            {% for tenant in tenants %}
+                            <option value="{{ tenant.id }}">{{ tenant.first_name }} {{ tenant.last_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <input type="text" name="notes" class="form-control" placeholder="Notiz (optional)">
+                    </div>
+                    <div class="col-12">
+                        <button class="btn btn-primary btn-sm" type="submit"><i class="bi bi-plus-circle me-1"></i>Speichern</button>
+                    </div>
+                </form>
+            </div>
+            <div class="col-lg-6">
+                <h6 class="mb-2">Fälligen Termin anlegen</h6>
+                <form class="row g-2" method="post" action="{{ url_for('main.add_due_date_entry') }}">
+                    <div class="col-md-8">
+                        <input type="text" name="title" class="form-control" placeholder="Titel" required>
+                    </div>
+                    <div class="col-md-4">
+                        <input type="date" name="due_on" class="form-control" required>
+                    </div>
+                    <div class="col-12">
+                        <select name="contract_id" class="form-select" id="due_contract_select">
+                            <option value="">Vertrag (optional)</option>
+                            {% for contract in contract_options %}
+                            <option value="{{ contract.id }}" data-tenant="{{ contract.tenant_id }}">
+                                {{ contract.label }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <button class="btn btn-outline-primary btn-sm" type="submit"><i class="bi bi-calendar-plus me-1"></i>Termin speichern</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <div class="row g-3 mt-3">
+            <div class="col-lg-6">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <h6 class="mb-0">Letzte Einnahmen</h6>
+                    <a class="small" href="{{ url_for('main.list_incomes') }}">Alle anzeigen</a>
+                </div>
+                <ul class="list-group list-group-flush">
+                    {% for income in recent_incomes %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="fw-semibold">{{ '%.2f'|format(income.amount) }} €</div>
+                            <small class="text-muted">{{ income.income_type }} · {{ income.received_on.strftime('%d.%m.%Y') }}</small>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-light text-dark">{{ income.contract.contract_number }}</span>
+                            <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#incomeModal" data-id="{{ income.id }}" data-amount="{{ income.amount }}" data-type="{{ income.income_type }}" data-date="{{ income.received_on.strftime('%Y-%m-%d') }}" data-notes="{{ income.notes or '' }}" data-contract="{{ income.contract_id }}" data-tenant="{{ income.tenant_id or '' }}">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <form method="post" action="{{ url_for('main.delete_income', income_id=income.id) }}" class="d-inline">
+                                <button class="btn btn-sm btn-outline-danger" onclick="return confirm('Einnahme löschen?')"><i class="bi bi-trash"></i></button>
+                            </form>
+                        </div>
+                    </li>
+                    {% else %}
+                    <li class="list-group-item text-muted">Noch keine Einnahmen erfasst.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div class="col-lg-6">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <h6 class="mb-0">Offene Fälligkeiten</h6>
+                    <a class="small" href="{{ url_for('main.list_due_dates') }}">Alle anzeigen</a>
+                </div>
+                <ul class="list-group list-group-flush">
+                    {% for item in open_due_dates %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="fw-semibold">{{ item.title }}</div>
+                            <small class="text-muted">Fällig am {{ item.due_on.strftime('%d.%m.%Y') }}</small>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            {% if item.contract %}
+                            <span class="badge bg-primary-subtle text-primary">{{ item.contract.contract_number }}</span>
+                            {% endif %}
+                            <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#dueDateModal" data-id="{{ item.id }}" data-title="{{ item.title }}" data-date="{{ item.due_on.strftime('%Y-%m-%d') }}" data-contract="{{ item.contract_id or '' }}" data-status="{{ item.status }}">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <form method="post" action="{{ url_for('main.delete_due_date', due_date_id=item.id) }}" class="d-inline">
+                                <button class="btn btn-sm btn-outline-danger" onclick="return confirm('Termin löschen?')"><i class="bi bi-trash"></i></button>
+                            </form>
+                        </div>
+                    </li>
+                    {% else %}
+                    <li class="list-group-item text-muted">Keine offenen Termine.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div class="col-lg-6">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <h6 class="mb-0">Wartungsplaner</h6>
+                    <a class="small" href="{{ url_for('main.maintenance_list') }}">Kalender öffnen</a>
+                </div>
+                <ul class="list-group list-group-flush">
+                    {% for task in maintenance_upcoming %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="fw-semibold">{{ task.title }}</div>
+                            <small class="text-muted">{{ task.scheduled_on.strftime('%d.%m.%Y') }} · Erinnerung ab {{ task.reminder_date.strftime('%d.%m.%Y') if task.reminder_date else '—' }}</small>
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            {% if task.contract %}<span class="badge bg-light text-dark">{{ task.contract.contract_number or 'Vertrag' }}</span>{% endif %}
+                            <span class="badge bg-info text-dark">{{ task.category }}</span>
+                        </div>
+                    </li>
+                    {% else %}
+                    <li class="list-group-item text-muted">Keine Wartungstermine geplant.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% include 'main/income_due_modals.html' %}
+{% endif %}
+
+<!-- Statistik Karten -->
+<div class="row g-4 mb-4">
+    <div class="col-xl-3 col-md-6">
+        <div class="card stat-card border-0 bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h6 class="card-title text-white-50 mb-2">Wohnungen</h6>
+                        <h2 class="mb-0">{{ stats.apartment_count }}</h2>
+                        <small class="text-white-50">aktiv</small>
+                    </div>
+                    <div class="feature-icon">
+                        <i class="bi bi-building text-white"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6">
+        <div class="card stat-card border-0 bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h6 class="card-title text-white-50 mb-2">Aktive Mieter</h6>
+                        <h2 class="mb-0">{{ stats.tenant_count }}</h2>
+                        <small class="text-white-50">eingezogen</small>
+                    </div>
+                    <div class="feature-icon">
+                        <i class="bi bi-people text-white"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6">
+        <div class="card stat-card border-0 bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h6 class="card-title text-white-50 mb-2">Gebäude</h6>
+                        <h2 class="mb-0">{{ stats.building_count }}</h2>
+                        <small class="text-white-50">verwaltet</small>
+                    </div>
+                    <div class="feature-icon">
+                        <i class="bi bi-house-door text-white"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6">
+        <div class="card stat-card border-0 bg-warning text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h6 class="card-title text-white-50 mb-2">Belegung</h6>
+                        <h2 class="mb-0">
+                            {% if stats.apartment_count > 0 %}
+                                {{ "%.0f"|format((stats.occupied_count / stats.apartment_count * 100)) }}%
+                            {% else %}
+                                0%
+                            {% endif %}
+                        </h2>
+                        <small class="text-white-50">Auslastung</small>
+                    </div>
+                    <div class="feature-icon">
+                        <i class="bi bi-graph-up text-white"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Schnellaktionen -->
+<div class="row g-4">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent border-0">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-lightning-charge text-primary me-2"></i>Schnellaktionen
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <a href="{{ url_for('apartments.create_apartment') }}" class="card quick-action-card text-decoration-none">
+                            <div class="card-body text-center p-4">
+                                <div class="feature-icon bg-primary text-white mx-auto mb-3">
+                                    <i class="bi bi-house-add"></i>
+                                </div>
+                                <h6 class="card-title text-primary">Wohnung anlegen</h6>
+                                <p class="card-text text-muted small">Neue Wohnung erfassen</p>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-md-6">
+                        <a href="{{ url_for('tenants.create_tenant') }}" class="card quick-action-card text-decoration-none">
+                            <div class="card-body text-center p-4">
+                                <div class="feature-icon bg-success text-white mx-auto mb-3">
+                                    <i class="bi bi-person-plus"></i>
+                                </div>
+                                <h6 class="card-title text-success">Mieter anlegen</h6>
+                                <p class="card-text text-muted small">Neuen Mieter erfassen</p>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-md-6">
+                        <a href="{{ url_for('meter_readings.meter_readings_list') }}" class="card quick-action-card text-decoration-none">
+                            <div class="card-body text-center p-4">
+                                <div class="feature-icon bg-info text-white mx-auto mb-3">
+                                    <i class="bi bi-speedometer2"></i>
+                                </div>
+                                <h6 class="card-title text-info">Zählerstand</h6>
+                                <p class="card-text text-muted small">Zählerstand erfassen</p>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-md-6">
+                        <a href="{{ url_for('settlements.settlements_list') }}" class="card quick-action-card text-decoration-none">
+                            <div class="card-body text-center p-4">
+                                <div class="feature-icon bg-warning text-white mx-auto mb-3">
+                                    <i class="bi bi-calculator"></i>
+                                </div>
+                                <h6 class="card-title text-warning">Abrechnung</h6>
+                                <p class="card-text text-muted small">Abrechnung erstellen</p>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <!-- Letzte Aktivitäten -->
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent border-0">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-clock-history text-primary me-2"></i>Letzte Aktivitäten
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="activity-list">
+                    {% if activities %}
+                        {% for activity in activities %}
+                        <div class="activity-item d-flex align-items-start mb-3">
+                            <div class="activity-icon bg-{{ activity.color }} text-white rounded p-2 me-3">
+                                <i class="{{ activity.icon }}"></i>
+                            </div>
+                            <div class="activity-content flex-grow-1">
+                                <p class="mb-1 small">{{ activity.message }}</p>
+                                <small class="text-muted">{{ activity.timestamp.strftime('%d.%m.%Y %H:%M') }}</small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="activity-item d-flex align-items-start mb-3">
+                            <div class="activity-icon bg-primary text-white rounded p-2 me-3">
+                                <i class="bi bi-info-circle"></i>
+                            </div>
+                            <div class="activity-content flex-grow-1">
+                                <p class="mb-1 small">Noch keine Aktivitäten</p>
+                                <small class="text-muted">Systemstart</small>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Automatische Fehlerprüfung -->
+        <div class="card border-0 shadow-sm mt-4">
+            <div class="card-header bg-transparent border-0">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-shield-check text-primary me-2"></i>Automatische Fehlerprüfung
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if data_quality %}
+                <ul class="list-unstyled mb-0">
+                    {% for issue in data_quality %}
+                    <li class="mb-2">
+                        <div class="fw-semibold">{{ issue.title }}</div>
+                        <div class="text-muted small">{{ issue.details }}</div>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <div class="text-muted small">Keine Auffälligkeiten gefunden.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Wohnungsübersicht -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-building text-primary me-2"></i>Wohnungsübersicht
+                </h5>
+                <a href="{{ url_for('apartments.apartments_list') }}" class="btn btn-outline-primary btn-sm">Alle anzeigen</a>
+            </div>
+            <div class="card-body">
+                {% if apartments %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Wohnungsnummer</th>
+                                <th>Gebäude</th>
+                                <th>Etage</th>
+                                <th>Fläche</th>
+                                <th>Zimmer</th>
+                                <th>Status</th>
+                                <th>Mieter</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for apartment in apartments %}
+                            <tr>
+                                <td>
+                                    <strong>
+                                        <a href="{{ url_for('apartments.apartment_detail', apartment_id=apartment.id) }}" class="text-decoration-none">
+                                            {{ apartment.apartment_number }}
+                                        </a>
+                                    </strong>
+                                </td>
+                                <td>
+                                    {% if apartment.building %}
+                                        <a href="{{ url_for('buildings.building_detail', building_id=apartment.building.id) }}" class="text-decoration-none">
+                                            {{ apartment.building.name }}
+                                        </a>
+                                    {% else %}
+                                        <span class="text-muted">Nicht zugeordnet</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ apartment.floor }}</td>
+                                <td>{{ apartment.area_sqm }} m²</td>
+                                <td>{{ apartment.room_count }}</td>
+                                <td>
+                                    {% if apartment.status == 'occupied' %}
+                                        <span class="badge bg-success">Bewohnt</span>
+                                    {% elif apartment.status == 'vacant' %}
+                                        <span class="badge bg-secondary">Frei</span>
+                                    {% elif apartment.status == 'reserved' %}
+                                        <span class="badge bg-info">Reserviert</span>
+                                    {% elif apartment.status == 'maintenance' %}
+                                        <span class="badge bg-warning">In Wartung</span>
+                                    {% else %}
+                                        <span class="badge bg-primary">{{ apartment.status }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if apartment.tenants %}
+                                        <span class="badge bg-success">{{ apartment.tenants|length }} Mieter</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Keine Mieter</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="bi bi-building display-4 text-muted"></i>
+                    <p class="text-muted mt-3">Noch keine Wohnungen angelegt</p>
+                    <a href="{{ url_for('apartments.create_apartment') }}" class="btn btn-primary">Erste Wohnung anlegen</a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function refreshStats() {
+    location.reload();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Hover-Effekte für Karten
+    const statCards = document.querySelectorAll('.stat-card');
+    statCards.forEach(card => {
+        card.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-5px)';
+            this.style.transition = 'transform 0.2s ease';
+        });
+        card.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateY(0)';
+        });
+    });
+
+    // Quick-Action Cards Hover
+    const quickActionCards = document.querySelectorAll('.quick-action-card');
+    quickActionCards.forEach(card => {
+        card.addEventListener('mouseenter', function() {
+            this.style.transform = 'scale(1.02)';
+            this.style.transition = 'transform 0.2s ease';
+            this.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)';
+        });
+        card.addEventListener('mouseleave', function() {
+            this.style.transform = 'scale(1)';
+            this.style.boxShadow = 'none';
+        });
+    });
+
+});
+</script>
+
+{% include 'main/income_due_js.html' %}
+
+<style>
+.stat-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+}
+.feature-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+}
+/* Für Statistik-Karten: Icons mit hellem Hintergrund auf farbigen Karten */
+.stat-card .feature-icon {
+    background-color: rgba(255, 255, 255, 0.3) !important;
+}
+/* Für Schnellaktionen: Volle Farben für bessere Sichtbarkeit */
+.quick-action-card .feature-icon {
+    /* Keine zusätzlichen Hintergrundfarben nötig - werden durch bg-primary etc. gesetzt */
+}
+.quick-action-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    border: 1px solid #e9ecef;
+}
+.quick-action-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    border-color: #007bff;
+}
+.activity-item {
+    transition: background-color 0.2s ease;
+    padding: 8px;
+    border-radius: 8px;
+}
+.activity-item:hover {
+    background-color: #f8f9fa;
+}
+.activity-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+/* Bessere Sichtbarkeit für Text in den Aktivitäten */
+.activity-content .small {
+    color: #495057 !important;
+}
+</style>
+{% endblock %}

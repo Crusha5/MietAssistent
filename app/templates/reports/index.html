@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}Reports - MietAssistent{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h2 mb-0">
+        <i class="bi bi-graph-up text-primary me-2"></i>Auswertungen
+    </h1>
+</div>
+
+<div class="row g-3 mb-4">
+    {% for label, value in {'Verträge': stats.contracts, 'Mieter': stats.tenants, 'Einheiten': stats.apartments, 'Kosten': stats.operating_costs, 'Abrechnungen': stats.settlements}.items() %}
+    <div class="col-md-4 col-lg-2">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body text-center">
+                <div class="display-6 fw-bold text-primary">{{ value }}</div>
+                <div class="text-muted small">{{ label }}</div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body">
+        <h5 class="card-title">Letzte Nebenkostenabrechnungen</h5>
+        <div class="table-responsive">
+            <table class="table table-sm align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Wohnung</th>
+                        <th>Zeitraum</th>
+                        <th>Saldo</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in settlements %}
+                    <tr>
+                        <td>{{ s.apartment.get_full_identifier() if s.apartment else '–' }}</td>
+                        <td>
+                            {% if s.period_start %}{{ s.period_start.strftime('%d.%m.%Y') }}{% else %}–{% endif %}
+                            –
+                            {% if s.period_end %}{{ s.period_end.strftime('%d.%m.%Y') }}{% else %}–{% endif %}
+                        </td>
+                        <td>{{ "%.2f"|format(s.balance or 0) }} €</td>
+                        <td>{{ translate_status(s.status) if s.status else '–' }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" class="text-center text-muted">Noch keine Abrechnungen erstellt.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

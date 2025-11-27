@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: 'Inter', sans-serif; color: #0f172a; }
+        h1 { font-size: 18pt; color: #1e40af; }
+        h2 { font-size: 13pt; margin-bottom: 6px; }
+        p { font-size: 11pt; line-height: 1.4; }
+        .section { margin-bottom: 12px; }
+        .label { color: #475569; font-weight: 600; font-size: 10pt; }
+        .box { background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; border-radius: 6px; }
+        .box.box--large { min-height: 140px; }
+    </style>
+</head>
+<body>
+    <h1>Protokoll {{ protocol.protocol_type|replace('ueber','Über')|replace('rueck','Rück') }}</h1>
+    <p class="label">Datum: {{ protocol.protocol_date.strftime('%d.%m.%Y') }}</p>
+    {% if contract %}
+    <p class="label">Vertrag: {{ contract.contract_number }}</p>
+    {% endif %}
+
+    <div class="section">
+        <div class="label">Zustand / Räume</div>
+        <div class="box">{{ protocol_data.condition_summary or '' }}</div>
+    </div>
+
+    <div class="section">
+        <div class="label">Schlüssel (gesamt {{ protocol_data.key_count or (keys|length) or 0 }})</div>
+        {% if keys %}
+        <table style="width:100%; border-collapse: collapse; font-size: 10pt;">
+            <thead>
+                <tr>
+                    <th style="border:1px solid #e2e8f0; padding:6px;">Bezeichnung</th>
+                    <th style="border:1px solid #e2e8f0; padding:6px;">Ort</th>
+                    <th style="border:1px solid #e2e8f0; padding:6px; text-align:right;">Menge</th>
+                    <th style="border:1px solid #e2e8f0; padding:6px;">Notizen</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for key in keys %}
+                <tr>
+                    <td style="border:1px solid #e2e8f0; padding:6px;">{{ key.title or 'Schlüssel ' ~ loop.index }}</td>
+                    <td style="border:1px solid #e2e8f0; padding:6px;">{{ key.location or '' }}</td>
+                    <td style="border:1px solid #e2e8f0; padding:6px; text-align:right;">{{ key.quantity or 1 }}</td>
+                    <td style="border:1px solid #e2e8f0; padding:6px;">{{ key.description or '' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="box">Keine Schlüsselangaben hinterlegt.</div>
+        {% endif %}
+    </div>
+
+    <div class="section">
+        <div class="label">Inventar / Ausstattung</div>
+        {% if inventory_entries %}
+        <table style="width:100%; border-collapse: collapse; font-size: 10pt;">
+            <thead>
+                <tr>
+                    <th style="border:1px solid #e2e8f0; padding:6px;">Bezeichnung</th>
+                    <th style="border:1px solid #e2e8f0; padding:6px;">Raum</th>
+                    <th style="border:1px solid #e2e8f0; padding:6px;">Zustand</th>
+                    <th style="border:1px solid #e2e8f0; padding:6px; text-align:right;">Menge</th>
+                    <th style="border:1px solid #e2e8f0; padding:6px;">Schäden / Notizen</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in inventory_entries %}
+                <tr>
+                    <td style="border:1px solid #e2e8f0; padding:6px;">{{ item.name }}</td>
+                    <td style="border:1px solid #e2e8f0; padding:6px;">{{ item.location or '' }}</td>
+                    <td style="border:1px solid #e2e8f0; padding:6px;">{{ item.condition or '' }}</td>
+                    <td style="border:1px solid #e2e8f0; padding:6px; text-align:right;">{{ item.quantity or 1 }}</td>
+                    <td style="border:1px solid #e2e8f0; padding:6px;">
+                        <div style="color:#b91c1c;">{{ item.damages or '' }}</div>
+                        <div style="color:#475569;">{{ item.notes or '' }}</div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="box">Keine Inventardaten hinterlegt.</div>
+        {% endif %}
+    </div>
+
+    <div class="section">
+        <div class="label">Zählerstände</div>
+        {% if meter_entries %}
+        <table style="width:100%; border-collapse: collapse; font-size: 10pt;">
+            <thead>
+                <tr>
+                    <th style="border:1px solid #e2e8f0; padding:6px;">Typ</th>
+                    <th style="border:1px solid #e2e8f0; padding:6px;">Nummer</th>
+                    <th style="border:1px solid #e2e8f0; padding:6px;">Ort</th>
+                    <th style="border:1px solid #e2e8f0; padding:6px;">Wert</th>
+                    <th style="border:1px solid #e2e8f0; padding:6px;">Foto</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for entry in meter_entries %}
+                <tr>
+                    <td style="border:1px solid #e2e8f0; padding:6px;">{{ entry.type }} {{ '(' ~ entry.unit ~ ')' if entry.unit }}</td>
+                    <td style="border:1px solid #e2e8f0; padding:6px;">{{ entry.number }}</td>
+                    <td style="border:1px solid #e2e8f0; padding:6px;">{{ entry.location or '' }}</td>
+                    <td style="border:1px solid #e2e8f0; padding:6px;">{{ entry.reading_value or '' }}</td>
+                    <td style="border:1px solid #e2e8f0; padding:6px;">{{ 'Foto hinterlegt' if entry.photo else '' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="box">Keine Zählerstände erfasst.</div>
+        {% endif %}
+    </div>
+
+    <div class="section">
+        <div class="label">Zählerstände / Hinweise</div>
+        <div class="box box--large">{{ protocol_data.meter_notes or '' }}</div>
+    </div>
+    <div class="section">
+        <div class="label">Raum- / Checklisten-Notizen</div>
+        <div class="box box--large">{{ protocol_data.room_notes or '' }}</div>
+    </div>
+    <div class="section">
+        <div class="label">Schäden / Beanstandungen</div>
+        <div class="box box--large">{{ protocol_data.damages or '' }}</div>
+    </div>
+    <div class="section">
+        <div class="label">Notizen</div>
+        <div class="box box--large">{{ protocol_data.notes or '' }}</div>
+    </div>
+    <div class="section">
+        <div class="label">Übergabevermerke</div>
+        <div class="box box--large">{{ protocol_data.handover_notes or '' }}</div>
+    </div>
+    <div class="section">
+        <div class="label">Nacharbeiten / To-dos</div>
+        <div class="box box--large">{{ protocol_data.follow_up_notes or '' }}</div>
+    </div>
+</body>
+</html>

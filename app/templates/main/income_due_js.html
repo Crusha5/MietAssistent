@@ -1,0 +1,52 @@
+<script>
+function syncTenant(contractSelect, tenantSelect) {
+    if (!contractSelect || !tenantSelect) return;
+    const selected = contractSelect.selectedOptions[0];
+    const tenantId = selected ? selected.getAttribute('data-tenant') : '';
+    tenantSelect.value = tenantId || '';
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const incomeContract = document.getElementById('income_contract_select');
+    const incomeTenant = document.getElementById('income_tenant_select');
+    if (incomeContract && incomeTenant) {
+        incomeContract.addEventListener('change', () => syncTenant(incomeContract, incomeTenant));
+    }
+
+    const incomeModal = document.getElementById('incomeModal');
+    if (incomeModal) {
+        incomeModal.addEventListener('show.bs.modal', function (event) {
+            const trigger = event.relatedTarget;
+            if (!trigger) return;
+            const form = document.getElementById('incomeEditForm');
+            form.action = `/landlord/incomes/${trigger.dataset.id}/update`;
+            document.getElementById('income_amount').value = trigger.dataset.amount || '';
+            document.getElementById('income_type').value = trigger.dataset.type || 'rent';
+            document.getElementById('income_date').value = trigger.dataset.date || '';
+            document.getElementById('income_notes').value = trigger.dataset.notes || '';
+            document.getElementById('income_contract_modal').value = trigger.dataset.contract || '';
+            document.getElementById('income_tenant_modal').value = trigger.dataset.tenant || '';
+        });
+
+        const modalContract = document.getElementById('income_contract_modal');
+        const modalTenant = document.getElementById('income_tenant_modal');
+        if (modalContract && modalTenant) {
+            modalContract.addEventListener('change', () => syncTenant(modalContract, modalTenant));
+        }
+    }
+
+    const dueModal = document.getElementById('dueDateModal');
+    if (dueModal) {
+        dueModal.addEventListener('show.bs.modal', function(event) {
+            const trigger = event.relatedTarget;
+            if (!trigger) return;
+            const form = document.getElementById('dueDateEditForm');
+            form.action = `/landlord/due-dates/${trigger.dataset.id}/update`;
+            document.getElementById('due_title').value = trigger.dataset.title || '';
+            document.getElementById('due_date').value = trigger.dataset.date || '';
+            document.getElementById('due_contract_modal').value = trigger.dataset.contract || '';
+            document.getElementById('due_status').value = trigger.dataset.status || 'open';
+        });
+    }
+});
+</script>

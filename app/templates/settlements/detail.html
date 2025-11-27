@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Abrechnung {{ settlement.id }} - Rental Management{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-calculator me-2"></i>Abrechnung {{ settlement.id }}
+                </h5>
+                <a href="/settlements" class="btn btn-light btn-sm">
+                    <i class="bi bi-arrow-left"></i> Zurück
+                </a>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Allgemeine Informationen</h6>
+                        <p><strong>Zeitraum:</strong> {{ settlement.period_start.strftime('%d.%m.%Y') }} - {{ settlement.period_end.strftime('%d.%m.%Y') }}</p>
+                        <p><strong>Wohnung:</strong> 
+                            {% if settlement.apartment %}
+                                {{ settlement.apartment.number }} - {{ settlement.apartment.street }}
+                            {% endif %}
+                        </p>
+                        <p><strong>Mieter:</strong> 
+                            {% if settlement.tenant %}
+                                {{ settlement.tenant.first_name }} {{ settlement.tenant.last_name }}
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Kostenübersicht</h6>
+                        <p><strong>Grundmiete (Jahr):</strong> {{ "%.2f"|format(settlement.total_rent) }} €</p>
+                        <p><strong>Nebenkosten (Jahr):</strong> {{ "%.2f"|format(settlement.additional_costs) }} €</p>
+                        {% if settlement.heating_costs %}
+                        <p><strong>Heizkosten:</strong> {{ "%.2f"|format(settlement.heating_costs) }} €</p>
+                        {% endif %}
+                        {% if settlement.water_costs %}
+                        <p><strong>Wasserkosten:</strong> {{ "%.2f"|format(settlement.water_costs) }} €</p>
+                        {% endif %}
+                        {% if settlement.electricity_costs %}
+                        <p><strong>Stromkosten:</strong> {{ "%.2f"|format(settlement.electricity_costs) }} €</p>
+                        {% endif %}
+                        <p><strong>Gesamtbetrag:</strong> <span class="fw-bold">{{ "%.2f"|format(settlement.total_amount) }} €</span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-light">
+                <h6 class="card-title mb-0">Aktionen</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="/settlements/{{ settlement.id }}/pdf" class="btn btn-outline-primary">
+                        <i class="bi bi-file-pdf me-1"></i> PDF herunterladen
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

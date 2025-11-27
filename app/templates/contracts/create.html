@@ -1,0 +1,273 @@
+{% extends "base.html" %}
+
+{% block title %}Mietvertrag erstellen - MietAssistent{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h2 mb-0">
+        <i class="bi bi-file-earmark-plus text-primary me-2"></i>Mietvertrag erstellen
+    </h1>
+    <a href="{{ url_for('contracts.contracts_list') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i>Zurück
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-pencil-square me-2"></i>Vertragsdaten
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('contracts.create_contract') }}">
+                    <div class="row g-3">
+                        <!-- Vertragsgrundlage -->
+                        <div class="col-12">
+                            <label for="template_id" class="form-label">Vertragsvorlage</label>
+                            <select class="form-select" id="template_id" name="template_id">
+                                <option value="">Standardvorlage verwenden</option>
+                                {% for template in templates %}
+                                <option value="{{ template.id }}">{{ template.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Wohnungsauswahl -->
+                        <div class="col-md-6">
+                            <label for="apartment_id" class="form-label">Wohnung *</label>
+                            <select class="form-select" id="apartment_id" name="apartment_id" required>
+                                <option value="">Bitte Wohnung auswählen...</option>
+                                {% for apartment in apartments %}
+                                <option value="{{ apartment.id }}">
+                                    {{ apartment.building.name }} - {{ apartment.apartment_number }}
+                                    ({{ apartment.area_sqm }} m²)
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Mieterauswahl -->
+                        <div class="col-md-6">
+                            <label for="tenant_id" class="form-label">Mieter *</label>
+                            <select class="form-select" id="tenant_id" name="tenant_id" required>
+                                <option value="">Bitte Mieter auswählen...</option>
+                                {% for tenant in tenants %}
+                                <option value="{{ tenant.id }}">
+                                    {{ tenant.first_name }} {{ tenant.last_name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="landlord_id" class="form-label">Vermieter</label>
+                            <div class="input-group">
+                                <select class="form-select" id="landlord_id" name="landlord_id">
+                                    <option value="">Bitte Vermieter auswählen...</option>
+                                    {% for landlord in landlords %}
+                                    <option value="{{ landlord.id }}">
+                                        {{ landlord.company_name or (landlord.first_name ~ ' ' ~ landlord.last_name) }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#landlordModal">
+                                    <i class="bi bi-person-plus"></i>
+                                </button>
+                            </div>
+                            <div class="form-text">Neuen Vermieter über das Plus-Symbol anlegen.</div>
+                        </div>
+
+                        <!-- Vertragstyp -->
+                        <div class="col-md-6">
+                            <label for="contract_type" class="form-label">Vertragstyp</label>
+                            <select class="form-select" id="contract_type" name="contract_type">
+                                <option value="hauptmietvertrag">Hauptmietvertrag</option>
+                                <option value="untermietvertrag">Untermietvertrag</option>
+                                <option value="gewerbemietvertrag">Gewerbemietvertrag</option>
+                                <option value="garagenmietvertrag">Garagenmietvertrag</option>
+                            </select>
+                        </div>
+
+                        <!-- Vertragsnummer -->
+                        <div class="col-md-6">
+                            <label for="contract_number" class="form-label">Vertragsnummer</label>
+                            <input type="text" class="form-control" id="contract_number" name="contract_number" 
+                                   placeholder="Wird automatisch generiert" readonly>
+                        </div>
+
+                        <!-- Laufzeit -->
+                        <div class="col-md-6">
+                            <label for="start_date" class="form-label">Vertragsbeginn *</label>
+                            <input type="date" class="form-control" id="start_date" name="start_date" required>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="end_date" class="form-label">Vertragsende</label>
+                            <input type="date" class="form-control" id="end_date" name="end_date">
+                            <div class="form-text">Leer lassen für unbefristete Verträge</div>
+                        </div>
+
+                        <!-- Mietdaten -->
+                        <div class="col-md-4">
+                            <label for="rent_net" class="form-label">Kaltmiete (€) *</label>
+                            <input type="number" step="0.01" class="form-control" id="rent_net" name="rent_net" required>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label for="rent_additional" class="form-label">Nebenkosten (€)</label>
+                            <input type="number" step="0.01" class="form-control" id="rent_additional" name="rent_additional" value="0">
+                        </div>
+
+                        <div class="col-md-4">
+                            <label for="deposit" class="form-label">Kaution (€)</label>
+                            <input type="number" step="0.01" class="form-control" id="deposit" name="deposit" value="0">
+                        </div>
+
+                        <!-- Kündigungsfrist -->
+                        <div class="col-md-6">
+                            <label for="notice_period" class="form-label">Kündigungsfrist (Monate)</label>
+                            <input type="number" class="form-control" id="notice_period" name="notice_period" value="3" min="1" max="12">
+                        </div>
+
+                        <!-- Besondere Vereinbarungen -->
+                        <div class="col-12">
+                            <label for="special_agreements" class="form-label">Besondere Vereinbarungen</label>
+                            <textarea class="form-control" id="special_agreements" name="special_agreements" rows="3"
+                                      placeholder="Zusätzliche Vereinbarungen oder Klauseln..."></textarea>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle me-1"></i>Vertrag erstellen
+                        </button>
+                        <a href="{{ url_for('contracts.contracts_list') }}" class="btn btn-outline-secondary">Abbrechen</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <!-- Info Card -->
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-light">
+                <h6 class="card-title mb-0">
+                    <i class="bi bi-info-circle me-2"></i>Information
+                </h6>
+            </div>
+            <div class="card-body">
+                <p class="small text-muted">
+                    Der Mietvertrag wird zunächst als Entwurf erstellt und kann später 
+                    fertiggestellt und unterschrieben werden.
+                </p>
+                <ul class="small text-muted">
+                    <li>Alle mit * markierten Felder sind Pflichtfelder</li>
+                    <li>Die Vertragsnummer wird automatisch generiert</li>
+                    <li>Nach der Erstellung können Sie den Vertrag als PDF exportieren</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-light">
+                <h6 class="card-title mb-0">
+                    <i class="bi bi-lightning me-2"></i>Schnellaktionen
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('contract_templates.templates_list') }}" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-layers me-1"></i>Vorlagen verwalten
+                    </a>
+                    <a href="{{ url_for('apartments.create_apartment') }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-house-add me-1"></i>Neue Wohnung
+                    </a>
+                    <a href="{{ url_for('tenants.create_tenant') }}" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-person-add me-1"></i>Neuer Mieter
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% include 'contracts/landlord_modal.html' %}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Heutiges Datum als Standard für Vertragsbeginn
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('start_date').value = today;
+
+    // Vertragsnummer generieren
+    function generateContractNumber() {
+        const now = new Date();
+        const dateStr = now.toISOString().slice(2,10).replace(/-/g, '');
+        const randomStr = Math.random().toString(36).substr(2, 6).toUpperCase();
+        document.getElementById('contract_number').value = `MV-${dateStr}-${randomStr}`;
+    }
+    
+    generateContractNumber();
+
+    // Automatische Kaution basierend auf Kaltmiete
+    document.getElementById('rent_net').addEventListener('change', function() {
+        const rentNet = parseFloat(this.value) || 0;
+        const depositField = document.getElementById('deposit');
+        if (depositField.value === '0' || depositField.value === '') {
+            depositField.value = (rentNet * 3).toFixed(2);
+        }
+    });
+
+    // Landlords laden und Modal steuern
+    function renderLandlordOptions(list) {
+        const select = document.getElementById('landlord_id');
+        const current = select.value;
+        select.innerHTML = '<option value="">Bitte Vermieter auswählen...</option>';
+        list.forEach(item => {
+            const opt = document.createElement('option');
+            opt.value = item.id;
+            opt.textContent = item.name;
+            if (item.id === current) opt.selected = true;
+            select.appendChild(opt);
+        });
+    }
+
+    function loadLandlords() {
+        fetch('/api/landlords').then(r => r.json()).then(data => {
+            if (data.success === false && data.error) {
+                console.error(data.error);
+                return;
+            }
+            renderLandlordOptions(data);
+        }).catch(err => console.error(err));
+    }
+
+    const landlordForm = document.getElementById('landlordForm');
+    const saveLandlordBtn = document.getElementById('saveLandlord');
+    if (landlordForm && saveLandlordBtn) {
+        saveLandlordBtn.addEventListener('click', function() {
+            const formData = new FormData(landlordForm);
+            fetch('/api/landlords', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(Object.fromEntries(formData))
+            }).then(r => r.json()).then(data => {
+                if (data.success) {
+                    bootstrap.Modal.getInstance(document.getElementById('landlordModal')).hide();
+                    landlordForm.reset();
+                    loadLandlords();
+                } else {
+                    alert(data.error || 'Vermieter konnte nicht gespeichert werden.');
+                }
+            }).catch(err => alert('Netzwerkfehler: ' + err));
+        });
+    }
+
+    loadLandlords();
+});
+</script>
+{% endblock %}

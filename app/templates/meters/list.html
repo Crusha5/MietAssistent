@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+
+{% block title %}Zähler - Rental Management{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h2 mb-0">
+        <i class="bi bi-diagram-3 text-primary me-2"></i>Zähler-Hierarchie
+    </h1>
+    <a href="/meters/create" class="btn btn-primary">
+        <i class="bi bi-plus-circle me-1"></i>Neuer Hauptzähler
+    </a>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body">
+        {% if meters %}
+        <div class="hierarchy-tree">
+            {% for meter in meters %}
+                {% if meter.is_main_meter %}
+                    <!-- Hauptzähler (Ebene 0) -->
+                    <div class="hierarchy-item main-meter mb-3 p-3 border rounded bg-light">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-house-gear text-primary me-2 fs-5"></i>
+                                <div>
+                                    <h6 class="mb-1 fw-bold">{{ meter.meter_number }}</h6>
+                                    <div class="text-muted small">
+                                        {{ meter.meter_type.name }} • {{ meter.building.name }}
+                                        {% if meter.description %}• {{ meter.description }}{% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('meters.meter_detail', meter_id=meter.id) }}" class="btn btn-outline-primary" title="Details">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a href="{{ url_for('meters.edit_meter', meter_id=meter.id) }}" class="btn btn-outline-secondary" title="Bearbeiten">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <a href="{{ url_for('meters.add_submeter', meter_id=meter.id) }}" class="btn btn-outline-success" title="Unterzähler hinzufügen">
+                                    <i class="bi bi-plus-lg"></i>
+                                </a>
+                            </div>
+                        </div>
+                        
+                        <!-- Unterzähler Ebene 1 -->
+                        {% set level1_meters = meter.sub_meters %}
+                        {% if level1_meters %}
+                        <div class="sub-meters level-1 mt-2 ms-4">
+                            {% for level1_meter in level1_meters %}
+                            <div class="hierarchy-item sub-meter level-1 mb-2 p-2 border rounded bg-white">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-arrow-return-right text-success me-2"></i>
+                                        <div>
+                                            <h6 class="mb-1">{{ level1_meter.meter_number }}</h6>
+                                            <div class="text-muted small">
+                                                {{ level1_meter.meter_type.name }}
+                                                {% if level1_meter.apartment %}• {{ level1_meter.apartment.apartment_number }}{% endif %}
+                                                {% if level1_meter.description %}• {{ level1_meter.description }}{% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{{ url_for('meters.meter_detail', meter_id=level1_meter.id) }}" class="btn btn-outline-primary">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                        <a href="{{ url_for('meters.edit_submeter', meter_id=level1_meter.id) }}" class="btn btn-outline-secondary">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
+                                        <a href="{{ url_for('meters.add_submeter', meter_id=level1_meter.id) }}" class="btn btn-outline-success">
+                                            <i class="bi bi-plus-lg"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                                
+                                <!-- Unterzähler Ebene 2 -->
+                                {% set level2_meters = level1_meter.sub_meters %}
+                                {% if level2_meters %}
+                                <div class="sub-meters level-2 mt-2 ms-4">
+                                    {% for level2_meter in level2_meters %}
+                                    <div class="hierarchy-item sub-meter level-2 mb-2 p-2 border rounded bg-light bg-opacity-50">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div class="d-flex align-items-center">
+                                                <i class="bi bi-arrow-return-right text-info me-2"></i>
+                                                <div>
+                                                    <h6 class="mb-1">{{ level2_meter.meter_number }}</h6>
+                                                    <div class="text-muted small">
+                                                        {{ level2_meter.meter_type.name }}
+                                                        {% if level2_meter.apartment %}• {{ level2_meter.apartment.apartment_number }}{% endif %}
+                                                        {% if level2_meter.description %}• {{ level2_meter.description }}{% endif %}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="btn-group btn-group-sm">
+                                                <a href="{{ url_for('meters.meter_detail', meter_id=level2_meter.id) }}" class="btn btn-outline-primary">
+                                                    <i class="bi bi-eye"></i>
+                                                </a>
+                                                <a href="{{ url_for('meters.edit_meter', meter_id=level2_meter.id) }}" class="btn btn-outline-secondary">
+                                                    <i class="bi bi-pencil"></i>
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-diagram-3 display-1 text-muted"></i>
+            <h4 class="text-muted mt-3">Keine Zähler gefunden</h4>
+            <p class="text-muted">Legen Sie Ihren ersten Hauptzähler an.</p>
+            <a href="/meters/create" class="btn btn-primary">
+                <i class="bi bi-plus-circle me-1"></i>Ersten Hauptzähler anlegen
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+.hierarchy-tree {
+    max-width: 100%;
+}
+
+.hierarchy-item {
+    transition: all 0.2s ease;
+}
+
+.hierarchy-item:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transform: translateY(-1px);
+}
+
+.main-meter {
+    border-left: 4px solid #1e40af !important;
+}
+
+.sub-meter.level-1 {
+    border-left: 4px solid #0f766e !important;
+}
+
+.sub-meter.level-2 {
+    border-left: 4px solid #dc2626 !important;
+}
+
+.sub-meters.level-1 {
+    border-left: 2px dashed #dee2e6;
+    padding-left: 1rem;
+}
+
+.sub-meters.level-2 {
+    border-left: 2px dotted #dee2e6;
+    padding-left: 1rem;
+}
+
+[data-bs-theme="dark"] .hierarchy-item,
+body[data-bs-theme="dark"] .hierarchy-item {
+    background: #111827;
+    border-color: #243145;
+    color: #e2e8f0;
+}
+[data-bs-theme="dark"] .hierarchy-item .text-muted,
+body[data-bs-theme="dark"] .hierarchy-item .text-muted {
+    color: #cbd5e1 !important;
+}
+[data-bs-theme="dark"] .hierarchy-item.bg-light,
+body[data-bs-theme="dark"] .hierarchy-item.bg-light {
+    background: #1b2535 !important;
+}
+</style>
+{% endblock %}

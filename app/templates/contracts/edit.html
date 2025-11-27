@@ -1,0 +1,267 @@
+{% extends "base.html" %}
+
+{% block title %}Mietvertrag bearbeiten - MietAssistent{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h2 mb-0">
+        <i class="bi bi-pencil-square text-primary me-2"></i>Mietvertrag bearbeiten
+    </h1>
+    <a href="{{ url_for('contracts.contract_detail', contract_id=contract.id) }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i>Zurück
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-warning">
+                <h5 class="card-title mb-0 text-white">
+                    <i class="bi bi-exclamation-triangle me-2"></i>Vertrag bearbeiten
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('contracts.edit_contract', contract_id=contract.id) }}">
+                    <div class="row g-3">
+                        <!-- Grundlegende Informationen -->
+                        <div class="col-12">
+                            <h6 class="border-bottom pb-2">Grundlegende Informationen</h6>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="contract_number" class="form-label">Vertragsnummer</label>
+                            <input type="text" class="form-control" id="contract_number" name="contract_number" 
+                                   value="{{ contract.contract_number }}" readonly>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="contract_type" class="form-label">Vertragstyp</label>
+                            <select class="form-select" id="contract_type" name="contract_type">
+                                <option value="hauptmietvertrag" {% if contract.contract_type == 'hauptmietvertrag' %}selected{% endif %}>Hauptmietvertrag</option>
+                                <option value="untermietvertrag" {% if contract.contract_type == 'untermietvertrag' %}selected{% endif %}>Untermietvertrag</option>
+                                <option value="gewerbemietvertrag" {% if contract.contract_type == 'gewerbemietvertrag' %}selected{% endif %}>Gewerbemietvertrag</option>
+                                <option value="garagenmietvertrag" {% if contract.contract_type == 'garagenmietvertrag' %}selected{% endif %}>Garagenmietvertrag</option>
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="landlord_id" class="form-label">Vermieter</label>
+                            <div class="input-group">
+                                <select class="form-select" id="landlord_id" name="landlord_id">
+                                    <option value="">Bitte Vermieter auswählen...</option>
+                                    {% for landlord in landlords %}
+                                    <option value="{{ landlord.id }}" {% if contract.landlord_id == landlord.id %}selected{% endif %}>
+                                        {{ landlord.company_name or (landlord.first_name ~ ' ' ~ landlord.last_name) }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#landlordModal">
+                                    <i class="bi bi-person-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Laufzeit -->
+                        <div class="col-12 mt-3">
+                            <h6 class="border-bottom pb-2">Vertragslaufzeit</h6>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="start_date" class="form-label">Vertragsbeginn *</label>
+                            <input type="date" class="form-control" id="start_date" name="start_date" 
+                                   value="{{ contract.start_date.strftime('%Y-%m-%d') }}" required>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="end_date" class="form-label">Vertragsende</label>
+                            <input type="date" class="form-control" id="end_date" name="end_date" 
+                                   value="{% if contract.end_date %}{{ contract.end_date.strftime('%Y-%m-%d') }}{% endif %}">
+                            <div class="form-text">Leer lassen für unbefristete Verträge</div>
+                        </div>
+
+                        <!-- Finanzielle Daten -->
+                        <div class="col-12 mt-3">
+                            <h6 class="border-bottom pb-2">Finanzielle Daten</h6>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label for="rent_net" class="form-label">Kaltmiete (€) *</label>
+                            <input type="number" step="0.01" class="form-control" id="rent_net" name="rent_net" 
+                                   value="{{ contract.rent_net }}" required>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label for="rent_additional" class="form-label">Nebenkosten (€)</label>
+                            <input type="number" step="0.01" class="form-control" id="rent_additional" name="rent_additional" 
+                                   value="{{ contract.rent_additional }}">
+                        </div>
+
+                        <div class="col-md-4">
+                            <label for="deposit" class="form-label">Kaution (€)</label>
+                            <input type="number" step="0.01" class="form-control" id="deposit" name="deposit" 
+                                   value="{{ contract.deposit }}">
+                        </div>
+
+                        <!-- Kündigungsfrist -->
+                        <div class="col-md-6">
+                            <label for="notice_period" class="form-label">Kündigungsfrist (Monate)</label>
+                            <input type="number" class="form-control" id="notice_period" name="notice_period" 
+                                   value="{{ contract.notice_period }}" min="1" max="12">
+                        </div>
+
+                        <!-- Status -->
+                        <div class="col-md-6">
+                            <label for="status" class="form-label">Status</label>
+                            <select class="form-select" id="status" name="status">
+                                <option value="draft" {% if contract.status == 'draft' %}selected{% endif %}>Entwurf</option>
+                                <option value="active" {% if contract.status == 'active' %}selected{% endif %}>Aktiv</option>
+                                <option value="expired" {% if contract.status == 'expired' %}selected{% endif %}>Abgelaufen</option>
+                                <option value="terminated" {% if contract.status == 'terminated' %}selected{% endif %}>Gekündigt</option>
+                            </select>
+                        </div>
+
+                        <div class="col-12">
+                            <label for="additional_agreements" class="form-label">Besondere Vereinbarungen</label>
+                            <textarea class="form-control" id="additional_agreements" name="additional_agreements" rows="3" placeholder="Zusätzliche Vereinbarungen oder Hinweise...">{{ contract.additional_agreements or '' }}</textarea>
+                        </div>
+
+                        <!-- Änderungsgrund -->
+                        <div class="col-12">
+                            <label for="change_description" class="form-label">Änderungsgrund *</label>
+                            <textarea class="form-control" id="change_description" name="change_description" 
+                                      rows="3" placeholder="Beschreiben Sie den Grund für die Änderung..." required></textarea>
+                            <div class="form-text">Diese Beschreibung wird in der Änderungshistorie festgehalten.</div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-warning">
+                            <i class="bi bi-check-circle me-1"></i>Änderungen speichern
+                        </button>
+                        <a href="{{ url_for('contracts.contract_detail', contract_id=contract.id) }}" class="btn btn-outline-secondary">Abbrechen</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <!-- Warnhinweis -->
+        <div class="card border-warning shadow-sm mb-4">
+            <div class="card-header bg-warning text-white">
+                <h6 class="card-title mb-0">
+                    <i class="bi bi-exclamation-triangle me-2"></i>Wichtiger Hinweis
+                </h6>
+            </div>
+            <div class="card-body">
+                <p class="small">
+                    Jede Änderung an diesem Vertrag wird revisionssicher protokolliert 
+                    und in der Änderungshistorie festgehalten.
+                </p>
+                <ul class="small text-muted">
+                    <li>Änderungen sind nachträglich nicht löschbar</li>
+                    <li>Der Änderungsgrund ist verpflichtend</li>
+                    <li>Bei signifikanten Änderungen muss der Vertrag neu unterschrieben werden</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Aktuelle Daten -->
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-light">
+                <h6 class="card-title mb-0">Aktuelle Daten</h6>
+            </div>
+            <div class="card-body">
+                <dl class="small">
+                    <dt>Erstellt am</dt>
+                    <dd>{{ contract.created_at.strftime('%d.%m.%Y %H:%M') }}</dd>
+                    
+                    <dt>Zuletzt geändert</dt>
+                    <dd>{{ contract.updated_at.strftime('%d.%m.%Y %H:%M') }}</dd>
+                    
+                    <dt>Anzahl Revisionen</dt>
+                    <dd>{{ contract.revisions|length }}</dd>
+                    
+                    <dt>Verwendete Vorlage</dt>
+                    <dd>
+                        {% if contract.template %}
+                            {{ contract.template.name }}
+                        {% else %}
+                            <span class="text-muted">Standardvorlage</span>
+                        {% endif %}
+                    </dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% include 'contracts/landlord_modal.html' %}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Validierung: Enddatum muss nach Startdatum liegen
+    const startDate = document.getElementById('start_date');
+    const endDate = document.getElementById('end_date');
+    
+    function validateDates() {
+        if (startDate.value && endDate.value) {
+            if (new Date(endDate.value) <= new Date(startDate.value)) {
+                endDate.setCustomValidity('Das Enddatum muss nach dem Startdatum liegen');
+            } else {
+                endDate.setCustomValidity('');
+            }
+        }
+    }
+
+    startDate.addEventListener('change', validateDates);
+    endDate.addEventListener('change', validateDates);
+
+    function renderLandlordOptions(list) {
+        const select = document.getElementById('landlord_id');
+        const current = select.value;
+        select.innerHTML = '<option value="">Bitte Vermieter auswählen...</option>';
+        list.forEach(item => {
+            const opt = document.createElement('option');
+            opt.value = item.id;
+            opt.textContent = item.name;
+            if (item.id === current) opt.selected = true;
+            select.appendChild(opt);
+        });
+    }
+
+    function loadLandlords() {
+        fetch('/api/landlords').then(r => r.json()).then(data => {
+            if (data.success === false && data.error) {
+                console.error(data.error);
+                return;
+            }
+            renderLandlordOptions(data);
+        }).catch(err => console.error(err));
+    }
+
+    const landlordForm = document.getElementById('landlordForm');
+    const saveLandlordBtn = document.getElementById('saveLandlord');
+    if (landlordForm && saveLandlordBtn) {
+        saveLandlordBtn.addEventListener('click', function() {
+            const formData = new FormData(landlordForm);
+            fetch('/api/landlords', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(Object.fromEntries(formData))
+            }).then(r => r.json()).then(data => {
+                if (data.success) {
+                    bootstrap.Modal.getInstance(document.getElementById('landlordModal')).hide();
+                    landlordForm.reset();
+                    loadLandlords();
+                } else {
+                    alert(data.error || 'Vermieter konnte nicht gespeichert werden.');
+                }
+            }).catch(err => alert('Netzwerkfehler: ' + err));
+        });
+    }
+
+    loadLandlords();
+});
+</script>
+{% endblock %}

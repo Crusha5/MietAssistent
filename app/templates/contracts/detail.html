@@ -1,0 +1,312 @@
+{% extends "base.html" %}
+
+{% block title %}Mietvertrag {{ contract.contract_number }} - MietAssistent{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h2 mb-0">
+        <i class="bi bi-file-earmark-text text-primary me-2"></i>Mietvertrag {{ contract.contract_number }}
+    </h1>
+    <div class="btn-group">
+        <a href="{{ url_for('contracts.contracts_list') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Zurück
+        </a>
+        <a href="{{ url_for('contracts.edit_contract', contract_id=contract.id) }}" class="btn btn-outline-primary">
+            <i class="bi bi-pencil-square me-1"></i>Vertrag bearbeiten
+        </a>
+        {% if contract.status != 'active' and not contract.is_archived %}
+        <form action="{{ url_for('contracts.archive_contract', contract_id=contract.id) }}" method="post" class="d-inline">
+            <button type="submit" class="btn btn-outline-danger" onclick="return confirm('Vertrag und abhängige Daten archivieren?');">
+                <i class="bi bi-archive me-1"></i>Archivieren
+            </button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <!-- Vertragsübersicht -->
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Vertragsübersicht</h5>
+                <span class="badge {% if contract.status == 'active' %}bg-success
+                                  {% elif contract.status == 'draft' %}bg-warning
+                                  {% elif contract.status == 'expired' %}bg-secondary
+                                  {% else %}bg-danger{% endif %}">
+                    {{ translate_status(contract.status) }}
+                </span>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <table class="table table-sm table-borderless">
+                            <tr>
+                                <th class="text-muted w-50">Vertragsnummer:</th>
+                                <td><strong>{{ contract.contract_number }}</strong></td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Vertragstyp:</th>
+                                <td>{{ contract.contract_type }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Wohnung:</th>
+                                <td>
+                                    {% if contract.apartment and contract.apartment.building %}
+                                        {{ contract.apartment.building.name }} - 
+                                        {{ contract.apartment.apartment_number }}
+                                        ({{ contract.apartment.area_sqm }} m²)
+                                    {% else %}
+                                        <span class="text-danger">Wohnung nicht gefunden</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Mieter:</th>
+                                <td>
+                                    {% if contract.tenant %}
+                                        {{ contract.tenant.first_name }} {{ contract.tenant.last_name }}
+                                    {% else %}
+                                        <span class="text-danger">Mieter nicht gefunden</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Vermieter:</th>
+                                <td>
+                                    {% if contract.landlord %}
+                                        <div class="fw-semibold">{{ contract.landlord.company_name or contract.landlord.first_name ~ ' ' ~ contract.landlord.last_name }}</div>
+                                        <div class="text-muted small">{{ contract.landlord.street or '' }} {{ contract.landlord.street_number or '' }}</div>
+                                        <div class="text-muted small">{{ contract.landlord.zip_code or '' }} {{ contract.landlord.city or '' }}</div>
+                                    {% else %}
+                                        <span class="text-muted">Kein Vermieter hinterlegt</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <table class="table table-sm table-borderless">
+                            <tr>
+                                <th class="text-muted w-50">Vertragsbeginn:</th>
+                                <td>{{ contract.start_date.strftime('%d.%m.%Y') }}</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Vertragsende:</th>
+                                <td>
+                                    {% if contract.end_date %}
+                                        {{ contract.end_date.strftime('%d.%m.%Y') }}
+                                    {% else %}
+                                        <span class="text-muted">Unbefristet</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Kaltmiete:</th>
+                                <td>{{ "%.2f"|format(contract.rent_net) }} €</td>
+                            </tr>
+                            <tr>
+                                <th class="text-muted">Nebenkosten:</th>
+                                <td>{{ "%.2f"|format(contract.rent_additional) }} €</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status Information -->
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-light">
+                <h5 class="card-title mb-0">Status Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="alert {% if contract.status == 'draft' %}alert-warning{% else %}alert-info{% endif %}">
+                            <i class="bi bi-info-circle me-2"></i>
+                            <strong>Vertragsstatus: {{ translate_status(contract.status) }}</strong>
+                            <p class="mb-0 mt-2 small">
+                                {% if contract.status == 'draft' %}
+                                Dieser Vertrag ist noch nicht aktiv. Klicken Sie auf "Vertrag aktivieren" um ihn zu aktivieren.
+                                {% elif contract.status == 'active' %}
+                                Dieser Vertrag ist aktuell aktiv.
+                                {% if contract.end_date %}
+                                    <br>Läuft ab am: {{ contract.end_date.strftime('%d.%m.%Y') }}
+                                {% endif %}
+                                {% elif contract.status == 'terminated' %}
+                                Dieser Vertrag wurde gekündigt.
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="alert alert-secondary">
+                            <i class="bi bi-clock-history me-2"></i>
+                            <strong>Unterschriften-Prozess</strong>
+                            <p class="mb-0 mt-2 small">
+                                Der Vertrag wird manuell unterschrieben und als PDF hochgeladen. 
+                                Nach dem Hochladen steht das PDF zum Download bereit.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Änderungshistorie -->
+        {% if contract.revisions %}
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-light">
+                <h5 class="card-title mb-0">Änderungshistorie</h5>
+            </div>
+            <div class="card-body">
+                <div class="revision-timeline">
+                    {% for revision in contract.revisions|sort(attribute='created_at', reverse=true) %}
+                    <div class="revision-item">
+                        <h6 class="mb-1">Revision #{{ revision.revision_number }}</h6>
+                        <p class="small text-muted mb-1">
+                            {{ revision.change_description }}
+                        </p>
+                        <div class="d-flex justify-content-between small text-muted">
+                            <span>
+                                {% if revision.user %}
+                                    {{ revision.user.username }}
+                                {% else %}
+                                    Unbekannt
+                                {% endif %}
+                            </span>
+                            <span>{{ revision.created_at.strftime('%d.%m.%Y %H:%M') }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="col-lg-4">
+        <!-- Aktionen -->
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-light">
+                <h6 class="card-title mb-0">Aktionen</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <form action="{{ url_for('contracts.duplicate_contract', contract_id=contract.id) }}" method="POST">
+                        <button type="submit" class="btn btn-outline-primary w-100">
+                            <i class="bi bi-files me-1"></i>Vertrag duplizieren
+                        </button>
+                    </form>
+                    <a href="{{ url_for('contract_editor.tree_editor', contract_id=contract.id) }}"
+                        class="btn btn-primary">
+                        <i class="bi bi-diagram-3 me-1"></i>Vertragsklauseln bearbeiten
+                    </a>
+
+                    {% if contract.status == 'draft' %}
+                    <form action="{{ url_for('contracts.activate_contract', contract_id=contract.id) }}" method="POST" class="d-grid">
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-check-circle me-1"></i>Vertrag aktivieren
+                        </button>
+                    </form>
+                    {% endif %}
+                    
+                    {% if contract.status == 'active' %}
+                    <form action="{{ url_for('contracts.terminate_contract', contract_id=contract.id) }}" method="POST" class="d-grid">
+                        <button type="submit" class="btn btn-warning">
+                            <i class="bi bi-x-circle me-1"></i>Vertrag kündigen
+                        </button>
+                    </form>
+                    {% endif %}
+
+                    <a href="{{ url_for('protocols.create_protocol', contract_id=contract.id) }}" class="btn btn-outline-primary">
+                        <i class="bi bi-clipboard-plus me-1"></i>Protokoll erstellen
+                    </a>
+                </div>
+
+                <!-- PDF Management -->
+                <div class="mt-3">
+                    <h6 class="border-bottom pb-2">PDF Management</h6>
+                    
+                    {% if contract.pdf_path %}
+                    <p class="small text-muted mb-2">Unterschriebenes PDF verfügbar</p>
+
+                    <a href="{{ url_for('contracts.download_contract', contract_id=contract.id) }}" class="btn btn-success w-100 mb-2">
+                        <i class="bi bi-download me-1"></i>PDF herunterladen
+                    </a>
+
+                    <!-- Option zum erneuten Generieren -->
+                    <a href="{{ url_for('contracts.generate_contract_pdf', contract_id=contract.id) }}" class="btn btn-outline-primary w-100 mb-2">
+                        <i class="bi bi-arrow-clockwise me-1"></i>PDF neu generieren
+                    </a>
+
+                    {% else %}
+                    <!-- Wenn kein PDF existiert -->
+                    <div class="d-grid gap-2 mb-3">
+                        <a href="{{ url_for('contracts.generate_contract_pdf', contract_id=contract.id) }}" class="btn btn-success">
+                            <i class="bi bi-file-pdf me-1"></i>PDF generieren
+                        </a>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Upload-Formular (immer sichtbar) -->
+                    <form action="{{ url_for('contracts.upload_contract_pdf', contract_id=contract.id) }}" method="POST" enctype="multipart/form-data">
+                        <div class="input-group">
+                            <input type="file" class="form-control" name="pdf_file" accept=".pdf" required>
+                            <button type="submit" class="btn btn-outline-success">
+                                <i class="bi bi-upload me-1"></i>PDF hochladen
+                            </button>
+                        </div>
+                        <div class="form-text">
+                            {% if contract.pdf_path %}
+                            Neues unterschriebenes PDF hochladen (ersetzt vorhandenes)
+                            {% else %}
+                            Unterschriebenes PDF hochladen
+                            {% endif %}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Verknüpfte Protokolle -->
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-light">
+                <h6 class="card-title mb-0">Verknüpfte Protokolle</h6>
+            </div>
+            <div class="card-body">
+                {% if contract.protocols %}
+                    <div class="list-group list-group-flush">
+                        {% for protocol in contract.protocols %}
+                        <a href="{{ url_for('protocols.protocol_detail', protocol_id=protocol.id) }}" 
+                           class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">{{ protocol.protocol_type|title }}</h6>
+                                <small>{{ protocol.protocol_date.strftime('%d.%m.%Y') }}</small>
+                            </div>
+                            <p class="mb-1 small text-muted">
+                                {% if protocol.landlord_signed and protocol.tenant_signed %}
+                                <span class="badge bg-success">Vollständig unterschrieben</span>
+                                {% elif protocol.landlord_signed or protocol.tenant_signed %}
+                                <span class="badge bg-warning">Teilweise unterschrieben</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Nicht unterschrieben</span>
+                                {% endif %}
+                            </p>
+                        </a>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-muted small mb-0">Noch keine Protokolle vorhanden</p>
+                {% endif %}
+                <div class="mt-3">
+                    <a href="{{ url_for('protocols.create_protocol', contract_id=contract.id) }}" class="btn btn-outline-primary btn-sm w-100">
+                        <i class="bi bi-plus-circle me-1"></i>Neues Protokoll
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

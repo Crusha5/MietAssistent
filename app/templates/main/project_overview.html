@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block title %}Projektvision – MietAssistent{% endblock %}
+
+{% block content %}
+<div class="row g-4 py-4">
+    <div class="col-12 col-lg-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-4">
+                <div class="d-flex align-items-center mb-3 gap-3">
+                    <div class="feature-icon bg-primary bg-opacity-10 text-primary">
+                        <i class="bi bi-shield-check"></i>
+                    </div>
+                    <div>
+                        <p class="mb-1 text-uppercase small text-muted">Version {{ profile.project.version }}</p>
+                        <h2 class="mb-1 fw-bold">{{ profile.project.display_name }}</h2>
+                        <p class="mb-0 text-muted">{{ profile.project.tagline }}</p>
+                    </div>
+                </div>
+
+                <p class="lead">{{ profile.project.description }}</p>
+
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="p-3 rounded-3 bg-primary bg-opacity-10 h-100">
+                            <small class="text-uppercase text-primary fw-semibold">Branding</small>
+                            <p class="mb-1 fw-semibold">Primärfarbe: {{ profile.branding.color_scheme.primary }}</p>
+                            <p class="mb-0">Schrift: {{ profile.branding.typography.primary }}</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-3 rounded-3 bg-success bg-opacity-10 h-100">
+                            <small class="text-uppercase text-success fw-semibold">Installation</small>
+                            <p class="mb-1 fw-semibold">{{ profile.installation.type }}</p>
+                            <p class="mb-0">Einstieg: {{ profile.installation.setup_methods[0].entry_point }}</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-3 rounded-3 bg-warning bg-opacity-10 h-100">
+                            <small class="text-uppercase text-warning fw-semibold">Sicherheit</small>
+                            <p class="mb-1 fw-semibold">{{ profile.security_concept.authentication.method }}</p>
+                            <p class="mb-0">Timeout: {{ profile.security_concept.authentication.timeout }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm mt-4">
+            <div class="card-body p-4">
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <h4 class="mb-0">Systemarchitektur</h4>
+                    <span class="badge bg-secondary">4 Ebenen</span>
+                </div>
+                <div class="list-group list-group-flush">
+                    {% for key, level in profile.system_architecture.hierarchy.items() %}
+                    <div class="list-group-item px-0 py-3">
+                        <div class="d-flex align-items-start gap-3">
+                            <div class="feature-icon bg-secondary bg-opacity-10 text-secondary">
+                                <i class="bi bi-diagram-3"></i>
+                            </div>
+                            <div>
+                                <h5 class="mb-1">{{ level.name }}</h5>
+                                <p class="mb-1 text-muted">{{ level.description }}</p>
+                                {% if level.attributes %}
+                                    <div class="d-flex flex-wrap gap-2">
+                                        {% for attribute in level.attributes %}
+                                            <span class="badge text-bg-light">{{ attribute }}</span>
+                                        {% endfor %}
+                                    </div>
+                                {% elif level.components %}
+                                    <div class="d-flex flex-wrap gap-2">
+                                        {% for component in level.components %}
+                                            <span class="badge text-bg-light">{{ component }}</span>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm mt-4">
+            <div class="card-body p-4">
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <h4 class="mb-0">Monitoring &amp; Backups</h4>
+                    <span class="badge bg-primary">Betrieb</span>
+                </div>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <h6 class="text-muted text-uppercase">Backups</h6>
+                        <p class="mb-1">Frequenz: {{ profile.backup_strategy.automated_backups.frequency }}</p>
+                        <p class="mb-1">Aufbewahrung: {{ profile.backup_strategy.automated_backups.retention }}</p>
+                        <p class="mb-0">Verifikation: {{ profile.backup_strategy.automated_backups.verification }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-muted text-uppercase">Monitoring</h6>
+                        <p class="mb-1">Health Checks: {{ profile.monitoring_analytics.system_monitoring.health_checks }}</p>
+                        <p class="mb-1">Performance: {{ profile.monitoring_analytics.system_monitoring.performance_metrics }}</p>
+                        <p class="mb-0">Fehlertracking: {{ profile.monitoring_analytics.system_monitoring.error_tracking }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-4">
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body p-4">
+                <h5 class="fw-bold mb-3">Installationspfade</h5>
+                <div class="list-group list-group-flush">
+                    {% for method in profile.installation.setup_methods %}
+                    <div class="list-group-item px-0">
+                        <div class="d-flex align-items-start gap-3">
+                            <div class="feature-icon bg-info bg-opacity-10 text-info">
+                                <i class="bi bi-wrench"></i>
+                            </div>
+                            <div>
+                                <h6 class="mb-1">{{ method.name }}</h6>
+                                <p class="mb-2 text-muted">{{ method.entry_point or method.files|join(', ') }}</p>
+                                <ul class="small mb-0 ps-3">
+                                    {% for step in method.steps or method.features %}
+                                        <li>{{ step }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-4">
+                <h5 class="fw-bold mb-3">Sicherheitskonzept</h5>
+                <ul class="list-unstyled mb-0">
+                    <li class="mb-3 d-flex gap-2">
+                        <i class="bi bi-lock-fill text-primary"></i>
+                        <div>
+                            <strong>Authentifizierung</strong>
+                            <p class="mb-0 text-muted">{{ profile.security_concept.authentication.complexity }}</p>
+                        </div>
+                    </li>
+                    <li class="mb-3 d-flex gap-2">
+                        <i class="bi bi-people-fill text-secondary"></i>
+                        <div>
+                            <strong>Rollen</strong>
+                            <p class="mb-0 text-muted">Admin, Manager, Tenant</p>
+                        </div>
+                    </li>
+                    <li class="d-flex gap-2">
+                        <i class="bi bi-shield-lock text-success"></i>
+                        <div>
+                            <strong>DSGVO &amp; Recht</strong>
+                            <p class="mb-0 text-muted">{{ profile.security_concept.compliance.dsgvo }}</p>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

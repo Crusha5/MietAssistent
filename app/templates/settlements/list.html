@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}Abrechnungen - Rental Management{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h2 mb-0">
+        <i class="bi bi-calculator text-primary me-2"></i>Abrechnungen
+    </h1>
+    <a href="/settlements/calculate" class="btn btn-primary">
+        <i class="bi bi-plus-circle me-1"></i>Neue Abrechnung
+    </a>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body">
+        {% if settlements %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>Zeitraum</th>
+                        <th>Wohnung</th>
+                        <th>Mieter</th>
+                        <th>Gesamtbetrag</th>
+                        <th>Erstellt am</th>
+                        <th>Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for settlement in settlements %}
+                    <tr>
+                        <td>
+                            {{ settlement.period_start.strftime('%d.%m.%Y') }} - {{ settlement.period_end.strftime('%d.%m.%Y') }}
+                        </td>
+                        <td>
+                            {% if settlement.apartment %}
+                                {{ settlement.apartment.number }} - {{ settlement.apartment.street }}
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if settlement.tenant %}
+                                {{ settlement.tenant.first_name }} {{ settlement.tenant.last_name }}
+                            {% endif %}
+                        </td>
+                        <td>{{ "%.2f"|format(settlement.total_amount) }} €</td>
+                        <td>{{ settlement.created_at.strftime('%d.%m.%Y') }}</td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="/settlements/{{ settlement.id }}" class="btn btn-outline-primary">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a href="/settlements/{{ settlement.id }}/pdf" class="btn btn-outline-secondary">
+                                    <i class="bi bi-file-pdf"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-calculator display-1 text-muted"></i>
+            <h4 class="text-muted mt-3">Keine Abrechnungen gefunden</h4>
+            <p class="text-muted">Erstellen Sie Ihre erste Abrechnung.</p>
+            <a href="/settlements/calculate" class="btn btn-primary">
+                <i class="bi bi-plus-circle me-1"></i>Erste Abrechnung erstellen
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

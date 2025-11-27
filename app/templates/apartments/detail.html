@@ -1,0 +1,340 @@
+{% extends "base.html" %}
+
+{% block title %}Wohnungsdetails - MietAssistent{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header mit Wohnungsnummer und Aktionen -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h2 mb-0">
+                <i class="bi bi-building text-primary me-2"></i>
+                Wohnung {{ apartment.apartment_number }}
+            </h1>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{{ url_for('apartments.apartments_list') }}">Wohnungen</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">{{ apartment.apartment_number }}</li>
+                </ol>
+            </nav>
+        </div>
+        <div class="btn-group">
+            <a href="{{ url_for('apartments.edit_apartment', apartment_id=apartment.id) }}" class="btn btn-outline-primary">
+                <i class="bi bi-pencil me-1"></i>Bearbeiten
+            </a>
+            <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">
+                <i class="bi bi-trash me-1"></i>Löschen
+            </button>
+        </div>
+    </div>
+
+    <!-- Wohnungsinformationen -->
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-transparent border-0">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-info-circle text-primary me-2"></i>Allgemeine Informationen
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <th class="text-muted">Wohnungsnummer:</th>
+                                    <td>{{ apartment.apartment_number }}</td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">Etage:</th>
+                                    <td>{{ apartment.floor }}</td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">Fläche:</th>
+                                    <td>{{ apartment.area_sqm }} m²</td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">Zimmer:</th>
+                                    <td>{{ apartment.room_count }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <th class="text-muted">Gebäude:</th>
+                                    <td>
+                                        {% if apartment.building %}
+                                            {{ apartment.building.name }}
+                                        {% else %}
+                                            <span class="text-muted">Nicht zugeordnet</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">Status:</th>
+                                    <td>
+                                        {% if apartment.status == 'occupied' %}
+                                            <span class="badge bg-success">Vermietet</span>
+                                        {% elif apartment.status == 'vacant' %}
+                                            <span class="badge bg-secondary">Frei</span>
+                                        {% elif apartment.status == 'reserved' %}
+                                            <span class="badge bg-info">Reserviert</span>
+                                        {% elif apartment.status == 'maintenance' %}
+                                            <span class="badge bg-warning">In Wartung</span>
+                                        {% else %}
+                                            <span class="badge bg-primary">{{ apartment.status }}</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">Mietbeginn:</th>
+                                    <td>{{ apartment.rent_start_date.strftime('%d.%m.%Y') if apartment.rent_start_date else 'Nicht festgelegt' }}</td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted">Mietende:</th>
+                                    <td>{{ apartment.rent_end_date.strftime('%d.%m.%Y') if apartment.rent_end_date else 'Nicht festgelegt' }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mieter -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-people text-primary me-2"></i>Mieter
+                    </h5>
+                    <a href="{{ url_for('tenants.create_tenant') }}" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-plus-circle me-1"></i>Mieter hinzufügen
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if tenants %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>E-Mail</th>
+                                        <th>Telefon</th>
+                                        <th>Einzugsdatum</th>
+                                        <th>Aktionen</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for tenant in tenants %}
+                                    <tr>
+                                        <td>{{ tenant.first_name }} {{ tenant.last_name }}</td>
+                                        <td>{{ tenant.email }}</td>
+                                        <td>{{ tenant.phone }}</td>
+                                        <td>{{ tenant.move_in_date.strftime('%d.%m.%Y') if tenant.move_in_date else 'Nicht angegeben' }}</td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <a href="{{ url_for('tenants.tenant_detail', tenant_id=tenant.id) }}" class="btn btn-outline-primary">
+                                                    <i class="bi bi-eye"></i>
+                                                </a>
+                                                <a href="{{ url_for('tenants.edit_tenant', tenant_id=tenant.id) }}" class="btn btn-outline-secondary">
+                                                    <i class="bi bi-pencil"></i>
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="bi bi-people display-4 text-muted"></i>
+                            <p class="text-muted mt-3">Keine Mieter vorhanden</p>
+                            <a href="{{ url_for('tenants.create_tenant') }}" class="btn btn-primary">Ersten Mieter anlegen</a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Zähler -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-speedometer text-primary me-2"></i>Zähler
+                    </h5>
+                    <a href="{{ url_for('meters.create_meter') }}" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-plus-circle me-1"></i>Zähler hinzufügen
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if meters %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Zählernummer</th>
+                                        <th>Typ</th>
+                                        <th>Beschreibung</th>
+                                        <th>Installationsdatum</th>
+                                        <th>Aktionen</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for meter in meters %}
+                                    <tr>
+                                        <td>{{ meter.meter_number }}</td>
+                                        <td>
+                                            {% if meter.meter_type %}
+                                                {{ meter.meter_type.name }}
+                                            {% else %}
+                                                <span class="text-muted">Unbekannt</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ meter.description }}</td>
+                                        <td>{{ meter.installation_date.strftime('%d.%m.%Y') if meter.installation_date else 'Nicht angegeben' }}</td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <a href="{{ url_for('meters.meter_detail', meter_id=meter.id) }}" class="btn btn-outline-primary">
+                                                    <i class="bi bi-eye"></i>
+                                                </a>
+                                                <a href="{{ url_for('meters.edit_meter', meter_id=meter.id) }}" class="btn btn-outline-secondary">
+                                                    <i class="bi bi-pencil"></i>
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="bi bi-speedometer display-4 text-muted"></i>
+                            <p class="text-muted mt-3">Keine Zähler vorhanden</p>
+                            <a href="{{ url_for('meters.create_meter') }}" class="btn btn-primary">Ersten Zähler anlegen</a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Änderungshistorie -->
+            <div class="card border-0 shadow-sm mt-4">
+                <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-clock-history text-primary me-2"></i>Änderungshistorie
+                    </h5>
+                    <a href="{{ url_for('settings_web.revisions_overview') }}" class="btn btn-outline-secondary btn-sm">Revisionen</a>
+                </div>
+                <div class="card-body">
+                    {% if revision_logs %}
+                    <div class="list-group list-group-flush">
+                        {% for log in revision_logs %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="small text-muted">{{ log.created_at.strftime('%d.%m.%Y %H:%M') }}</div>
+                                    <div class="fw-semibold text-uppercase small">{{ log.action }}</div>
+                                    <div class="small">{{ log.user.first_name ~ ' ' ~ log.user.last_name if log.user else 'System' }}</div>
+                                </div>
+                                <span class="badge bg-light text-dark">ID: {{ log.record_id }}</span>
+                            </div>
+                            <ul class="list-unstyled mb-0 small mt-2">
+                                {% for line in log.human_changes %}
+                                <li>• {{ line }}</li>
+                                {% else %}
+                                <li class="text-muted">Keine Details vorhanden</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted py-3">
+                        <i class="bi bi-clock-history display-6 d-block mb-2"></i>
+                        Keine Revisionen vorhanden.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar mit Finanzinformationen -->
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-transparent border-0">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-currency-euro text-primary me-2"></i>Finanzinformationen
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless">
+                        <tr>
+                            <th class="text-muted">Nettomiete:</th>
+                            <td class="text-end">{{ "%.2f"|format(apartment.rent_net or 0) }} €</td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted">Nebenkosten:</th>
+                            <td class="text-end">{{ "%.2f"|format(apartment.rent_additional or 0) }} €</td>
+                        </tr>
+                        <tr>
+                            <th class="text-muted">Kaution:</th>
+                            <td class="text-end">{{ "%.2f"|format(apartment.deposit or 0) }} €</td>
+                        </tr>
+                        <tr class="border-top">
+                            <th class="text-muted">Gesamtmiete:</th>
+                            <td class="text-end fw-bold">
+                                {{ "%.2f"|format((apartment.rent_net or 0) + (apartment.rent_additional or 0)) }} €
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Aktuelle Abrechnungen -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent border-0">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-receipt text-primary me-2"></i>Letzte Abrechnungen
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">Noch keine Abrechnungen vorhanden.</p>
+                    <a href="{{ url_for('settlements.calculate_settlement') }}" class="btn btn-outline-primary w-100">
+                        <i class="bi bi-plus-circle me-1"></i>Neue Abrechnung
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Lösch-Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">Wohnung löschen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Sind Sie sicher, dass Sie die Wohnung <strong>{{ apartment.apartment_number }}</strong> löschen möchten?</p>
+                <p class="text-danger">Diese Aktion kann nicht rückgängig gemacht werden.</p>
+                {% if tenants %}
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    Diese Wohnung hat noch Mieter und kann nicht gelöscht werden.
+                </div>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                {% if not tenants %}
+                <form method="POST" action="{{ url_for('apartments.delete_apartment', apartment_id=apartment.id) }}">
+                    <button type="submit" class="btn btn-danger">Löschen</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

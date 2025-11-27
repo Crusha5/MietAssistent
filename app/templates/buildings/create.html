@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}Neues Gebäude - MietAssistent{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent border-0">
+                <h1 class="h3 mb-0">
+                    <i class="bi bi-house-add text-primary me-2"></i>Neues Gebäude
+                </h1>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="name" class="form-label">Gebäudename *</label>
+                            <input type="text" class="form-control" id="name" name="name" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="year_built" class="form-label">Baujahr</label>
+                            <input type="number" class="form-control" id="year_built" name="year_built" min="1900" max="2030">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="street" class="form-label">Straße *</label>
+                            <input type="text" class="form-control" id="street" name="street" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="street_number" class="form-label">Hausnummer *</label>
+                            <input type="text" class="form-control" id="street_number" name="street_number" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="zip_code" class="form-label">PLZ *</label>
+                            <input type="text" class="form-control" id="zip_code" name="zip_code" required>
+                        </div>
+                        <div class="col-md-8">
+                            <label for="city" class="form-label">Stadt *</label>
+                            <input type="text" class="form-control" id="city" name="city" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="total_area_sqm" class="form-label">Gesamtfläche (m²)</label>
+                            <input type="number" step="0.01" class="form-control" id="total_area_sqm" name="total_area_sqm">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="energy_efficiency_class" class="form-label">Energieeffizienzklasse</label>
+                            <input type="text" class="form-control" id="energy_efficiency_class" name="energy_efficiency_class" placeholder="A+, A, B, ...">
+                        </div>
+                        <div class="col-12">
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-primary">Gebäude anlegen</button>
+                                <a href="/buildings" class="btn btn-outline-secondary">Abbrechen</a>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

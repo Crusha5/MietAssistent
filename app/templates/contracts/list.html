@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+
+{% block title %}Mietverträge - MietAssistent{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h2 mb-0">
+        <i class="bi bi-file-earmark-text text-primary me-2"></i>Mietverträge
+    </h1>
+    <div class="btn-group">
+        <a href="{{ url_for('contracts.create_contract') }}" class="btn btn-primary">
+            <i class="bi bi-plus-circle me-1"></i>Neuer Mietvertrag
+        </a>
+        <a href="{{ url_for('contract_templates.templates_list') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-layers me-1"></i>Vorlagen
+        </a>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body">
+        <form class="row g-3 mb-4" method="get">
+            <div class="col-md-4">
+                <label class="form-label">Suche</label>
+                <input type="text" class="form-control" name="q" value="{{ q or '' }}" placeholder="Vertragsnummer oder Mieter">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Status</label>
+                <select class="form-select" name="status">
+                    <option value="">Alle</option>
+                    <option value="draft" {% if status=='draft' %}selected{% endif %}>Entwurf</option>
+                    <option value="active" {% if status=='active' %}selected{% endif %}>Aktiv</option>
+                    <option value="terminated" {% if status=='terminated' %}selected{% endif %}>Beendet</option>
+                    <option value="expired" {% if status=='expired' %}selected{% endif %}>Abgelaufen</option>
+                    <option value="archived" {% if status=='archived' %}selected{% endif %}>Archiviert</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Archiv</label>
+                <select class="form-select" name="archived">
+                    <option value="active" {% if archived_filter!='all' %}selected{% endif %}>Nur aktive</option>
+                    <option value="all" {% if archived_filter=='all' %}selected{% endif %}>Aktiv & archiviert</option>
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end justify-content-end">
+                <button class="btn btn-primary w-100" type="submit"><i class="bi bi-filter me-1"></i>Filtern</button>
+            </div>
+        </form>
+        {% if contracts %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>Vertragsnummer</th>
+                        <th>Mieter</th>
+                        <th>Wohnung</th>
+                        <th>Startdatum</th>
+                        <th>Miete (netto)</th>
+                        <th>Status</th>
+                        <th>Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for contract in contracts %}
+                    <tr>
+                        <td>
+                            <strong>{{ contract.contract_number }}</strong>
+                            <br>
+                            <small class="text-muted">{{ contract.contract_type }}</small>
+                        </td>
+                        <td>{{ contract.tenant.first_name }} {{ contract.tenant.last_name }}</td>
+                        <td>
+                            {{ contract.apartment.building.name }} -
+                            {{ contract.apartment.apartment_number }}
+                        </td>
+                        <td>{{ contract.start_date.strftime('%d.%m.%Y') }}</td>
+                        <td>{{ "%.2f"|format(contract.rent_net) }} €</td>
+                        <td>
+                            <span class="badge {% if contract.status == 'active' %}bg-success
+                                            {% elif contract.status == 'draft' %}bg-warning
+                                            {% else %}bg-secondary{% endif %}">
+                                {{ contract.is_archived and 'Archiviert' or translate_status(contract.status) }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('contracts.contract_detail', contract_id=contract.id) }}" 
+                                   class="btn btn-outline-primary">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                {% if contract.pdf_path %}
+                                <a href="{{ url_for('contracts.download_contract', contract_id=contract.id) }}" 
+                                   class="btn btn-outline-success">
+                                    <i class="bi bi-download"></i>
+                                </a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-file-earmark-text display-1 text-muted"></i>
+            <h4 class="text-muted mt-3">Keine Mietverträge gefunden</h4>
+            <p class="text-muted">Erstellen Sie Ihren ersten Mietvertrag.</p>
+            <a href="{{ url_for('contracts.create_contract') }}" class="btn btn-primary">
+                <i class="bi bi-plus-circle me-1"></i>Ersten Mietvertrag erstellen
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% include 'contracts/landlord_modal.html' %}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Vermieter-Typ Umschaltung
+    document.querySelectorAll('input[name="type"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            const isNatural = this.value === 'natural';
+            document.getElementById('naturalPersonFields').style.display = isNatural ? 'block' : 'none';
+            document.getElementById('companyFields').style.display = isNatural ? 'none' : 'block';
+            
+            // Pflichtfelder anpassen
+            document.getElementById('first_name').required = isNatural;
+            document.getElementById('last_name').required = isNatural;
+            document.getElementById('company_name').required = !isNatural;
+        });
+    });
+
+    // Vermieter speichern
+    document.getElementById('saveLandlord').addEventListener('click', function() {
+        const form = document.getElementById('landlordForm');
+        const formData = new FormData(form);
+        
+        fetch('/api/landlords', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(Object.fromEntries(formData))
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Modal schließen und Erfolgsmeldung anzeigen
+                bootstrap.Modal.getInstance(document.getElementById('landlordModal')).hide();
+                showSuccess('Vermieter erfolgreich angelegt!');
+                
+                // Formular zurücksetzen
+                form.reset();
+            } else {
+                showError('Fehler: ' + data.error);
+            }
+        })
+        .catch(error => {
+            showError('Netzwerkfehler: ' + error);
+        });
+    });
+
+    function showSuccess(message) {
+        const alert = document.createElement('div');
+        alert.className = 'alert alert-success alert-dismissible fade show';
+        alert.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.querySelector('main').insertBefore(alert, document.querySelector('main').firstChild);
+    }
+
+    function showError(message) {
+        const alert = document.createElement('div');
+        alert.className = 'alert alert-danger alert-dismissible fade show';
+        alert.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.querySelector('main').insertBefore(alert, document.querySelector('main').firstChild);
+    }
+});
+</script>

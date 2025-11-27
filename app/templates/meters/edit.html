@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block title %}Zähler bearbeiten - MietAssistent{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-pencil-square me-2"></i>Zähler bearbeiten: {{ meter.meter_number }}
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('meters.edit_meter', meter_id=meter.id) }}">
+                    <div class="row g-3">
+                        <!-- Grundinformationen -->
+                        <div class="col-md-6">
+                            <label for="meter_number" class="form-label">Zählernummer *</label>
+                            <input type="text" class="form-control" id="meter_number" name="meter_number" value="{{ meter.meter_number }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="meter_type_id" class="form-label">Zählertyp *</label>
+                            <select class="form-select" id="meter_type_id" name="meter_type_id" required>
+                                <option value="">Bitte auswählen...</option>
+                                {% for meter_type in meter_types %}
+                                <option value="{{ meter_type.id }}" {% if meter_type.id == meter.meter_type_id %}selected{% endif %}>
+                                    {{ meter_type.name }} ({{ meter_type.unit }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="col-12">
+                            <label for="description" class="form-label">Beschreibung</label>
+                            <input type="text" class="form-control" id="description" name="description" value="{{ meter.description or '' }}" placeholder="z.B. Strom Hauptzähler EG">
+                        </div>
+
+                        <!-- Hierarchie -->
+                        <div class="col-md-6">
+                            <label for="building_id" class="form-label">Gebäude *</label>
+                            <select class="form-select" id="building_id" name="building_id" required>
+                                <option value="">Bitte auswählen...</option>
+                                {% for building in buildings %}
+                                <option value="{{ building.id }}" {% if building.id == meter.building_id %}selected{% endif %}>{{ building.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="multiplier" class="form-label">Multiplikator</label>
+                            <input type="number" step="0.0001" class="form-control" id="multiplier" name="multiplier" value="{{ meter.multiplier or 1.0 }}">
+                        </div>
+
+                        <!-- Zusatzinformationen -->
+                        <div class="col-md-6">
+                            <label for="installation_date" class="form-label">Installationsdatum</label>
+                            <input type="date" class="form-control" id="installation_date" name="installation_date" value="{{ meter.installation_date or '' }}">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="location_description" class="form-label">Standortbeschreibung</label>
+                            <input type="text" class="form-control" id="location_description" name="location_description" value="{{ meter.location_description or '' }}">
+                        </div>
+
+                        <!-- Checkboxen -->
+                        <div class="col-md-6">
+                            <div class="form-text">
+                                {% if meter.is_main_meter %}
+                                    ✅ Dies ist ein Hauptzähler (kein übergeordneter Zähler ausgewählt)
+                                {% else %}
+                                    🔄 Dies ist ein Unterzähler (übergeordneter Zähler: {{ meter.parent_meter.meter_number if meter.parent_meter else 'Unbekannt' }})
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Technische Daten -->
+                        <div class="col-md-6">
+                            <label for="manufacturer" class="form-label">Hersteller</label>
+                            <input type="text" class="form-control" id="manufacturer" name="manufacturer" value="{{ meter.manufacturer or '' }}">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="model" class="form-label">Modell</label>
+                            <input type="text" class="form-control" id="model" name="model" value="{{ meter.model or '' }}">
+                        </div>
+
+                        <!-- Notizen -->
+                        <div class="col-12">
+                            <label for="notes" class="form-label">Notizen</label>
+                            <textarea class="form-control" id="notes" name="notes" rows="3">{{ meter.notes or '' }}</textarea>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle me-1"></i>Änderungen speichern
+                        </button>
+                        <a href="{{ url_for('meters.meter_detail', meter_id=meter.id) }}" class="btn btn-outline-secondary">Abbrechen</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Gleiches JavaScript wie in create.html für dynamische Laden
+document.addEventListener('DOMContentLoaded', function() {
+    // Gebäude-Change Event
+    document.getElementById('building_id').addEventListener('change', function() {
+        const buildingId = this.value;
+        const apartmentSelect = document.getElementById('apartment_id');
+        const parentMeterSelect = document.getElementById('parent_meter_id');
+        
+        if (buildingId) {
+            // Wohnungen für dieses Gebäude laden
+            fetch(`/api/buildings/${buildingId}/apartments`)
+                .then(response => response.json())
+                .then(apartments => {
+                    apartmentSelect.innerHTML = '<option value="">Keine spezifische Wohnung (Gebäudezähler)</option>';
+                    apartments.forEach(apartment => {
+                        const option = document.createElement('option');
+                        option.value = apartment.id;
+                        option.textContent = `${apartment.apartment_number} - ${apartment.building_name || 'Unbekannt'}`;
+                        apartmentSelect.appendChild(option);
+                    });
+                })
+                .catch(error => {
+                    console.error('Fehler beim Laden der Wohnungen:', error);
+                });
+                
+            // Zähler für dieses Gebäude als mögliche Eltern laden
+            fetch(`/api/buildings/${buildingId}/meters`)
+                .then(response => response.json())
+                .then(meters => {
+                    parentMeterSelect.innerHTML = '<option value="">Kein übergeordneter Zähler (Hauptzähler)</option>';
+                    meters.forEach(meter => {
+                        const option = document.createElement('option');
+                        option.value = meter.id;
+                        const meterDesc = meter.description ? ` - ${meter.description}` : '';
+                        option.textContent = `${meter.meter_number}${meterDesc}`;
+                        parentMeterSelect.appendChild(option);
+                    });
+                })
+                .catch(error => {
+                    console.error('Fehler beim Laden der Zähler:', error);
+                });
+        }
+    });
+});
+</script>
+{% endblock %}

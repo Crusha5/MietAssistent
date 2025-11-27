@@ -1,0 +1,966 @@
+{% extends "base.html" %}
+
+{% block title %}Mietvertrag strukturieren - {{ contract.contract_number }} - MietAssistent{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-lite.min.css" rel="stylesheet">
+
+<style>
+    .tree-column {
+        height: calc(100vh - 110px);
+        overflow-y: auto;
+    }
+
+    .template-list-item {
+        border-left: 4px solid #0d6efd;
+        padding: 0.5rem 0.75rem;
+        margin-bottom: 0.35rem;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+    }
+    .template-list-item:hover {
+        background-color: #f8f9fa;
+    }
+
+    .paragraph-node {
+        border: 1px solid #e5e5e5;
+        border-radius: 0.5rem;
+        padding: 0.5rem 0.75rem;
+        margin-bottom: 0.5rem;
+        background-color: #fff;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    }
+
+    .paragraph-node .node-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .paragraph-node .node-title {
+        font-weight: 600;
+    }
+
+    .paragraph-node .node-meta {
+        font-size: 0.8rem;
+        color: #6c757d;
+    }
+
+    .paragraph-node .drag-handle {
+        cursor: move;
+        color: #adb5bd;
+        margin-right: 0.5rem;
+    }
+
+    .subparagraph-list {
+        margin-top: 0.35rem;
+        margin-left: 1.75rem;
+        border-left: 2px dashed #dee2e6;
+        padding-left: 0.75rem;
+    }
+
+    .subparagraph-node {
+        border: 1px solid #f1f1f1;
+        border-radius: 0.5rem;
+        padding: 0.35rem 0.5rem;
+        margin-bottom: 0.35rem;
+        background-color: #fdfdfd;
+    }
+
+    .sortable-ghost {
+        opacity: 0.4;
+        background-color: #e9ecef !important;
+    }
+
+    .preview-pane {
+        border: 1px solid #e5e5e5;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        background-color: #fff;
+        height: calc(100vh - 110px);
+        overflow-y: auto;
+        font-family: "Times New Roman", Times, serif;
+        font-size: 11pt;
+        line-height: 1.6;
+    }
+
+    .preview-pane h2 {
+        font-size: 12pt;
+        margin-top: 1rem;
+        margin-bottom: 0.35rem;
+    }
+
+    .preview-pane p {
+        margin-bottom: 0.35rem;
+    }
+
+    /* Dark theme tweaks */
+    [data-bs-theme="dark"] .tree-column,
+    body[data-bs-theme="dark"] .tree-column {
+        background: #0f172a;
+    }
+    [data-bs-theme="dark"] .template-list-item,
+    body[data-bs-theme="dark"] .template-list-item {
+        border-color: #243145;
+        background: #111827;
+        color: #e2e8f0;
+    }
+    [data-bs-theme="dark"] .card-header.bg-light,
+    body[data-bs-theme="dark"] .card-header.bg-light {
+        background: #1a2337 !important;
+        color: #e2e8f0 !important;
+        border-color: #243145 !important;
+    }
+    [data-bs-theme="dark"] .template-list-item:hover,
+    body[data-bs-theme="dark"] .template-list-item:hover {
+        background: #182235;
+    }
+    [data-bs-theme="dark"] .paragraph-node,
+    body[data-bs-theme="dark"] .paragraph-node {
+        background: #111827;
+        border-color: #243145;
+        color: #e2e8f0;
+    }
+    [data-bs-theme="dark"] .subparagraph-node,
+    body[data-bs-theme="dark"] .subparagraph-node {
+        background: #0f172a;
+        border-color: #243145;
+        color: #e2e8f0;
+    }
+    [data-bs-theme="dark"] .preview-pane,
+    body[data-bs-theme="dark"] .preview-pane {
+        background: #0b1220;
+        border-color: #243145;
+        color: #e2e8f0;
+    }
+    [data-bs-theme="dark"] .note-editor,
+    body[data-bs-theme="dark"] .note-editor {
+        background: #0f172a;
+        color: #e2e8f0;
+        border-color: #1f2937;
+    }
+    [data-bs-theme="dark"] .note-editor .note-editing-area .note-editable,
+    body[data-bs-theme="dark"] .note-editor .note-editing-area .note-editable {
+        background: #0f172a;
+        color: #e2e8f0;
+    }
+    [data-bs-theme="dark"] .note-editor .note-toolbar,
+    body[data-bs-theme="dark"] .note-editor .note-toolbar {
+        background: #111827;
+        border-bottom-color: #1f2937;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">
+        <i class="bi bi-diagram-3 text-primary me-2"></i>Mietvertrag strukturieren
+        <small class="text-muted d-block fs-6">Vertrag {{ contract.contract_number }}</small>
+    </h1>
+    <div class="btn-group">
+        <a href="{{ url_for('contracts.contract_detail', contract_id=contract.id) }}"
+           class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i>Zurück zum Vertrag
+        </a>
+        <span class="btn btn-outline-success disabled">
+            <i class="bi bi-cloud-arrow-down me-1"></i>Autospeichern aktiv
+        </span>
+    </div>
+</div>
+
+<div id="alertContainer"></div>
+
+<div class="row">
+    <!-- Linke Spalte: Templates -->
+    <div class="col-lg-3 mb-3">
+        <div class="card border-0 shadow-sm tree-column">
+            <div class="card-header bg-light">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-layers me-2"></i>Klausel-Templates
+                    </h5>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if clauses_by_category %}
+                    {% for category, templates in clauses_by_category.items() %}
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <h6 class="mb-0 text-muted text-uppercase small">{{ category }}</h6>
+                            </div>
+                            {% for tpl in templates %}
+                                <div class="template-list-item"
+                                     data-template-id="{{ tpl.id }}"
+                                     data-template-title="{{ tpl.title }}"
+                                     data-template-category="{{ tpl.category }}"
+                                     data-template-content="{{ tpl.content|e }}"
+                                     data-template-mandatory="{{ 'true' if tpl.is_mandatory else 'false' }}">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <div class="fw-semibold small">{{ tpl.title }}</div>
+                                            <div class="node-meta">
+                                                {% if tpl.is_mandatory %}
+                                                    <span class="badge bg-warning text-dark me-1">Pflicht</span>
+                                                {% endif %}
+                                                {{ tpl.name }}
+                                            </div>
+                                        </div>
+                                        <button class="btn btn-sm btn-outline-primary add-from-template">
+                                            <i class="bi bi-plus-lg"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted small mb-0">
+                        Keine Klausel-Templates gefunden. Erzeuge zuerst Einträge in <code>clause_templates</code>.
+                    </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Mitte: Tree -->
+    <div class="col-lg-5 mb-3">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-list-nested me-2"></i>Paragraphen & Unterparagraphen
+                </h5>
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-primary" id="btnAddParagraph">
+                        <i class="bi bi-plus-square me-1"></i>Neuer Paragraph
+                    </button>
+                </div>
+            </div>
+            <div class="card-body tree-column">
+                <div id="paragraphTreeRoot"></div>
+                <div id="emptyHint" class="text-center text-muted small mt-3" style="display:none;">
+                    <i class="bi bi-file-text display-6 d-block mb-2"></i>
+                    Noch keine Paragraphen angelegt.<br>
+                    <span class="d-block mt-1">Nutze links ein Template oder "Neuer Paragraph".</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rechte Spalte: Preview -->
+    <div class="col-lg-4 mb-3">
+            <div class="card border-0 shadow-sm">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-eye me-2"></i>Live-Vorschau
+                </h5>
+                <div class="d-flex align-items-center gap-2">
+                    <button class="btn btn-outline-secondary btn-sm" id="btnPreviewFullscreen" title="Vorschau vergrößern">
+                        <i class="bi bi-arrows-fullscreen"></i>
+                    </button>
+                    <span class="badge bg-secondary small">Nur Vorschau</span>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="previewPane" class="preview-pane">
+                    <div class="text-muted small">
+                        Die Vorschau aktualisiert sich automatisch, sobald du Paragraphen erstellst oder änderst.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="previewFullscreen" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-fullscreen">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-eye me-2"></i>Live-Vorschau</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+            </div>
+            <div class="modal-body">
+                <div id="previewFullscreenBody" class="preview-pane"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Paragraph/Subparagraph bearbeiten -->
+<div class="modal fade" id="nodeEditorModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    Paragraph bearbeiten
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+            </div>
+            <div class="modal-body">
+                <form id="nodeEditorForm">
+                    <input type="hidden" id="nodeId">
+                    <input type="hidden" id="nodeLevel"> {# 1 = Paragraph, 2 = Unterparagraph #}
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="nodeTitle" class="form-label">Titel / Überschrift *</label>
+                            <input type="text" class="form-control" id="nodeTitle"
+                                   placeholder="z.B. Mietzweck, Nebenkosten, Kaution" required>
+                            <div class="form-text">
+                                Der Titel wird zusammen mit der Paragraphennummer angezeigt.
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="nodeCategory" class="form-label">Kategorie</label>
+                            <input type="text" class="form-control" id="nodeCategory"
+                                   placeholder="z.B. Kosten, Nutzung, Energie">
+                            <div class="form-text">
+                                Nur für deine interne Strukturierung (optional).
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="nodeIcon" class="form-label">Icon (Bootstrap Icon Name)</label>
+                            <input type="text" class="form-control" id="nodeIcon"
+                                   placeholder="z.B. bi-cash-coin">
+                            <div class="form-text">
+                                Optionales Icon vor dem Titel (Bootstrap Icons).
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="nodeContent" class="form-label">Inhalt *</label>
+                        <textarea id="nodeContent"></textarea>
+                        <div class="form-text">
+                            Du kannst Platzhalter wie <code>§mieter_vorname§</code> oder <code>§vertragsbeginn§</code> verwenden.
+                        </div>
+                    </div>
+
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="nodeMandatory">
+                        <label class="form-check-label" for="nodeMandatory">Pflichtparagraph (nicht löschbar)</label>
+                    </div>
+
+                </form>
+            </div>
+            <div class="modal-footer">
+                <div class="me-auto text-muted small">
+                    Änderungen werden automatisch gespeichert, nachdem du auf <strong>Speichern</strong> geklickt hast.
+                </div>
+                
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn btn-primary" id="btnSaveNode">
+                    <i class="bi bi-save me-1"></i>Speichern
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.6.4/dist/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-lite.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+
+<script>
+// --- Initial-Daten aus dem Backend ---
+const INITIAL_TREE = {{ initial_tree | tojson | safe }};
+const CONTRACT_ID = "{{ contract.id }}";
+const TEMPLATE_SUBCLAUSES = {{ template_subclauses | tojson | safe }};
+</script>
+
+<script>
+/**
+ * Tree-Struktur:
+ * [
+ *   {
+ *     id: 'uuid',
+ *     type: 'paragraph',
+ *     title: 'Mietzweck',
+ *     content: '<p>...</p>',
+ *     category: 'mietrecht',
+ *     icon: 'bi-house',
+ *     mandatory: false,
+ *     children: [
+ *       {
+ *         id: 'uuid',
+ *         type: 'subparagraph',
+ *         title: 'Untervermietung',
+ *         content: '<p>...</p>',
+ *         mandatory: false
+ *       }
+ *     ]
+ *   },
+ *   ...
+ * ]
+ */
+
+let paragraphTree = Array.isArray(INITIAL_TREE) ? INITIAL_TREE : [];
+let autosaveTimer = null;
+let nodeEditorModal = null;
+
+// --- Helpers ---
+function showAlert(message, type = 'info') {
+    const wrapper = document.getElementById('alertContainer');
+    const el = document.createElement('div');
+    el.className = `alert alert-${type} alert-dismissible fade show`;
+    el.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    wrapper.appendChild(el);
+    setTimeout(() => {
+        if (el && el.parentNode) el.parentNode.removeChild(el);
+    }, 5000);
+}
+
+function debounce(fn, delay) {
+    return function(...args) {
+        if (autosaveTimer) clearTimeout(autosaveTimer);
+        autosaveTimer = setTimeout(() => fn.apply(this, args), delay);
+    };
+}
+
+function generateId(prefix = 'id') {
+    if (window.crypto && window.crypto.randomUUID) {
+        return window.crypto.randomUUID();
+    }
+    const randomPart = Math.random().toString(16).slice(2);
+    return `${prefix}_${Date.now()}_${randomPart}`;
+}
+
+// --- Rendering des Trees in die Mitte ---
+function renderTree() {
+    const root = document.getElementById('paragraphTreeRoot');
+    const emptyHint = document.getElementById('emptyHint');
+
+    root.innerHTML = '';
+
+    if (!paragraphTree.length) {
+        emptyHint.style.display = 'block';
+        updatePreview();
+        return;
+    } else {
+        emptyHint.style.display = 'none';
+    }
+
+    paragraphTree.forEach((node, index) => {
+        const nodeEl = createParagraphNodeElement(node, index);
+        root.appendChild(nodeEl);
+    });
+
+    // Sortable für Paragraph-Ebene
+    new Sortable(root, {
+        handle: '.drag-handle',
+        animation: 150,
+        ghostClass: 'sortable-ghost',
+        onEnd: () => {
+            syncOrderFromDOM();
+        }
+    });
+
+    updatePreview();
+}
+
+function createParagraphNodeElement(node, index) {
+    const container = document.createElement('div');
+    container.className = 'paragraph-node';
+    container.dataset.nodeId = node.id;
+    container.dataset.level = '1';
+
+    const header = document.createElement('div');
+    header.className = 'node-header';
+
+    const left = document.createElement('div');
+    left.className = 'd-flex align-items-center';
+
+    const drag = document.createElement('i');
+    drag.className = 'bi bi-grip-vertical drag-handle me-2';
+    left.appendChild(drag);
+
+    const title = document.createElement('div');
+    title.className = 'node-title';
+    title.textContent = node.title || `Paragraph ${index + 1}`;
+    left.appendChild(title);
+
+    const meta = document.createElement('div');
+    meta.className = 'node-meta ms-2';
+    meta.textContent = node.category ? `(${node.category})` : '';
+    left.appendChild(meta);
+
+    header.appendChild(left);
+
+    const btnGroup = document.createElement('div');
+    btnGroup.className = 'btn-group btn-group-sm';
+
+    const btnAddSub = document.createElement('button');
+    btnAddSub.className = 'btn btn-outline-secondary';
+    btnAddSub.innerHTML = '<i class="bi bi-plus-lg"></i>';
+    btnAddSub.title = 'Unterparagraph hinzufügen';
+    btnAddSub.addEventListener('click', () => addSubparagraph(node.id));
+    btnGroup.appendChild(btnAddSub);
+
+    const btnEdit = document.createElement('button');
+    btnEdit.className = 'btn btn-outline-primary';
+    btnEdit.innerHTML = '<i class="bi bi-pencil"></i>';
+    btnEdit.addEventListener('click', () => openNodeEditor(node.id, 1));
+    btnGroup.appendChild(btnEdit);
+
+    const btnDelete = document.createElement('button');
+    btnDelete.className = 'btn btn-outline-danger';
+    btnDelete.innerHTML = '<i class="bi bi-trash"></i>';
+    btnDelete.disabled = !!node.mandatory;
+    btnDelete.title = node.mandatory ? 'Pflichtparagraph kann nicht gelöscht werden' : 'Paragraph löschen';
+    btnDelete.addEventListener('click', () => deleteNode(node.id, 1));
+    btnGroup.appendChild(btnDelete);
+
+    header.appendChild(btnGroup);
+    container.appendChild(header);
+
+    // Unterparagraphen
+    const subList = document.createElement('div');
+    subList.className = 'subparagraph-list';
+    subList.dataset.parentId = node.id;
+    subList.dataset.level = '2';
+
+    (node.children || []).forEach((child, idx) => {
+        const childEl = createSubparagraphNodeElement(child, idx, 2);
+        subList.appendChild(childEl);
+    });
+
+    container.appendChild(subList);
+
+    // Sortable für Subparagraphen
+    new Sortable(subList, {
+        handle: '.drag-handle',
+        animation: 150,
+        ghostClass: 'sortable-ghost',
+        onEnd: () => {
+            syncOrderFromDOM();
+        }
+    });
+
+    return container;
+}
+
+function createSubparagraphNodeElement(node, index, level = 2) {
+    const el = document.createElement('div');
+    el.className = 'subparagraph-node';
+    el.dataset.nodeId = node.id;
+    el.dataset.level = `${level}`;
+
+    const header = document.createElement('div');
+    header.className = 'd-flex justify-content-between align-items-center';
+
+    const left = document.createElement('div');
+    left.className = 'd-flex align-items-center';
+
+    const drag = document.createElement('i');
+    drag.className = 'bi bi-grip-vertical drag-handle me-2';
+    left.appendChild(drag);
+
+    const title = document.createElement('div');
+    title.className = 'node-title';
+    title.textContent = node.title || `Unterparagraph ${index + 1}`;
+    left.appendChild(title);
+
+    header.appendChild(left);
+
+    const btnGroup = document.createElement('div');
+    btnGroup.className = 'btn-group btn-group-sm';
+
+    const btnAddChild = document.createElement('button');
+    btnAddChild.className = 'btn btn-outline-secondary';
+    btnAddChild.innerHTML = '<i class="bi bi-plus"></i>';
+    btnAddChild.title = 'Unterpunkt hinzufügen';
+    btnAddChild.addEventListener('click', () => addSubparagraph(node.id, level + 1));
+    btnGroup.appendChild(btnAddChild);
+
+    const btnEdit = document.createElement('button');
+    btnEdit.className = 'btn btn-outline-primary';
+    btnEdit.innerHTML = '<i class="bi bi-pencil"></i>';
+    btnEdit.addEventListener('click', () => openNodeEditor(node.id, level));
+    btnGroup.appendChild(btnEdit);
+
+    const btnDelete = document.createElement('button');
+    btnDelete.className = 'btn btn-outline-danger';
+    btnDelete.innerHTML = '<i class="bi bi-trash"></i>';
+    btnDelete.disabled = !!node.mandatory;
+    btnDelete.title = node.mandatory ? 'Pflichtparagraph kann nicht gelöscht werden' : 'Unterparagraph löschen';
+    btnDelete.addEventListener('click', () => deleteNode(node.id, 2));
+    btnGroup.appendChild(btnDelete);
+
+    header.appendChild(btnGroup);
+
+    el.appendChild(header);
+
+    if (node.children && node.children.length) {
+        const nestedList = document.createElement('div');
+        nestedList.className = 'subparagraph-list';
+        nestedList.dataset.parentId = node.id;
+        nestedList.dataset.level = `${level + 1}`;
+
+        node.children.forEach((child, idx) => {
+            nestedList.appendChild(createSubparagraphNodeElement(child, idx, level + 1));
+        });
+
+        el.appendChild(nestedList);
+
+        new Sortable(nestedList, {
+            handle: '.drag-handle',
+            animation: 150,
+            ghostClass: 'sortable-ghost',
+            onEnd: () => {
+                syncOrderFromDOM();
+            }
+        });
+    }
+
+    return el;
+}
+
+// Sync der internen paragraphTree-Struktur aus dem DOM nach Drag & Drop
+function syncOrderFromDOM() {
+    const root = document.getElementById('paragraphTreeRoot');
+
+    const idLookup = new Map();
+    const register = (nodes) => {
+        nodes.forEach(n => {
+            idLookup.set(n.id, n);
+            if (n.children && n.children.length) {
+                register(n.children);
+            }
+        });
+    };
+    register(paragraphTree);
+
+    const buildFromList = (listEl) => {
+        const result = [];
+        listEl.querySelectorAll(':scope > .paragraph-node, :scope > .subparagraph-node').forEach((el) => {
+            const nodeId = el.dataset.nodeId;
+            const existing = idLookup.get(nodeId);
+            if (!existing) return;
+
+            const newNode = { ...existing };
+            const childList = el.querySelector(':scope > .subparagraph-list');
+            if (childList) {
+                newNode.children = buildFromList(childList);
+            } else {
+                newNode.children = existing.children ? [...existing.children] : [];
+            }
+            result.push(newNode);
+        });
+        return result;
+    };
+
+    paragraphTree = buildFromList(root);
+    triggerAutosave();
+    updatePreview();
+}
+
+function decodeHtml(encoded) {
+    const txt = document.createElement('textarea');
+    txt.innerHTML = encoded || '';
+    return txt.value;
+}
+
+function normalizeSubclauses(subclauses) {
+    return (subclauses || []).map(sub => ({
+        id: generateId('s'),
+        type: 'subparagraph',
+        title: sub.title || 'Unterklausel',
+        content: sub.content || '',
+        mandatory: !!sub.mandatory,
+        children: normalizeSubclauses(sub.children || [])
+    }));
+}
+
+// --- Node-Operationen ---
+function addParagraph(fromTemplate = null) {
+    const id = generateId('p');
+    const node = {
+        id: id,
+        type: 'paragraph',
+        title: fromTemplate ? fromTemplate.title : 'Neuer Paragraph',
+        content: fromTemplate ? (fromTemplate.content || '') : '',
+        category: fromTemplate ? (fromTemplate.category || '') : '',
+        icon: '',
+        mandatory: !!(fromTemplate && fromTemplate.is_mandatory),
+        children: fromTemplate && fromTemplate.subclauses ? fromTemplate.subclauses : []
+    };
+    paragraphTree.push(node);
+    renderTree();
+    openNodeEditor(node.id, 1);
+    triggerAutosave();
+}
+
+function addSubparagraph(parentId, levelHint = 2) {
+    const parentSearch = findNodeById(parentId);
+    if (!parentSearch) {
+        showAlert('Übergeordneter Paragraph nicht gefunden.', 'danger');
+        return;
+    }
+
+    const parent = parentSearch.node;
+    if (!Array.isArray(parent.children)) parent.children = [];
+
+    const id = generateId('s');
+    const node = {
+        id: id,
+        type: 'subparagraph',
+        title: 'Neuer Unterparagraph',
+        content: '',
+        mandatory: false,
+        children: []
+    };
+    parent.children.push(node);
+    renderTree();
+    openNodeEditor(node.id, (parentSearch.level || levelHint) + 1);
+    triggerAutosave();
+}
+
+function findNodeById(id, nodes = paragraphTree, parent = null, level = 1) {
+    for (const node of nodes) {
+        if (node.id === id) {
+            return { node, parent, level };
+        }
+        if (node.children && node.children.length) {
+            const found = findNodeById(id, node.children, node, level + 1);
+            if (found) return found;
+        }
+    }
+    return null;
+}
+
+function deleteNode(id, level) {
+    const found = findNodeById(id);
+    if (!found) {
+        showAlert('Element nicht gefunden.', 'danger');
+        return;
+    }
+    if (found.node.mandatory) {
+        showAlert('Pflichtparagraphen können nicht gelöscht werden.', 'warning');
+        return;
+    }
+
+    if (!confirm('Möchten Sie dieses Element wirklich löschen?')) return;
+
+    if (found.level === 1) {
+        paragraphTree = paragraphTree.filter(n => n.id !== id);
+    } else if (found.parent) {
+        found.parent.children = (found.parent.children || []).filter(c => c.id !== id);
+    }
+
+    renderTree();
+    triggerAutosave();
+}
+
+// --- Modal Editor ---
+function initNodeEditorModal() {
+    nodeEditorModal = new bootstrap.Modal(document.getElementById('nodeEditorModal'));
+
+    $('#nodeContent').summernote({
+        height: 300,
+        toolbar: [
+            ['style', ['style']],
+            ['font', ['bold', 'italic', 'underline', 'clear']],
+            ['fontname', ['fontname']],
+            ['color', ['color']],
+            ['para', ['ul', 'ol', 'paragraph']],
+            ['table', ['table']],
+            ['insert', ['link', 'picture', 'video']],
+            ['view', ['fullscreen', 'codeview', 'help']]
+        ],
+        styleTags: ['p', 'blockquote', 'pre', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6']
+    });
+
+    document.getElementById('btnSaveNode').addEventListener('click', saveNodeFromModal);
+}
+
+function openNodeEditor(id, level) {
+    const found = findNodeById(id);
+    if (!found) {
+        showAlert('Element nicht gefunden.', 'danger');
+        return;
+    }
+
+    document.getElementById('nodeId').value = found.node.id;
+    document.getElementById('nodeLevel').value = level;
+    document.getElementById('nodeTitle').value = found.node.title || '';
+    document.getElementById('nodeCategory').value = found.node.category || '';
+    document.getElementById('nodeIcon').value = found.node.icon || '';
+    document.getElementById('nodeMandatory').checked = !!found.node.mandatory;
+
+    $('#nodeContent').summernote('code', found.node.content || '');
+
+    nodeEditorModal.show();
+}
+
+function saveNodeFromModal() {
+    const id = document.getElementById('nodeId').value;
+    const level = parseInt(document.getElementById('nodeLevel').value || '1', 10);
+
+    const title = document.getElementById('nodeTitle').value.trim();
+    const category = document.getElementById('nodeCategory').value.trim();
+    const icon = document.getElementById('nodeIcon').value.trim();
+    const mandatory = document.getElementById('nodeMandatory').checked;
+    const content = $('#nodeContent').summernote('code');
+
+    if (!title || !content || content === '<p><br></p>') {
+        showAlert('Bitte füllen Sie mindestens Titel und Inhalt aus.', 'warning');
+        return;
+    }
+
+    const found = findNodeById(id);
+    if (!found) {
+        showAlert('Element nicht gefunden.', 'danger');
+        return;
+    }
+
+    found.node.title = title;
+    found.node.content = content;
+    if (level === 1) {
+        found.node.category = category;
+        found.node.icon = icon;
+    }
+    found.node.mandatory = mandatory;
+
+    nodeEditorModal.hide();
+    renderTree();
+    triggerAutosave();
+}
+
+// --- Templates (linke Spalte) ---
+function initTemplateList() {
+    document.querySelectorAll('.add-from-template').forEach(btn => {
+        btn.addEventListener('click', function (e) {
+            e.preventDefault();
+            const wrapper = this.closest('.template-list-item');
+            if (!wrapper) return;
+
+            const tplId = wrapper.dataset.templateId;
+            const tplTitle = wrapper.dataset.templateTitle || 'Neuer Paragraph';
+            const tplCategory = wrapper.dataset.templateCategory || '';
+            const tplContent = decodeHtml(wrapper.dataset.templateContent || '');
+            const tplMandatory = wrapper.dataset.templateMandatory === 'true';
+            const tplSubclauses = TEMPLATE_SUBCLAUSES[tplId] || [];
+
+            // Inhalt des Templates bekommen wir aktuell nicht direkt hier.
+            // Du kannst optional einen API-Endpoint bauen, um vollständige Template-Daten zu holen.
+            // Für jetzt: Wir übernehmen nur Titel & Kategorie.
+            const fromTemplate = {
+                id: tplId,
+                title: tplTitle,
+                category: tplCategory,
+                content: tplContent,
+                is_mandatory: tplMandatory,
+                subclauses: normalizeSubclauses(tplSubclauses)
+            };
+            addParagraph(fromTemplate);
+        });
+    });
+}
+
+// --- Preview (rechte Spalte) ---
+function renderSubclauses(children, baseNumber, level = 2) {
+    if (!children || !children.length) return '';
+
+    let html = '';
+    let counter = 1;
+
+    children.forEach(child => {
+        const number = `${baseNumber}.${counter}`;
+        const indent = Math.max(0, level - 1);
+        const headingTag = level === 2 ? 'h3' : 'h4';
+
+        html += `
+            <${headingTag} style="font-size: ${level >= 3 ? '10pt' : '11pt'}; margin-left: ${indent}rem;">${number} ${child.title || 'Unterparagraph'}</${headingTag}>
+            <div style="margin-left: ${indent}rem;">${child.content || ''}</div>
+        `;
+
+        html += renderSubclauses(child.children || [], number, level + 1);
+        counter++;
+    });
+
+    return html;
+}
+
+function updatePreview() {
+    const preview = document.getElementById('previewPane');
+    const fullscreenBody = document.getElementById('previewFullscreenBody');
+
+    if (!paragraphTree.length) {
+        preview.innerHTML = '<p class="text-muted small mb-0">Noch keine Paragraphen definiert.</p>';
+        if (fullscreenBody) {
+            fullscreenBody.innerHTML = preview.innerHTML;
+        }
+        return;
+    }
+
+    let html = '';
+    let paraCounter = 1;
+
+    paragraphTree.forEach(p => {
+        const number = `${paraCounter}`;
+        const title = p.title || 'Paragraph';
+
+        html += `
+            <h2>§ ${number} ${title}</h2>
+            <div>${p.content || ''}</div>
+        `;
+        html += renderSubclauses(p.children || [], `${paraCounter}`, 2);
+
+        paraCounter++;
+    });
+
+    preview.innerHTML = html;
+    if (fullscreenBody) {
+        fullscreenBody.innerHTML = html;
+    }
+}
+
+const fullscreenBtn = document.getElementById('btnPreviewFullscreen');
+if (fullscreenBtn) {
+    fullscreenBtn.addEventListener('click', () => {
+        const modal = new bootstrap.Modal(document.getElementById('previewFullscreen'));
+        modal.show();
+    });
+}
+
+// --- Autosave ---
+const autosave = debounce(function() {
+    fetch(`/contract-editor/${CONTRACT_ID}/save-structure`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ tree: paragraphTree })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (!data.success) {
+            showAlert('Fehler beim Speichern der Struktur: ' + (data.error || 'Unbekannter Fehler'), 'danger');
+        }
+    })
+    .catch(err => {
+        showAlert('Netzwerkfehler beim Speichern: ' + err, 'danger');
+    });
+}, 800);
+
+function triggerAutosave() {
+    autosave();
+}
+
+// --- Initialisierung ---
+document.addEventListener('DOMContentLoaded', function() {
+    initNodeEditorModal();
+    initTemplateList();
+
+    document.getElementById('btnAddParagraph').addEventListener('click', () => addParagraph());
+
+    renderTree();
+});
+</script>
+
+{% endblock %}

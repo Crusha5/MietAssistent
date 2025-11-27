@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Klausel-Vorschau - MietAssistent{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h2 mb-0"><i class="bi bi-eye text-primary me-2"></i>Klausel-Vorschau</h1>
+    <a href="{{ url_for('contract_templates.templates_list') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i>Zurück
+    </a>
+</div>
+
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <div>
+                <h5 class="mb-1">{{ template.title }}</h5>
+                <p class="text-muted mb-0">Kategorie: {{ template.category or 'allgemein' }}</p>
+            </div>
+            <span class="badge {% if template.is_active %}bg-success{% else %}bg-secondary{% endif %}">
+                {{ 'Aktiv' if template.is_active else 'Inaktiv' }}
+            </span>
+        </div>
+        <div class="border rounded p-3 mb-3" style="background: var(--bs-tertiary-bg); color: var(--bs-body-color); white-space:pre-wrap;">
+            {{ template.content }}
+        </div>
+
+        {% if subclauses %}
+        <div class="border rounded p-3" style="background: var(--bs-tertiary-bg); color: var(--bs-body-color);">
+            <h6 class="text-uppercase text-muted small mb-3">Unterklauseln</h6>
+            <ol class="mb-0 ps-3">
+                {% for sub in subclauses %}
+                    <li class="mb-3">
+                        <div class="fw-semibold">x.{{ loop.index }} {{ sub.title or '' }}</div>
+                        <div class="small">{{ sub.content }}</div>
+                        {% if sub.children %}
+                            <ol class="mt-2 ps-3">
+                                {% for child in sub.children %}
+                                    <li class="mb-2">
+                                        <div class="fw-semibold">x.{{ loop.parentloop.index }}.{{ loop.index }} {{ child.title or '' }}</div>
+                                        <div class="small">{{ child.content }}</div>
+                                    </li>
+                                {% endfor %}
+                            </ol>
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ol>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

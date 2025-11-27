@@ -1,0 +1,94 @@
+<div class="modal fade" id="incomeModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form class="modal-content" method="post" id="incomeEditForm">
+            <div class="modal-header">
+                <h5 class="modal-title">Einnahme bearbeiten</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body row g-2">
+                <div class="col-12">
+                    <label class="form-label">Betrag</label>
+                    <input type="number" step="0.01" name="amount" id="income_amount" class="form-control" required>
+                </div>
+                <div class="col-6">
+                    <label class="form-label">Datum</label>
+                    <input type="date" name="received_on" id="income_date" class="form-control" required>
+                </div>
+                <div class="col-6">
+                    <label class="form-label">Art</label>
+                    <select name="income_type" id="income_type" class="form-select">
+                        <option value="rent">Miete</option>
+                        <option value="service_charge">Nebenkosten</option>
+                        <option value="extra">Sonderzahlung</option>
+                    </select>
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Vertrag</label>
+                    <select name="contract_id" id="income_contract_modal" class="form-select" required>
+                        {% for contract in contract_options %}
+                        <option value="{{ contract.id }}" data-tenant="{{ contract.tenant_id }}">{{ contract.label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Mieter (optional)</label>
+                    <select name="tenant_id" id="income_tenant_modal" class="form-select">
+                        <option value="">—</option>
+                        {% for tenant in tenants %}
+                        <option value="{{ tenant.id }}">{{ tenant.first_name }} {{ tenant.last_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Notiz</label>
+                    <textarea name="notes" id="income_notes" class="form-control" rows="2"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="submit" class="btn btn-primary">Speichern</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal fade" id="dueDateModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form class="modal-content" method="post" id="dueDateEditForm">
+            <div class="modal-header">
+                <h5 class="modal-title">Termin bearbeiten</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body row g-2">
+                <div class="col-12">
+                    <label class="form-label">Titel</label>
+                    <input type="text" name="title" id="due_title" class="form-control" required>
+                </div>
+                <div class="col-6">
+                    <label class="form-label">Fällig am</label>
+                    <input type="date" name="due_on" id="due_date" class="form-control" required>
+                </div>
+                <div class="col-6">
+                    <label class="form-label">Status</label>
+                    <select name="status" id="due_status" class="form-select">
+                        <option value="open">Offen</option>
+                        <option value="done">Erledigt</option>
+                    </select>
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Vertrag (optional)</label>
+                    <select name="contract_id" id="due_contract_modal" class="form-select">
+                        <option value="">—</option>
+                        {% for contract in contract_options %}
+                        <option value="{{ contract.id }}" data-tenant="{{ contract.tenant_id }}">{{ contract.label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="submit" class="btn btn-primary">Speichern</button>
+            </div>
+        </form>
+    </div>
+</div>

@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block title %}Dokumente - Rental Management{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h2 mb-0">
+        <i class="bi bi-files text-primary me-2"></i>Dokumente
+    </h1>
+    <a href="/documents/upload" class="btn btn-primary">
+        <i class="bi bi-upload me-1"></i>Dokument hochladen
+    </a>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body">
+        <div class="row g-3 mb-3">
+            <div class="col-md-6">
+                <input type="search" class="form-control" id="documentSearch" placeholder="Suchen nach Titel, Beschreibung oder Kategorie">
+            </div>
+            <div class="col-md-3">
+                <select id="documentCategoryFilter" class="form-select">
+                    <option value="">Alle Kategorien</option>
+                    <option value="contract">Vertrag</option>
+                    <option value="invoice">Rechnung</option>
+                    <option value="settlement">Abrechnung</option>
+                    <option value="other">Sonstiges</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select id="apartmentFilter" class="form-select">
+                    <option value="">Alle Wohnungen</option>
+                    {% for apartment in apartments or [] %}
+                    <option value="{{ apartment.id }}">{{ apartment.get_full_identifier() }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        {% if documents %}
+        <div class="table-responsive">
+            <table class="table table-hover" id="documentTable">
+                <thead class="table-light">
+                    <tr>
+                        <th>Dateiname</th>
+                        <th>Kategorie</th>
+                        <th>Größe</th>
+                        <th>Zugewiesen zu</th>
+                        <th>Hochgeladen am</th>
+                        <th>Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for document in documents %}
+                    <tr data-category="{{ document.document_type }}" data-apartment="{{ document.documentable_id if document.documentable_type == 'apartment' else '' }}" data-search="{{ document.search_blob }}">
+                        <td>
+                            <strong>{{ document.file_name }}</strong>
+                            {% if document.description %}
+                            <br><small class="text-muted">{{ document.description }}</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary">{{ document.document_type or '–' }}</span>
+                        </td>
+                        <td>{{ ((document.file_size or 0) / 1024) | round(2) }} KB</td>
+                        <td>
+                            {{ document.target_label or '–' }}
+                        </td>
+                        <td>{{ document.created_at.strftime('%d.%m.%Y') }}</td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-secondary preview-btn" data-id="{{ document.id }}">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                                <a href="/documents/{{ document.id }}/download" class="btn btn-outline-primary">
+                                    <i class="bi bi-download"></i>
+                                </a>
+                                <form method="POST" action="/documents/{{ document.id }}/delete" class="d-inline">
+                                    <button type="submit" class="btn btn-outline-danger" onclick="return confirm('Dokument wirklich löschen?')">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-files display-1 text-muted"></i>
+            <h4 class="text-muted mt-3">Keine Dokumente gefunden</h4>
+            <p class="text-muted">Laden Sie Ihr erstes Dokument hoch.</p>
+            <a href="/documents/upload" class="btn btn-primary">
+                <i class="bi bi-upload me-1"></i>Dokument hochladen
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+<div class="modal fade" id="documentPreview" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-fullscreen-lg-down">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-eye me-2"></i>Dokumentvorschau</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" style="height:75vh;">
+                <iframe id="previewFrame" src="" style="width:100%;height:100%;border:0;"></iframe>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('documentSearch');
+    const categoryFilter = document.getElementById('documentCategoryFilter');
+    const rows = document.querySelectorAll('#documentTable tbody tr');
+    const apartmentFilter = document.getElementById('apartmentFilter');
+
+    function applyFilters() {
+        const term = (searchInput.value || '').toLowerCase();
+        const category = categoryFilter.value;
+        const apartment = apartmentFilter.value;
+        rows.forEach(row => {
+            const matchesTerm = row.dataset.search.toLowerCase().includes(term);
+            const matchesCategory = !category || row.dataset.category === category;
+            const matchesApartment = !apartment || row.dataset.apartment === apartment;
+            row.style.display = (matchesTerm && matchesCategory && matchesApartment) ? '' : 'none';
+        });
+    }
+
+    searchInput?.addEventListener('input', applyFilters);
+    categoryFilter?.addEventListener('change', applyFilters);
+    apartmentFilter?.addEventListener('change', applyFilters);
+
+    document.querySelectorAll('.preview-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const id = btn.dataset.id;
+            const frame = document.getElementById('previewFrame');
+            frame.src = `/documents/${id}/download?preview=1`;
+            const modal = new bootstrap.Modal(document.getElementById('documentPreview'));
+            modal.show();
+        });
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}Revisionen - MietAssistent{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h2 mb-0">
+        <i class="bi bi-shield-lock text-primary me-2"></i>Revisionen
+    </h1>
+    <div class="btn-group">
+        <a class="btn btn-outline-primary" href="{{ url_for('settings_web.export_revisions', format='csv') }}"><i class="bi bi-filetype-csv me-1"></i>CSV</a>
+        <a class="btn btn-outline-primary" href="{{ url_for('settings_web.export_revisions', format='xlsx') }}"><i class="bi bi-file-earmark-spreadsheet me-1"></i>XLSX</a>
+        <a class="btn btn-outline-primary" href="{{ url_for('settings_web.export_revisions', format='pdf') }}"><i class="bi bi-filetype-pdf me-1"></i>PDF</a>
+    </div>
+</div>
+
+<form class="row g-3 align-items-end mb-3" method="get" action="{{ url_for('settings_web.revisions_overview') }}">
+    <div class="col-md-4">
+        <label class="form-label" for="search">Suche</label>
+        <input type="text" class="form-control" id="search" name="search" value="{{ search }}" placeholder="Nach Tabelle, Nutzer oder Begriff suchen">
+    </div>
+    <div class="col-md-3">
+        <label class="form-label" for="table">Bereich</label>
+        <select class="form-select" id="table" name="table">
+            <option value="">Alle Bereiche</option>
+            {% for table in available_tables %}
+            <option value="{{ table }}" {% if table_filter == table %}selected{% endif %}>{{ table_labels.get(table, table|replace('_', ' ')|title) }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-md-3">
+        <label class="form-label" for="action">Aktion</label>
+        <select class="form-select" id="action" name="action">
+            <option value="">Alle Aktionen</option>
+            <option value="insert" {% if action_filter == 'insert' %}selected{% endif %}>Angelegt</option>
+            <option value="update" {% if action_filter == 'update' %}selected{% endif %}>Aktualisiert</option>
+            <option value="delete" {% if action_filter == 'delete' %}selected{% endif %}>Gelöscht</option>
+        </select>
+    </div>
+    <div class="col-md-2 d-grid">
+        <button class="btn btn-primary" type="submit"><i class="bi bi-search me-1"></i>Filtern</button>
+    </div>
+</form>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Datum</th>
+                    <th>Aktion</th>
+                    <th>Bereich</th>
+                    <th>Benutzer</th>
+                    <th>Beschreibung</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td class="text-nowrap">{{ log.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
+                    <td>
+                        {% set action_badges = {'insert': 'success', 'update': 'warning', 'delete': 'danger'} %}
+                        {% set labels = {'insert': 'Angelegt', 'update': 'Aktualisiert', 'delete': 'Gelöscht'} %}
+                        <span class="badge bg-{{ action_badges.get(log.action, 'secondary') }}">{{ labels.get(log.action, log.action|capitalize) }}</span>
+                    </td>
+                    <td>{{ log.table_label }}</td>
+                    <td>{{ log.user.first_name ~ ' ' ~ log.user.last_name if log.user else 'System' }}</td>
+                    <td class="small text-wrap" style="max-width: 520px; white-space: pre-wrap;">{{ log.short_summary }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="text-center text-muted py-4">Keine Revisionseinträge gefunden.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% if pagination and pagination.pages > 1 %}
+        <nav aria-label="Revisionen paginieren">
+            <ul class="pagination justify-content-end mb-0">
+                {% for p in range(1, pagination.pages + 1) %}
+                <li class="page-item {% if p == pagination.page %}active{% endif %}">
+                    <a class="page-link" href="{{ url_for('settings_web.revisions_overview', page=p, search=search, action=action_filter, table=table_filter) }}">{{ p }}</a>
+                </li>
+                {% endfor %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

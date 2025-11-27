@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+
+{% block title %}Wohnung bearbeiten - MietAssistent{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent border-0">
+                    <h1 class="h3 mb-0">
+                        <i class="bi bi-pencil-square text-primary me-2"></i>Wohnung bearbeiten
+                    </h1>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="{{ url_for('apartments.apartments_list') }}">Wohnungen</a></li>
+                            <li class="breadcrumb-item"><a href="{{ url_for('apartments.apartment_detail', apartment_id=apartment.id) }}">{{ apartment.apartment_number }}</a></li>
+                            <li class="breadcrumb-item active" aria-current="page">Bearbeiten</li>
+                        </ol>
+                    </nav>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="apartment_number" class="form-label">Wohnungsnummer *</label>
+                                <input type="text" class="form-control" id="apartment_number" name="apartment_number" value="{{ apartment.apartment_number }}" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="building_id" class="form-label">Gebäude *</label>
+                                <select class="form-select" id="building_id" name="building_id" required>
+                                    <option value="">Bitte wählen...</option>
+                                    {% for building in buildings %}
+                                    <option value="{{ building.id }}" {% if apartment.building_id == building.id %}selected{% endif %}>
+                                        {{ building.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="floor" class="form-label">Etage</label>
+                                <input type="text" class="form-control" id="floor" name="floor" value="{{ apartment.floor }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="area_sqm" class="form-label">Fläche (m²)</label>
+                                <input type="number" step="0.01" class="form-control" id="area_sqm" name="area_sqm" value="{{ apartment.area_sqm }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="room_count" class="form-label">Anzahl Zimmer</label>
+                                <input type="number" class="form-control" id="room_count" name="room_count" value="{{ apartment.room_count }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="status" class="form-label">Status</label>
+                                <select class="form-select" id="status" name="status">
+                                    <option value="vacant" {% if apartment.status == 'vacant' %}selected{% endif %}>Frei</option>
+                                    <option value="occupied" {% if apartment.status == 'occupied' %}selected{% endif %}>Bewohnt</option>
+                                    <option value="reserved" {% if apartment.status == 'reserved' %}selected{% endif %}>Reserviert</option>
+                                    <option value="maintenance" {% if apartment.status == 'maintenance' %}selected{% endif %}>In Wartung</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="rent_net" class="form-label">Nettomiete (€)</label>
+                                <input type="number" step="0.01" class="form-control" id="rent_net" name="rent_net" value="{{ apartment.rent_net }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="rent_additional" class="form-label">Nebenkosten (€)</label>
+                                <input type="number" step="0.01" class="form-control" id="rent_additional" name="rent_additional" value="{{ apartment.rent_additional }}">
+                            </div>
+                            <div class="col-12 d-flex align-items-center justify-content-between">
+                                <div>
+                                    <h6 class="mb-1">Ausstattung</h6>
+                                    <div class="text-muted small" id="equipmentSummary">Bitte auswählen…</div>
+                                </div>
+                                <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#equipmentModal">
+                                    <i class="bi bi-tools me-1"></i>Ausstattung festlegen
+                                </button>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="deposit" class="form-label">Kaution (€)</label>
+                                <input type="number" step="0.01" class="form-control" id="deposit" name="deposit" value="{{ apartment.deposit }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="rent_start_date" class="form-label">Mietbeginn</label>
+                                <input type="date" class="form-control" id="rent_start_date" name="rent_start_date" value="{{ apartment.rent_start_date }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="rent_end_date" class="form-label">Mietende</label>
+                                <input type="date" class="form-control" id="rent_end_date" name="rent_end_date" value="{{ apartment.rent_end_date }}">
+                            </div>
+                            <div class="col-12">
+                                <div class="d-flex gap-2">
+                                    <button type="submit" class="btn btn-primary">Änderungen speichern</button>
+                                    <a href="{{ url_for('apartments.apartment_detail', apartment_id=apartment.id) }}" class="btn btn-outline-secondary">Abbrechen</a>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Ausstattung-Modal -->
+<div class="modal fade" id="equipmentModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Ausstattung auswählen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="has_balcony" name="has_balcony" {% if apartment.has_balcony %}checked{% endif %}>
+                    <label class="form-check-label" for="has_balcony">Mit Balkon</label>
+                </div>
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="has_terrace" name="has_terrace" {% if apartment.has_terrace %}checked{% endif %}>
+                    <label class="form-check-label" for="has_terrace">Mit Terrasse</label>
+                </div>
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="has_garage" name="has_garage" {% if apartment.has_garage %}checked{% endif %}>
+                    <label class="form-check-label" for="has_garage">Mit Garage/Stellplatz</label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Schließen</button>
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal" id="equipmentSave">Übernehmen</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const summary = document.getElementById('equipmentSummary');
+    const checkboxes = ['has_balcony','has_terrace','has_garage'].map(id => document.getElementById(id));
+
+    function updateSummary() {
+        const labels = checkboxes.filter(cb => cb.checked).map(cb => cb.nextElementSibling.innerText.trim());
+        summary.textContent = labels.length ? labels.join(', ') : 'Keine Ausstattung gewählt';
+    }
+
+    checkboxes.forEach(cb => cb.addEventListener('change', updateSummary));
+    document.getElementById('equipmentSave').addEventListener('click', updateSummary);
+    updateSummary();
+});
+</script>
+{% endblock %}
+{% endblock %}
