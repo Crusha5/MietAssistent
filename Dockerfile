@@ -7,10 +7,15 @@ RUN apt-get update && apt-get install -y \
     gcc \
     python3-dev \
     libcairo2 \
+    libpangocairo-1.0-0 \
     libpango-1.0-0 \
+    libpangoft2-1.0-0 \
+    libharfbuzz0b \
     libgobject-2.0-0 \
     libglib2.0-0 \
-    libgdk-pixbuf2.0-0 \
+    libgirepository-1.0-1 \
+    gobject-introspection \
+    libgdk-pixbuf-2.0-0 \
     libffi-dev \
     libxml2 \
     libxslt1-dev \
