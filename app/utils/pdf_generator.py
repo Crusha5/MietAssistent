@@ -171,8 +171,10 @@ def generate_professional_contract_html(contract, clauses=None, paragraph_tree=N
 <body class=\"contract-body\">
 <section class=\"cover-page\">
     <div>
-        <div class=\"cover-badge\">Rechtssicherer Mietvertrag</div>
-        <div class=\"cover-title\">Wohnraummietvertrag</div>
+        <div class=\"cover-title\">Mietvertrag</div>
+        <div class=\"cover-logo\" aria-label=\"MietAssistent Logo\">
+            <svg viewBox=\"0 0 32 32\" role=\"img\" aria-hidden=\"true\" width=\"80\" height=\"80\">\n                <path fill=\"#1f2937\" d=\"M4.5 15.5 16 6l11.5 9.5H26v10a1 1 0 0 1-1 1h-5.75V21a1.25 1.25 0 0 0-1.25-1.25h-3A1.25 1.25 0 0 0 13.75 21v6.5H8a1 1 0 0 1-1-1v-10H4.5Z\"/>\n                <g fill=\"none\" stroke=\"#1f2937\" stroke-width=\"1.3\" stroke-linecap=\"round\" stroke-linejoin=\"round\" transform=\"translate(16 3)\">\n                    <circle cx=\"10\" cy=\"10\" r=\"3.4\" fill=\"#f8fafc\"/>\n                    <path d=\"M10 4.8v1.6M10 13.6v1.6M6.4 10H4.8M15.2 10h-1.6M7.8 6.1l1.1 1.1M13.1 11.4l1.1 1.1M13.1 8.6l1.1-1.1M7.8 13.9l1.1-1.1\"/>\n                </g>\n            </svg>
+        </div>
         <div class=\"cover-subtitle\">zwischen {landlord_name or '________________'} (Vermieter) und {tenant_name or '________________'} (Mieter)</div>
     </div>
     <div class=\"cover-meta\">
