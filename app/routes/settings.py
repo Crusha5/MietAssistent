@@ -16,7 +16,7 @@ from app.utils.project_profile import load_project_profile
 from io import BytesIO
 import pandas as pd
 from flask import send_file
-from xhtml2pdf import pisa
+from app.utils.pdf_generator import generate_pdf_bytes
 from flask import render_template_string
 
 settings_bp = Blueprint('settings_web', __name__, url_prefix='/settings')
@@ -183,8 +183,8 @@ def export_revisions():
             """,
             table=html_table
         )
-        pdf_buffer = BytesIO()
-        pisa.CreatePDF(html, dest=pdf_buffer)
+        pdf_bytes = generate_pdf_bytes(html)
+        pdf_buffer = BytesIO(pdf_bytes)
         pdf_buffer.seek(0)
         return send_file(pdf_buffer, as_attachment=True, download_name=f"{filename}.pdf", mimetype='application/pdf')
 
