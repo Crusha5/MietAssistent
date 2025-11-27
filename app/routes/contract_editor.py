@@ -32,9 +32,9 @@ def _strip_paragraph_prefix(title: str) -> str:
 def _clean_bullet_markers(text: str) -> str:
     if not text:
         return text
-    bullet_pattern = r"(<li[^>]*>)\\s*(?:•|&bull;|&#8226;)\\s*"
-    cleaned = re.sub(bullet_pattern, r"\\1", text)
-    cleaned = re.sub(r"(</li>)\\s*(?:•|&bull;|&#8226;)\\s*", r"\\1", cleaned)
+    bullet_pattern = r"(<li[^>]*>)\\s*(?:&nbsp;|\s)*(?:•|&bull;|&#8226;|&#9679;|\u2022|·|-)\\s*"
+    cleaned = re.sub(bullet_pattern, r"\\1", text, flags=re.IGNORECASE)
+    cleaned = re.sub(r"(</li>)\\s*(?:•|&bull;|&#8226;|&#9679;|\u2022|·|-)\\s*", r"\\1", cleaned, flags=re.IGNORECASE)
     return cleaned
 
 def get_contract_models():

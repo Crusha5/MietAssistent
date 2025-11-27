@@ -46,7 +46,7 @@ body.contract-body {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    padding: 10mm 20mm 30mm 20mm;
+    padding: 5mm 20mm 30mm 20mm;
     page-break-after: always;
 }
 
