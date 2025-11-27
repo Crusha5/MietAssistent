@@ -31,7 +31,7 @@ Professionelle Nebenkostenabrechnung mit flexibler Zählerstruktur. Dieses Repos
 Für die PDF-Generierung via WeasyPrint werden folgende Pakete (z.B. in Docker-Images auf Debian/Ubuntu-Basis) benötigt:
 
 ```bash
-apt install -y libpango-1.0-0 libgdk-pixbuf2.0-0 libcairo2 libffi-dev libxml2 libxslt1-dev fonts-dejavu-core
+apt install -y libpango-1.0-0 libgdk-pixbuf2.0-0 libcairo2 libgobject-2.0-0 libffi-dev libxml2 libxslt1-dev fonts-dejavu-core
 ```
 
 Die Schriftart DejaVu Sans wird für ein konsistentes Layout der Verträge und Protokolle genutzt.
