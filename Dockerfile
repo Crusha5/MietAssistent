@@ -6,6 +6,25 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     gcc \
     python3-dev \
+    libcairo2 \
+    libpangocairo-1.0-0 \
+    libpango-1.0-0 \
+    libpangoft2-1.0-0 \
+    libharfbuzz0b \
+    libgdk-pixbuf-2.0-0 \
+    libgobject-2.0-0 \
+    libglib2.0-0 \
+    libglib2.0-bin \
+    libgirepository-1.0-1 \
+    libgirepository-1.0-dev \
+    gir1.2-pango-1.0 \
+    gir1.2-gdkpixbuf-2.0 \
+    gobject-introspection \
+    libffi-dev \
+    libxml2 \
+    libxslt1-dev \
+    shared-mime-info \
+    fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/*
 
 # Python Abhängigkeiten kopieren und installieren

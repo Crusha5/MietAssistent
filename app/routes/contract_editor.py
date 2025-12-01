@@ -4,7 +4,7 @@ from flask import Blueprint, request, jsonify, render_template, redirect, url_fo
 from app.extensions import db
 from app.routes.main import login_required
 from app.models import User
-import uuid, json
+import uuid, json, re
 from datetime import datetime
 
 
@@ -27,6 +27,15 @@ def _strip_paragraph_prefix(title: str) -> str:
         return title
     cleaned = title.lstrip('§').strip()
     return cleaned if cleaned else title
+
+
+def _clean_bullet_markers(text: str) -> str:
+    if not text:
+        return text
+    bullet_pattern = r"(<li[^>]*>)\\s*(?:&nbsp;|\s)*(?:•|&bull;|&#8226;|&#9679;|\u2022|·|-)\\s*"
+    cleaned = re.sub(bullet_pattern, r"\\1", text, flags=re.IGNORECASE)
+    cleaned = re.sub(r"(</li>)\\s*(?:•|&bull;|&#8226;|&#9679;|\u2022|·|-)\\s*", r"\\1", cleaned, flags=re.IGNORECASE)
+    return cleaned
 
 def get_contract_models():
     """Importiert Models erst bei Bedarf - KORRIGIERTE VERSION"""
@@ -520,14 +529,14 @@ def update_block_order(contract_id):
         current_app.logger.error(f"Error updating block order: {str(e)}", exc_info=True)
         return jsonify({'success': False, 'error': str(e)}), 500
 
+
 def generate_block_based_contract_html(contract, blocks=None, inventory_items=None):
     """Generiert Vertrags-HTML basierend auf Blöcken"""
     if blocks is None:
         blocks = contract.blocks
     if inventory_items is None:
         inventory_items = getattr(contract, 'inventory_items', [])
-    
-    # Variablen für Platzhalter
+
     variables = {
         'mieter_vorname': contract.tenant.first_name,
         'mieter_nachname': contract.tenant.last_name,
@@ -539,115 +548,88 @@ def generate_block_based_contract_html(contract, blocks=None, inventory_items=No
         'vertragsende': contract.end_date.strftime('%d.%m.%Y') if contract.end_date else "unbefristet",
         'datum_heute': datetime.now().strftime('%d.%m.%Y')
     }
-    
-    # Vermieter-Informationen
+
     if hasattr(contract, 'landlord') and contract.landlord:
         landlord = contract.landlord
         variables['vermieter_name'] = landlord.company_name or f"{landlord.first_name} {landlord.last_name}"
     else:
         variables['vermieter_name'] = "[Vermieter]"
-    
+
     html_content = f"""
     <!DOCTYPE html>
     <html>
     <head>
-        <meta charset="utf-8">
-        <style>
-            body {{
-                font-family: "Times New Roman", Times, serif;
-                line-height: 1.6;
-                margin: 2cm;
-                font-size: 12pt;
-                color: #000;
-            }}
-            .header {{
-                text-align: center;
-                margin-bottom: 2cm;
-                border-bottom: 2px solid #000;
-                padding-bottom: 1cm;
-            }}
-            .section {{
-                margin-bottom: 0.8cm;
-                page-break-inside: avoid;
-            }}
-            .section h2 {{
-                font-size: 12pt;
-                font-weight: bold;
-                margin: 0.5cm 0 0.3cm 0;
-            }}
-            .clause {{
-                margin-bottom: 0.5cm;
-                text-align: justify;
-            }}
-            .signature-area {{
-                margin-top: 3cm;
-            }}
-            .signature-line {{
-                border-top: 1px solid #000;
-                width: 8cm;
-                margin-top: 2cm;
-            }}
-            .footer {{
-                margin-top: 1cm;
-                font-size: 10pt;
-                color: #666;
-                text-align: center;
-            }}
-            .page-break {{
-                page-break-before: always;
-            }}
-        </style>
+        <meta charset=\"utf-8\">
+        <link rel=\"stylesheet\" href=\"static/css/contract_pdf.css\">
     </head>
-    <body>
-        <div class="header">
-            <h1>MIETVERTRAG</h1>
-            <p>Vertragsnummer: {contract.contract_number}</p>
-        </div>
+    <body class=\"contract-body\">
+        <header class=\"contract-header\">
+            <div>
+                <div class=\"label\">Vertragsnummer</div>
+                <div class=\"value\">{contract.contract_number}</div>
+            </div>
+            <div>
+                <div class=\"label\">Erstellt am</div>
+                <div class=\"value\">{variables['datum_heute']}</div>
+            </div>
+        </header>
+        <h1 class=\"main-title\">Mietvertrag</h1>
+        <section class=\"meta-grid\">
+            <div>
+                <div class=\"label\">Vermieter</div>
+                <div class=\"value\">{variables['vermieter_name']}</div>
+            </div>
+            <div>
+                <div class=\"label\">Mieter</div>
+                <div class=\"value\">{variables['mieter_vorname']} {variables['mieter_nachname']}</div>
+            </div>
+            <div>
+                <div class=\"label\">Adresse</div>
+                <div class=\"value\">{variables['wohnung_adresse']}</div>
+            </div>
+            <div>
+                <div class=\"label\">Mietbeginn</div>
+                <div class=\"value\">{variables['vertragsbeginn']}</div>
+            </div>
+        </section>
+        <div class=\"divider\"></div>
     """
-    
-    # Blöcke hinzufügen
+
     for block in sorted(blocks, key=lambda x: x.sort_order):
-        # Variablen ersetzen
         content = block.content
         for key, value in variables.items():
             content = content.replace(f'§{key}§', str(value))
-        
+        content = _clean_bullet_markers(content)
+
         html_content += f"""
-        <div class="section">
-            <h2>{block.title}</h2>
-            <div class="clause">
-                {content}
-            </div>
-        </div>
+        <section class=\"clause\">
+            <div class=\"clause-title\">{block.title}</div>
+            <div class=\"clause-body\">{content}</div>
+        </section>
         """
-    
+
     html_content += f"""
-        <div class="signature-area">
-            <p><strong>Ort, Datum: ____________________</strong></p>
-            
-            <div style="display: flex; justify-content: space-between;">
-                <div>
-                    <div class="signature-line"></div>
-                    <p><strong>Vermieter</strong></p>
-                    <p>{variables['vermieter_name']}</p>
+        <section class=\"signature-block\">
+            <p class=\"label\">Ort, Datum</p>
+            <div class=\"signature-date-line\"></div>
+            <div class=\"signature-row\">
+                <div class=\"sig-cell\">
+                    <div class=\"sig-line\"></div>
+                    <div class=\"sig-label\">Vermieter</div>
+                    <div class=\"sig-name\">{variables['vermieter_name']}</div>
                 </div>
-                <div>
-                    <div class="signature-line"></div>
-                    <p><strong>Mieter</strong></p>
-                    <p>{variables['mieter_vorname']} {variables['mieter_nachname']}</p>
+                <div class=\"sig-cell\">
+                    <div class=\"sig-line\"></div>
+                    <div class=\"sig-label\">Mieter</div>
+                    <div class=\"sig-name\">{variables['mieter_vorname']} {variables['mieter_nachname']}</div>
                 </div>
             </div>
-        </div>
-        
-        <div class="footer">
-            <p>Dieses Dokument wurde am {variables['datum_heute']} generiert und ist rechtlich bindend.</p>
-        </div>
+        </section>
     </body>
     </html>
     """
-    
-    return html_content
 
+    return html_content
 # Ändern Sie diese Route - von clause_management zu edit_contract_content
 @contract_editor_bp.route('/<contract_id>/edit-content')
 @login_required
