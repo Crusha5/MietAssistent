@@ -5,6 +5,10 @@
     <link rel="stylesheet" href="static/css/contract_pdf.css">
 </head>
 <body class="contract-body">
+    {% set landlord = contract.landlord if contract else None %}
+    {% set landlord_name = (landlord.company_name or ((landlord.first_name or '') ~ ' ' ~ (landlord.last_name or '')))|trim if landlord else '' %}
+    {% set tenant = contract.tenant if contract else None %}
+    {% set tenant_name = ((tenant.first_name or '') ~ ' ' ~ (tenant.last_name or ''))|trim if tenant else '' %}
     <h1 class="main-title">Protokoll {{ protocol.protocol_type|replace('ueber','Über')|replace('rueck','Rück') }}</h1>
     <section class="meta-grid">
         <div>
@@ -92,7 +96,6 @@
                     <th>Nummer</th>
                     <th>Ort</th>
                     <th>Wert</th>
-                    <th>Foto</th>
                 </tr>
             </thead>
             <tbody>
@@ -102,7 +105,6 @@
                     <td>{{ entry.number }}</td>
                     <td>{{ entry.location or '' }}</td>
                     <td>{{ entry.reading_value or '' }}</td>
-                    <td>{{ 'Foto hinterlegt' if entry.photo else '' }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -145,18 +147,20 @@
         <div class="legal-box">
             Mit den oben dokumentierten Zuständen, Zählerständen und übergebenen bzw. zurückgenommenen Gegenständen sind beide Parteien einverstanden. Abweichungen wurden festgehalten. Änderungen nach Unterzeichnung bedürfen einer gesonderten schriftlichen Vereinbarung.
         </div>
-        <div class="signature-meta">
-            <div>Ort: ____________________________________</div>
-            <div>Datum: __________________________________</div>
-        </div>
+    </section>
+    <section class="signature-block">
+        <p class="label">Ort, Datum</p>
+        <div class="signature-date-line"></div>
         <div class="signature-row">
             <div class="sig-cell">
                 <div class="sig-line"></div>
-                <div class="sig-label">Vermieter / Verwaltung</div>
+                <div class="sig-label">Unterschrift Vermieter</div>
+                <div class="sig-name">{{ landlord_name }}</div>
             </div>
             <div class="sig-cell">
                 <div class="sig-line"></div>
-                <div class="sig-label">Mieter / Mietende</div>
+                <div class="sig-label">Unterschrift Mieter</div>
+                <div class="sig-name">{{ tenant_name }}</div>
             </div>
         </div>
     </section>
