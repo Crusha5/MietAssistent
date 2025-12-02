@@ -68,6 +68,12 @@ def _build_attachment_views(raw_attachments):
             item['image_data_uri'] = ''
     return normalized
 
+
+def _is_protocol_finalized(payload: dict) -> bool:
+    if not isinstance(payload, dict):
+        return False
+    return bool(payload.get('is_finalized'))
+
 @protocols_bp.route('/')
 @login_required
 def protocols_list():
@@ -249,6 +255,10 @@ def create_protocol():
                 'return_notes': request.form.get('return_notes')
             }
 
+            protocol_data['is_finalized'] = existing_payload.get('is_finalized') if isinstance(existing_payload, dict) else False
+
+            protocol_data.setdefault('is_finalized', False)
+
             attachment_entries = _build_attachment_views(attachment_meta)
 
             protocol = Protocol(
@@ -354,6 +364,10 @@ def edit_protocol(protocol_id):
     except Exception:
         existing_payload = {}
 
+    if _is_protocol_finalized(existing_payload):
+        flash('Der Vorgang ist abgeschlossen und kann nicht mehr bearbeitet werden.', 'warning')
+        return redirect(url_for('protocols.protocol_detail', protocol_id=protocol.id))
+
     if request.method == 'POST':
         try:
             protocol_type = request.form.get('protocol_type', protocol.protocol_type)
@@ -425,6 +439,23 @@ def edit_protocol(protocol_id):
             uploaded_files = request.files.getlist('protocol_upload')
             attachment_captions = request.form.getlist('attachment_captions[]') or []
             attachment_paths = _normalize_attachments(existing_payload.get('attachments', [])) if isinstance(existing_payload, dict) else []
+
+            remove_targets = {item for item in request.form.getlist('remove_attachments[]') if item}
+            if remove_targets:
+                base_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'protocols')
+                remaining_paths = []
+                for att in attachment_paths:
+                    fname = att.get('file') if isinstance(att, dict) else att
+                    if fname in remove_targets:
+                        try:
+                            file_path = os.path.join(base_dir, fname)
+                            if os.path.exists(file_path):
+                                os.remove(file_path)
+                        except Exception:
+                            current_app.logger.warning('Konnte Anlage %s nicht entfernen', fname)
+                        continue
+                    remaining_paths.append(att)
+                attachment_paths = remaining_paths
             for idx, file in enumerate(uploaded_files):
                 if file and file.filename:
                     ext = os.path.splitext(file.filename)[1]
@@ -513,6 +544,7 @@ def protocol_detail(protocol_id):
         attachment_views = _build_attachment_views(attachments)
         inventory_entries = data.get('inventory') if isinstance(data.get('inventory'), list) else []
 
+        data['is_finalized'] = bool(data.get('is_finalized'))
         data['keys'] = keys
         data['meter_entries'] = meter_entries
         data['meter_photos'] = data.get('meter_photos') if isinstance(data.get('meter_photos'), dict) else {}
@@ -541,6 +573,47 @@ def protocol_detail(protocol_id):
         current_app.logger.error('Protocol detail failed: %s', exc, exc_info=True)
         flash(f'Protokoll konnte nicht geladen werden: {exc}', 'danger')
         return redirect(url_for('protocols.protocols_list'))
+
+
+@protocols_bp.route('/<protocol_id>/finalize', methods=['POST'])
+@login_required
+def finalize_protocol(protocol_id):
+    ensure_archiving_columns()
+    protocol = Protocol.query.get_or_404(protocol_id)
+    contract = Contract.query.get(protocol.contract_id)
+    try:
+        data = json.loads(protocol.protocol_data) if protocol.protocol_data else {}
+    except Exception:
+        data = {}
+
+    if _is_protocol_finalized(data):
+        flash('Der Vorgang ist bereits abgeschlossen.', 'info')
+        return redirect(url_for('protocols.protocol_detail', protocol_id=protocol.id))
+
+    data['is_finalized'] = True
+    data['finalized_at'] = datetime.utcnow().isoformat()
+    data['finalized_by'] = session.get('user_id')
+
+    keys = data.get('keys') if isinstance(data.get('keys'), list) else []
+    meter_entries = data.get('meter_entries') if isinstance(data.get('meter_entries'), list) else []
+    inventory_entries = data.get('inventory') if isinstance(data.get('inventory'), list) else []
+    attachments = _normalize_attachments(data.get('attachments', []))
+    attachment_views = _build_attachment_views(attachments)
+
+    protocol.protocol_data = json.dumps(data, ensure_ascii=False)
+    protocol.final_content = render_template(
+        'protocols/protocol_document.html',
+        protocol=protocol,
+        contract=contract,
+        protocol_data=data,
+        meter_entries=meter_entries,
+        keys=keys,
+        inventory_entries=inventory_entries,
+        attachment_entries=attachment_views
+    )
+    db.session.commit()
+    flash('Protokoll revisionssicher abgeschlossen.', 'success')
+    return redirect(url_for('protocols.protocol_detail', protocol_id=protocol.id))
 
 
 @protocols_bp.route('/photos/<path:filename>')

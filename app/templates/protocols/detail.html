@@ -13,9 +13,20 @@
             <i class="bi bi-arrow-left me-1"></i>Zurück zum Vertrag
         </a>
         {% endif %}
+        {% if protocol_data.is_finalized %}
+        <button class="btn btn-outline-secondary" disabled>
+            <i class="bi bi-check2-circle me-1"></i>Bearbeitung gesperrt
+        </button>
+        {% else %}
         <a href="{{ url_for('protocols.edit_protocol', protocol_id=protocol.id) }}" class="btn btn-outline-primary">
             <i class="bi bi-pencil-square me-1"></i>Bearbeiten
         </a>
+        <form method="POST" action="{{ url_for('protocols.finalize_protocol', protocol_id=protocol.id) }}" class="d-inline">
+            <button type="submit" class="btn btn-success">
+                <i class="bi bi-lock-fill me-1"></i>Vorgang abschließen
+            </button>
+        </form>
+        {% endif %}
         <a href="{{ url_for('protocols.create_protocol', contract_id=contract.id if contract else None) }}" class="btn btn-primary">
             <i class="bi bi-plus-circle me-1"></i>Neues Protokoll
         </a>
@@ -40,6 +51,9 @@
         <div>
             <span class="badge bg-primary me-2">{{ protocol.protocol_date.strftime('%d.%m.%Y') }}</span>
             <span class="badge bg-secondary">{{ protocol.protocol_type|replace('ueber','Über')|replace('rueck','Rück') }}</span>
+            {% if protocol_data.is_finalized %}
+            <span class="badge bg-success">Abgeschlossen</span>
+            {% endif %}
         </div>
         {% if contract %}
         <span class="text-muted">Vertrag {{ contract.contract_number }}</span>

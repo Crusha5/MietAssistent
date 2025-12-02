@@ -158,14 +158,22 @@
                     {% if protocol_payload and protocol_payload.attachments %}
                     <div class="alert alert-secondary mt-3 mb-0 small">
                         <div class="fw-semibold">Bereits hinterlegte Anlagen</div>
-                        <ul class="mb-0 ps-3">
+                        <div class="list-group list-group-flush">
                             {% for att in protocol_payload.attachments %}
-                            <li>
-                                {{ (att.caption or ('Anlage ' ~ loop.index)) if att.caption is defined else (att if att is string else ('Anlage ' ~ loop.index)) }}
-                                {% if att.file is defined %}<span class="text-muted">– {{ att.file }}</span>{% endif %}
-                            </li>
+                            {% set fname = att.file if att.file is defined else att %}
+                            <div class="list-group-item d-flex justify-content-between align-items-start">
+                                <div>
+                                    <div class="fw-semibold">{{ (att.caption or ('Anlage ' ~ loop.index)) if att.caption is defined else (att if att is string else ('Anlage ' ~ loop.index)) }}</div>
+                                    <div class="text-muted">{{ fname }}</div>
+                                </div>
+                                <div class="form-check ms-2">
+                                    <input class="form-check-input" type="checkbox" value="{{ fname }}" name="remove_attachments[]" id="removeAttachment{{ loop.index }}">
+                                    <label class="form-check-label" for="removeAttachment{{ loop.index }}">Entfernen</label>
+                                </div>
+                            </div>
                             {% endfor %}
-                        </ul>
+                        </div>
+                        <div class="form-text mt-1">Markierte Anlagen werden beim Speichern gelöscht.</div>
                     </div>
                     {% endif %}
                 </div>
