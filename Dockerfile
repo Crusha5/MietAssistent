@@ -32,7 +32,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # ZUERST Verzeichnisse erstellen
-RUN mkdir -p data uploads app/routes app/templates
+RUN mkdir -p data /uploads/contracts /uploads/protocols app/routes app/templates
 
 # Applikation kopieren - EXPLIZIT alle Verzeichnisse
 COPY app/ ./app/
@@ -40,7 +40,7 @@ COPY run.py .
 COPY requirements.txt .
 
 # Berechtigungen setzen
-RUN chmod -R 755 data uploads
+RUN chmod -R 755 data /uploads
 
 # Prüfen ob Contract-Dateien vorhanden sind
 RUN echo "=== Checking for contract files ===" && \
@@ -51,7 +51,7 @@ RUN echo "=== Checking for contract files ===" && \
     ls -la /app/app/routes/
 
 # Nicht als root User laufen
-RUN useradd -m -u 1000 rentaluser && chown -R rentaluser:rentaluser /app
+RUN useradd -m -u 1000 rentaluser && chown -R rentaluser:rentaluser /app /uploads
 USER rentaluser
 
 EXPOSE 5000

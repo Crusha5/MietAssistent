@@ -19,7 +19,7 @@ def create_app():
     data_dir = os.path.abspath('data')
     os.makedirs(data_dir, exist_ok=True)
 
-    upload_dir = os.path.abspath(os.environ.get('UPLOAD_FOLDER', 'uploads'))
+    upload_dir = os.path.abspath(os.environ.get('UPLOAD_FOLDER', '/uploads'))
 
     # Robust gegen gemountete Verzeichnisse ohne Schreibrechte
     try:
