@@ -36,18 +36,27 @@
     <section class="clause">
         <div class="clause-title">Schlüssel (gesamt {{ protocol_data.key_count or (keys|length) or 0 }})</div>
         {% if keys %}
-        <div class="key-grid">
-            {% for key in keys %}
-            <div class="key-card">
-                <div class="key-title">
-                    <span>{{ key.title or 'Schlüssel ' ~ loop.index }}</span>
-                    <span class="key-qty">{{ key.quantity or 1 }}×</span>
-                </div>
-                <div class="key-meta">{{ key.location or '—' }}</div>
-                {% if key.description %}<div class="key-notes">{{ key.description }}</div>{% endif %}
-            </div>
-            {% endfor %}
-        </div>
+        <table class="table table-keys">
+            <thead>
+                <tr>
+                    <th>Bezeichnung</th>
+                    <th>Ort</th>
+                    <th style="width: 18%">Menge</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for key in keys %}
+                <tr>
+                    <td>
+                        <div class="value">{{ key.title or 'Schlüssel ' ~ loop.index }}</div>
+                        {% if key.description %}<div class="muted">{{ key.description }}</div>{% endif %}
+                    </td>
+                    <td>{{ key.location or '—' }}</td>
+                    <td class="text-right">{{ key.quantity or 1 }}×</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
         {% else %}
         <div class="info-box">Keine Schlüsselangaben hinterlegt.</div>
         {% endif %}

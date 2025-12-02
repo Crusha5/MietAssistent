@@ -294,6 +294,20 @@ h2 {
     font-weight: 700;
 }
 
+.table-keys th,
+.table-keys td {
+    font-size: 10pt;
+}
+
+.text-right {
+    text-align: right;
+}
+
+.muted {
+    color: #6b7280;
+    font-size: 9.5pt;
+}
+
 .info-box {
     background: #f8fafc;
     border: 1px solid #e5e7eb;
@@ -358,13 +372,16 @@ h2 {
     border: 1px solid #e5e7eb;
     border-radius: 6px;
     padding: 8px;
+    page-break-inside: avoid;
 }
 
 .attachment-image {
     width: 100%;
     height: auto;
+    max-height: 22cm;
     border-radius: 6px;
     object-fit: contain;
+    display: block;
 }
 
 .attachment-filebox {

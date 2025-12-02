@@ -402,40 +402,49 @@
         const attachmentRows = document.getElementById('attachmentRows');
         const addAttachmentRow = document.getElementById('addAttachmentRow');
 
+        const createAttachmentRow = () => {
+            const row = document.createElement('div');
+            row.className = 'row g-2 align-items-center attachment-row';
+            row.innerHTML = `
+                <div class="col-md-6">
+                    <input type="file" class="form-control" name="protocol_upload" accept="application/pdf,image/*">
+                </div>
+                <div class="col-md-5">
+                    <input type="text" class="form-control" name="attachment_captions[]" placeholder="Untertitel / Beschreibung (optional)">
+                </div>
+                <div class="col-md-1 d-grid">
+                    <button type="button" class="btn btn-outline-danger btn-sm remove-attachment" title="Eintrag entfernen">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </div>
+            `;
+            return row;
+        };
+
         const bindAttachmentRemoval = () => {
             if (!attachmentRows) return;
             attachmentRows.querySelectorAll('.remove-attachment').forEach(btn => {
-                btn.addEventListener('click', () => {
+                btn.onclick = () => {
                     const row = btn.closest('.attachment-row');
                     if (row && attachmentRows.children.length > 1) {
                         row.remove();
                     } else if (row) {
                         row.querySelectorAll('input').forEach(input => input.value = '');
                     }
-                });
+                };
             });
         };
 
         if (addAttachmentRow && attachmentRows) {
-            addAttachmentRow.addEventListener('click', () => {
-                const newRow = document.createElement('div');
-                newRow.className = 'row g-2 align-items-center attachment-row';
-                newRow.innerHTML = `
-                    <div class="col-md-6">
-                        <input type="file" class="form-control" name="protocol_upload" accept="application/pdf,image/*">
-                    </div>
-                    <div class="col-md-5">
-                        <input type="text" class="form-control" name="attachment_captions[]" placeholder="Untertitel / Beschreibung (optional)">
-                    </div>
-                    <div class="col-md-1 d-grid">
-                        <button type="button" class="btn btn-outline-danger btn-sm remove-attachment" title="Eintrag entfernen">
-                            <i class="bi bi-x"></i>
-                        </button>
-                    </div>
-                `;
-                attachmentRows.appendChild(newRow);
+            addAttachmentRow.onclick = (event) => {
+                event.preventDefault();
+                attachmentRows.appendChild(createAttachmentRow());
                 bindAttachmentRemoval();
-            });
+            };
+
+            if (!attachmentRows.children.length) {
+                attachmentRows.appendChild(createAttachmentRow());
+            }
         }
 
         bindAttachmentRemoval();
