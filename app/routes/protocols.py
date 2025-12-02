@@ -149,6 +149,9 @@ def create_protocol():
         )
         meter.latest_reading_value = last_reading.reading_value if last_reading else None
 
+    # Neuerfassung beginnt immer mit leerem Payload
+    existing_payload = {}
+
     if request.method == 'POST':
         try:
             protocol_type = request.form.get('protocol_type', 'uebernahme')
