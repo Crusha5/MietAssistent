@@ -21,7 +21,7 @@
             <div class="row g-3">
                 <div class="col-md-4">
                     <label class="form-label">Protokolltyp</label>
-                    {% set selected_type = request.form.protocol_type or (protocol.protocol_type if protocol else 'uebernahme') %}
+                    {% set selected_type = request.form.protocol_type or request.args.protocol_type or (protocol.protocol_type if protocol else 'uebernahme') %}
                     <select class="form-select" name="protocol_type" required>
                         <option value="uebernahme" {% if selected_type=='uebernahme' %}selected{% endif %}>Übernahmeprotokoll (Mieter übernimmt)</option>
                         <option value="ruecknahme" {% if selected_type=='ruecknahme' %}selected{% endif %}>Rücknahmeprotokoll (Mieter übergibt)</option>
@@ -39,6 +39,9 @@
                 <div class="col-12">
                     <label class="form-label">Zustand / Räume</label>
                     <textarea class="form-control" name="condition_summary" rows="3" placeholder="Zustand der Räume, Sauberkeit, sichtbare Mängel">{{ protocol_payload.condition_summary if protocol_payload else '' }}</textarea>
+                    {% if selected_type == 'ruecknahme' and protocol_payload %}
+                    <div class="form-text text-success">Werte aus dem letzten Übernahmeprotokoll wurden übernommen. Bitte Abweichungen eintragen.</div>
+                    {% endif %}
                 </div>
                 <div class="col-12">
                     <label class="form-label">Schlüssel</label>
@@ -117,6 +120,11 @@
                 <div class="col-12">
                     <label class="form-label">Notizen</label>
                     <textarea class="form-control" name="notes" rows="3">{{ protocol_payload.notes if protocol_payload else '' }}</textarea>
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Abweichungen / Rücknahme</label>
+                    <textarea class="form-control" name="return_notes" rows="3" placeholder="Fehlende Schlüssel, geänderte Mengen, Beschädigungen bei Rückgabe">{{ protocol_payload.return_notes if protocol_payload else '' }}</textarea>
+                    <div class="form-text">Nur relevant bei Rücknahme: dokumentiere Unterschiede zur Übergabe wie nachgemachte oder fehlende Schlüssel, geänderte Zählerstände oder Schäden.</div>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label">Übergabevermerke</label>

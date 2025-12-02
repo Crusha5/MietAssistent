@@ -31,6 +31,7 @@ def create_protocol():
     ensure_archiving_columns()
     contract_id = request.args.get('contract_id') or request.form.get('contract_id')
     contract = Contract.query.get(contract_id) if contract_id else None
+    requested_type = request.args.get('protocol_type')
 
     if not contract:
         flash('Bitte wählen Sie zuerst einen Vertrag aus, um ein Protokoll zu erstellen.', 'danger')
@@ -185,7 +186,8 @@ def create_protocol():
                 'attachments': attachment_paths,
                 'room_notes': request.form.get('room_notes'),
                 'handover_notes': request.form.get('handover_notes'),
-                'follow_up_notes': request.form.get('follow_up_notes')
+                'follow_up_notes': request.form.get('follow_up_notes'),
+                'return_notes': request.form.get('return_notes')
             }
 
             protocol = Protocol(
@@ -232,12 +234,34 @@ def create_protocol():
             current_app.logger.error(f"Error creating protocol: {e}", exc_info=True)
             flash(f'Protokoll konnte nicht gespeichert werden: {e}', 'danger')
 
+    prefill_payload = None
+    if request.method == 'GET':
+        if (requested_type or 'uebernahme') == 'ruecknahme':
+            reference_protocol = (
+                Protocol.query
+                .filter_by(contract_id=contract_id, protocol_type='uebernahme')
+                .order_by(Protocol.protocol_date.desc())
+                .first()
+            )
+            try:
+                reference_data = json.loads(reference_protocol.protocol_data) if reference_protocol and reference_protocol.protocol_data else {}
+            except Exception:
+                reference_data = {}
+
+            if reference_data:
+                if not reference_data.get('key_count') and isinstance(reference_data.get('keys'), list):
+                    try:
+                        reference_data['key_count'] = sum((int(item.get('quantity') or 1) for item in reference_data.get('keys', [])))
+                    except Exception:
+                        reference_data['key_count'] = len(reference_data.get('keys', []))
+                prefill_payload = SimpleNamespace(**reference_data)
+
     return render_template('protocols/create.html',
                          contract=contract,
                          contract_id=contract_id,
                          meters=meters,
                          protocol=None,
-                         protocol_payload=None)
+                         protocol_payload=prefill_payload)
 
 
 @protocols_bp.route('/<protocol_id>/edit', methods=['GET', 'POST'])
@@ -365,7 +389,8 @@ def edit_protocol(protocol_id):
                 'attachments': attachment_paths,
                 'room_notes': request.form.get('room_notes'),
                 'handover_notes': request.form.get('handover_notes'),
-                'follow_up_notes': request.form.get('follow_up_notes')
+                'follow_up_notes': request.form.get('follow_up_notes'),
+                'return_notes': request.form.get('return_notes')
             }
 
             protocol.protocol_type = protocol_type

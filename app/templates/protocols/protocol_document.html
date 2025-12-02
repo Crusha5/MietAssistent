@@ -32,26 +32,18 @@
     <section class="clause">
         <div class="clause-title">Schlüssel (gesamt {{ protocol_data.key_count or (keys|length) or 0 }})</div>
         {% if keys %}
-        <table class="table">
-            <thead>
-                <tr>
-                    <th>Bezeichnung</th>
-                    <th>Ort</th>
-                    <th>Menge</th>
-                    <th>Notizen</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for key in keys %}
-                <tr>
-                    <td>{{ key.title or 'Schlüssel ' ~ loop.index }}</td>
-                    <td>{{ key.location or '' }}</td>
-                    <td style="text-align:right;">{{ key.quantity or 1 }}</td>
-                    <td>{{ key.description or '' }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <div class="key-grid">
+            {% for key in keys %}
+            <div class="key-card">
+                <div class="key-title">
+                    <span>{{ key.title or 'Schlüssel ' ~ loop.index }}</span>
+                    <span class="key-qty">{{ key.quantity or 1 }}×</span>
+                </div>
+                <div class="key-meta">{{ key.location or '—' }}</div>
+                {% if key.description %}<div class="key-notes">{{ key.description }}</div>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
         {% else %}
         <div class="info-box">Keine Schlüsselangaben hinterlegt.</div>
         {% endif %}
@@ -133,6 +125,10 @@
         <div class="info-box box-large">{{ protocol_data.damages or '' }}</div>
     </section>
     <section class="clause">
+        <div class="clause-title">Abweichungen / Rücknahme</div>
+        <div class="info-box box-large">{{ protocol_data.return_notes or '' }}</div>
+    </section>
+    <section class="clause">
         <div class="clause-title">Notizen</div>
         <div class="info-box box-large">{{ protocol_data.notes or '' }}</div>
     </section>
@@ -143,6 +139,26 @@
     <section class="clause">
         <div class="clause-title">Nacharbeiten / To-dos</div>
         <div class="info-box box-large">{{ protocol_data.follow_up_notes or '' }}</div>
+    </section>
+    <section class="clause">
+        <div class="clause-title">Einverständniserklärung</div>
+        <div class="legal-box">
+            Mit den oben dokumentierten Zuständen, Zählerständen und übergebenen bzw. zurückgenommenen Gegenständen sind beide Parteien einverstanden. Abweichungen wurden festgehalten. Änderungen nach Unterzeichnung bedürfen einer gesonderten schriftlichen Vereinbarung.
+        </div>
+        <div class="signature-meta">
+            <div>Ort: ____________________________________</div>
+            <div>Datum: __________________________________</div>
+        </div>
+        <div class="signature-row">
+            <div class="sig-cell">
+                <div class="sig-line"></div>
+                <div class="sig-label">Vermieter / Verwaltung</div>
+            </div>
+            <div class="sig-cell">
+                <div class="sig-line"></div>
+                <div class="sig-label">Mieter / Mietende</div>
+            </div>
+        </div>
     </section>
 </body>
 </html>

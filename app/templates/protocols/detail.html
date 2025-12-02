@@ -164,6 +164,10 @@
             <p class="mb-0">{{ protocol_data.damages or '—' }}</p>
         </div>
         <div class="mb-3">
+            <h6 class="text-muted">Abweichungen / Rücknahme</h6>
+            <p class="mb-0">{{ protocol_data.return_notes or ('—' if protocol.protocol_type != 'ruecknahme' else 'Keine Abweichungen erfasst.') }}</p>
+        </div>
+        <div class="mb-3">
             <h6 class="text-muted">Schlüsselanzahl</h6>
             <p class="mb-0">{{ protocol_data.key_count or protocol_keys|length or '—' }}</p>
         </div>
