@@ -389,9 +389,10 @@ h2 {
     margin-top: -8px;
 }
 
+
 .attachments-wrapper {
     display: block;
-    gap: 18px;
+    gap: 22px;
 }
 
 .attachment-card {
@@ -401,11 +402,7 @@ h2 {
     background: #f9fafb;
     page-break-inside: avoid;
     break-inside: avoid;
-    margin-bottom: 16px;
-}
-
-.attachment-card + .attachment-card {
-    page-break-before: always;
+    margin-bottom: 22px;
 }
 
 .attachment-header {
@@ -433,12 +430,13 @@ h2 {
     padding: 8px;
     page-break-inside: avoid;
     break-inside: avoid;
+    margin-top: 6px;
 }
 
 .attachment-image {
     width: 100%;
     height: auto;
-    max-height: 18cm;
+    max-height: 16cm;
     border-radius: 6px;
     object-fit: contain;
     display: block;

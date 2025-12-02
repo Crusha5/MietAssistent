@@ -200,7 +200,7 @@
             </div>
             {% endif %}
         </div>
-        {% if not loop.last %}<div class="page-break attachment-break"></div>{% endif %}
+        {% if loop.index % 2 == 0 and not loop.last %}<div class="page-break attachment-break"></div>{% endif %}
         {% endfor %}
     </div>
     {% endif %}
