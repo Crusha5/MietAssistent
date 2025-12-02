@@ -598,20 +598,39 @@ def download_protocol_pdf(protocol_id):
     protocol = Protocol.query.get_or_404(protocol_id)
     contract = Contract.query.get(protocol.contract_id)
 
-    html = protocol.final_content or render_template(
+    try:
+        data = json.loads(protocol.protocol_data) if protocol.protocol_data else {}
+    except json.JSONDecodeError:
+        data = {}
+
+    keys = data.get('keys') if isinstance(data.get('keys'), list) else []
+    meter_entries = data.get('meter_entries') if isinstance(data.get('meter_entries'), list) else []
+    inventory_entries = data.get('inventory') if isinstance(data.get('inventory'), list) else []
+    attachments = _build_attachment_views(_normalize_attachments(data.get('attachments', [])))
+
+    # Fallback für fehlende Schlüsselanzahl, damit das PDF konsistent ist
+    if not data.get('key_count') and keys:
+        try:
+            data['key_count'] = sum((int(k.get('quantity') or 1) for k in keys))
+        except Exception:
+            data['key_count'] = len(keys)
+
+    html = render_template(
         'protocols/protocol_document.html',
         protocol=protocol,
         contract=contract,
-        protocol_data=json.loads(protocol.protocol_data or '{}'),
-        meter_entries=json.loads(protocol.protocol_data or '{}').get('meter_entries', []) if protocol.protocol_data else [],
-        keys=json.loads(protocol.protocol_data or '{}').get('keys', []) if protocol.protocol_data else [],
-        inventory_entries=json.loads(protocol.protocol_data or '{}').get('inventory', []) if protocol.protocol_data else []
+        protocol_data=data,
+        meter_entries=meter_entries,
+        keys=keys,
+        inventory_entries=inventory_entries,
+        attachment_entries=attachments
     )
 
     pdf_bytes = generate_pdf_bytes(html)
     buffer = BytesIO(pdf_bytes)
     buffer.seek(0)
 
+    protocol.final_content = html
     save_protocol_pdf(protocol, html)
     db.session.commit()
 
