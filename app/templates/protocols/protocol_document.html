@@ -36,20 +36,30 @@
     <section class="clause">
         <div class="clause-title">Schlüssel (gesamt {{ protocol_data.key_count or (keys|length) or 0 }})</div>
         {% if keys %}
-        <div class="keys-grid-compact">
-            {% for key in keys %}
-            <div class="key-card-compact">
-                <div class="key-card-header">
-                    <div class="value">{{ key.title or 'Schlüssel ' ~ loop.index }}</div>
-                    <span class="key-qty-chip">{{ key.quantity or 1 }}×</span>
-                </div>
-                <div class="key-card-body">
-                    <div class="muted">{{ key.location or 'Ort unbekannt' }}</div>
-                    {% if key.description %}<div class="key-card-notes">{{ key.description }}</div>{% endif %}
-                </div>
-            </div>
-            {% endfor %}
-        </div>
+        <table class="table table-keys-grid">
+            <tbody>
+                {% for row in keys|batch(4, fill_with=None) %}
+                <tr>
+                    {% for key in row %}
+                    <td class="key-grid-cell">
+                        {% if key %}
+                        <div class="key-card-compact">
+                            <div class="key-card-header">
+                                <div class="value">{{ key.title or 'Schlüssel ' ~ ((loop.parentloop.index0 * 4) + loop.index) }}</div>
+                                <span class="key-qty-chip">{{ key.quantity or 1 }}×</span>
+                            </div>
+                            <div class="key-card-body">
+                                <div class="muted">{{ key.location or 'Ort unbekannt' }}</div>
+                                {% if key.description %}<div class="key-card-notes">{{ key.description }}</div>{% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
         {% else %}
         <div class="info-box">Keine Schlüsselangaben hinterlegt.</div>
         {% endif %}
@@ -180,9 +190,9 @@
                 <div class="attachment-caption">Anlage {{ loop.index }}{% if att.caption %}: {{ att.caption }}{% endif %}</div>
                 <div class="attachment-filename">{{ att.file }}</div>
             </div>
-            {% if att.is_image and att.local_path %}
+            {% if att.is_image and (att.image_data_uri or att.local_path) %}
             <div class="attachment-media">
-                <img src="{{ att.local_path }}" alt="Anlage {{ loop.index }}" class="attachment-image">
+                <img src="{{ att.image_data_uri or att.local_path }}" alt="Anlage {{ loop.index }}" class="attachment-image">
             </div>
             {% else %}
             <div class="attachment-filebox">

@@ -10,6 +10,7 @@ import os
 import mimetypes
 from types import SimpleNamespace
 from io import BytesIO
+import base64
 import pandas as pd
 from app.utils.pdf_generator import generate_pdf_bytes, save_protocol_pdf
 from app.utils.schema_helpers import ensure_archiving_columns
@@ -56,6 +57,15 @@ def _build_attachment_views(raw_attachments):
         absolute_path = os.path.abspath(os.path.join(base_dir, item['file'])) if item.get('file') else ''
         item['local_path'] = f"file://{absolute_path}" if absolute_path else ''
         item['is_image'] = mime.startswith('image') or ext in ['.png', '.jpg', '.jpeg', '.gif', '.webp']
+        if item['is_image'] and absolute_path and os.path.exists(absolute_path):
+            try:
+                with open(absolute_path, 'rb') as fh:
+                    encoded = base64.b64encode(fh.read()).decode('utf-8')
+                item['image_data_uri'] = f"data:{mime or 'image/png'};base64,{encoded}"
+            except Exception:
+                item['image_data_uri'] = ''
+        else:
+            item['image_data_uri'] = ''
     return normalized
 
 @protocols_bp.route('/')

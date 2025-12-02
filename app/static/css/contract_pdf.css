@@ -270,11 +270,21 @@ h2 {
     font-size: 9.5pt;
     margin-top: 2px;
 }
-.keys-grid-compact {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 8px 10px;
+.table-keys-grid {
+    width: 100%;
+    border-collapse: collapse;
     margin-top: 8px;
+}
+
+.table-keys-grid td {
+    border: none;
+    padding: 4px 6px;
+    width: 25%;
+    vertical-align: top;
+}
+
+.key-grid-cell {
+    page-break-inside: avoid;
 }
 
 .key-card-compact {
