@@ -53,7 +53,8 @@ def _build_attachment_views(raw_attachments):
     for item in normalized:
         ext = (os.path.splitext(item.get('file') or '')[1] or '').lower()
         mime = (item.get('mime') or '').lower()
-        item['local_path'] = os.path.join(base_dir, item['file']) if item.get('file') else ''
+        absolute_path = os.path.abspath(os.path.join(base_dir, item['file'])) if item.get('file') else ''
+        item['local_path'] = f"file://{absolute_path}" if absolute_path else ''
         item['is_image'] = mime.startswith('image') or ext in ['.png', '.jpg', '.jpeg', '.gif', '.webp']
     return normalized
 
