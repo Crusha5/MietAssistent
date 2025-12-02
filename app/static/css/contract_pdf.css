@@ -309,3 +309,86 @@ h2 {
 .page-break {
     page-break-before: always;
 }
+
+.clause-attachments {
+    margin-top: 10px;
+}
+
+.attachment-note {
+    text-align: center;
+    color: #4b5563;
+    font-size: 10pt;
+    margin-top: -8px;
+}
+
+.attachments-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.attachment-card {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 12px;
+    background: #f9fafb;
+    page-break-inside: avoid;
+}
+
+.attachment-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    align-items: baseline;
+    margin-bottom: 8px;
+}
+
+.attachment-caption {
+    font-weight: 700;
+    font-size: 11pt;
+}
+
+.attachment-filename {
+    font-size: 9.5pt;
+    color: #6b7280;
+}
+
+.attachment-media {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    padding: 8px;
+}
+
+.attachment-image {
+    width: 100%;
+    height: auto;
+    border-radius: 6px;
+    object-fit: contain;
+}
+
+.attachment-filebox {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    background: #fff;
+    border: 1px dashed #d1d5db;
+    border-radius: 6px;
+}
+
+.file-icon {
+    font-size: 18pt;
+}
+
+.file-name {
+    font-weight: 600;
+}
+
+.file-meta {
+    font-size: 9.5pt;
+}
+
+.attachment-break {
+    margin-top: 6px;
+}

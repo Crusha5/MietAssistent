@@ -7,6 +7,7 @@ import json
 from datetime import datetime
 import re
 import os
+import mimetypes
 from types import SimpleNamespace
 from io import BytesIO
 import pandas as pd
@@ -14,6 +15,47 @@ from app.utils.pdf_generator import generate_pdf_bytes, save_protocol_pdf
 from app.utils.schema_helpers import ensure_archiving_columns
 
 protocols_bp = Blueprint('protocols', __name__)
+
+
+def _normalize_attachments(raw_attachments):
+    """Ensure attachments have a uniform dict structure."""
+    normalized = []
+    if not isinstance(raw_attachments, list):
+        return normalized
+
+    for item in raw_attachments:
+        if isinstance(item, dict):
+            file_name = item.get('file') or item.get('file_name') or item.get('path') or item.get('filename')
+            caption = item.get('caption') or item.get('title') or ''
+            mime = item.get('mime') or mimetypes.guess_type(file_name or '')[0]
+        elif isinstance(item, str):
+            file_name = item
+            caption = ''
+            mime = mimetypes.guess_type(file_name or '')[0]
+        else:
+            continue
+
+        if not file_name:
+            continue
+
+        normalized.append({
+            'file': file_name,
+            'caption': caption,
+            'mime': mime
+        })
+
+    return normalized
+
+
+def _build_attachment_views(raw_attachments):
+    base_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'protocols')
+    normalized = _normalize_attachments(raw_attachments)
+    for item in normalized:
+        ext = (os.path.splitext(item.get('file') or '')[1] or '').lower()
+        mime = (item.get('mime') or '').lower()
+        item['local_path'] = os.path.join(base_dir, item['file']) if item.get('file') else ''
+        item['is_image'] = mime.startswith('image') or ext in ['.png', '.jpg', '.jpeg', '.gif', '.webp']
+    return normalized
 
 @protocols_bp.route('/')
 @login_required
@@ -111,7 +153,8 @@ def create_protocol():
             os.makedirs(upload_dir, exist_ok=True)
 
             uploaded_files = request.files.getlist('protocol_upload')
-            attachment_paths = []
+            attachment_captions = request.form.getlist('attachment_captions[]') or []
+            attachment_meta = []
 
             for meter in meters:
                 raw_value = request.form.get(f'meter_readings[{meter.id}]')
@@ -157,12 +200,17 @@ def create_protocol():
                     db.session.add(reading)
 
             # Protokollanhänge speichern
-            for file in uploaded_files:
+            for idx, file in enumerate(uploaded_files):
                 if file and file.filename:
                     ext = os.path.splitext(file.filename)[1]
                     stored_name = f"protocol_{uuid.uuid4().hex}{ext}"
                     file.save(os.path.join(upload_dir, stored_name))
-                    attachment_paths.append(stored_name)
+                    caption = attachment_captions[idx] if idx < len(attachment_captions) else ''
+                    attachment_meta.append({
+                        'file': stored_name,
+                        'caption': caption,
+                        'mime': file.mimetype
+                    })
 
             try:
                 computed_key_count = sum(
@@ -183,12 +231,14 @@ def create_protocol():
                 'inventory': inventory_entries,
                 'meter_entries': meter_entries,
                 'meter_photos': meter_photo_map,
-                'attachments': attachment_paths,
+                'attachments': attachment_meta,
                 'room_notes': request.form.get('room_notes'),
                 'handover_notes': request.form.get('handover_notes'),
                 'follow_up_notes': request.form.get('follow_up_notes'),
                 'return_notes': request.form.get('return_notes')
             }
+
+            attachment_entries = _build_attachment_views(attachment_meta)
 
             protocol = Protocol(
                 id=str(uuid.uuid4()),
@@ -199,9 +249,9 @@ def create_protocol():
                 created_by=session.get('user_id')
             )
 
-            if attachment_paths:
+            if attachment_meta:
                 # erstes PDF oder Bild als pdf_path, damit abrufbar
-                protocol.pdf_path = attachment_paths[0]
+                protocol.pdf_path = attachment_meta[0].get('file')
 
             protocol.final_content = render_template(
                 'protocols/protocol_document.html',
@@ -210,7 +260,8 @@ def create_protocol():
                 protocol_data=protocol_data,
                 meter_entries=meter_entries,
                 keys=key_entries,
-                inventory_entries=inventory_entries
+                inventory_entries=inventory_entries,
+                attachment_entries=attachment_entries
             )
 
             db.session.add(protocol)
@@ -361,15 +412,19 @@ def edit_protocol(protocol_id):
                     db.session.add(reading)
 
             uploaded_files = request.files.getlist('protocol_upload')
-            attachment_paths = existing_payload.get('attachments', []) if isinstance(existing_payload, dict) else []
-            if not isinstance(attachment_paths, list):
-                attachment_paths = []
-            for file in uploaded_files:
+            attachment_captions = request.form.getlist('attachment_captions[]') or []
+            attachment_paths = _normalize_attachments(existing_payload.get('attachments', [])) if isinstance(existing_payload, dict) else []
+            for idx, file in enumerate(uploaded_files):
                 if file and file.filename:
                     ext = os.path.splitext(file.filename)[1]
                     stored_name = f"protocol_{uuid.uuid4().hex}{ext}"
                     file.save(os.path.join(upload_dir, stored_name))
-                    attachment_paths.append(stored_name)
+                    caption = attachment_captions[idx] if idx < len(attachment_captions) else ''
+                    attachment_paths.append({
+                        'file': stored_name,
+                        'caption': caption,
+                        'mime': file.mimetype
+                    })
 
             try:
                 computed_key_count = sum((int(item.get('quantity') or 1) for item in key_entries))
@@ -393,9 +448,21 @@ def edit_protocol(protocol_id):
                 'return_notes': request.form.get('return_notes')
             }
 
+            attachment_entries = _build_attachment_views(attachment_paths)
+
             protocol.protocol_type = protocol_type
             protocol.protocol_date = protocol_date
             protocol.protocol_data = json.dumps(protocol_data, ensure_ascii=False)
+            protocol.final_content = render_template(
+                'protocols/protocol_document.html',
+                protocol=protocol,
+                contract=contract,
+                protocol_data=protocol_data,
+                meter_entries=meter_entries,
+                keys=key_entries,
+                inventory_entries=inventory_entries,
+                attachment_entries=attachment_entries
+            )
             db.session.commit()
             flash('Protokoll aktualisiert.', 'success')
             return redirect(url_for('protocols.protocol_detail', protocol_id=protocol.id))
@@ -431,7 +498,8 @@ def protocol_detail(protocol_id):
 
         keys = data.get('keys') if isinstance(data.get('keys'), list) else []
         meter_entries = data.get('meter_entries') if isinstance(data.get('meter_entries'), list) else []
-        attachments = data.get('attachments') if isinstance(data.get('attachments'), list) else []
+        attachments = _normalize_attachments(data.get('attachments', []))
+        attachment_views = _build_attachment_views(attachments)
         inventory_entries = data.get('inventory') if isinstance(data.get('inventory'), list) else []
 
         data['keys'] = keys
@@ -455,7 +523,7 @@ def protocol_detail(protocol_id):
             protocol_data=protocol_data,
             protocol_keys=keys,
             protocol_meter_entries=meter_entries,
-            protocol_attachments=attachments,
+            protocol_attachments=attachment_views,
             protocol_inventory=inventory_entries,
         )
     except Exception as exc:

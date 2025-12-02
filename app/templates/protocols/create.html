@@ -135,9 +135,39 @@
                     <textarea class="form-control" name="follow_up_notes" rows="3" placeholder="Reparaturen, Reinigung, nächste Schritte">{{ protocol_payload.follow_up_notes if protocol_payload else '' }}</textarea>
                 </div>
                 <div class="col-12">
-                    <label class="form-label">Ausgefülltes Protokoll (PDF/Bilder)</label>
-                    <input type="file" class="form-control" name="protocol_upload" accept="application/pdf,image/*" multiple>
-                    <div class="form-text">Wenn das Protokoll ausgedruckt und unterschrieben wurde, lade die Dateien hier erneut hoch.</div>
+                    <label class="form-label">Anlagen (Fotos / Dokumente)</label>
+                    <p class="text-muted small mb-2">Füge hier ergänzende Fotos oder Dokumente hinzu. Jedes Foto erhält einen Untertitel, der auch im PDF angezeigt wird.</p>
+                    <div id="attachmentRows" class="d-flex flex-column gap-2">
+                        <div class="row g-2 align-items-center attachment-row">
+                            <div class="col-md-6">
+                                <input type="file" class="form-control" name="protocol_upload" accept="application/pdf,image/*">
+                            </div>
+                            <div class="col-md-5">
+                                <input type="text" class="form-control" name="attachment_captions[]" placeholder="Untertitel / Beschreibung (optional)">
+                            </div>
+                            <div class="col-md-1 d-grid">
+                                <button type="button" class="btn btn-outline-danger btn-sm remove-attachment" title="Eintrag entfernen">
+                                    <i class="bi bi-x"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" id="addAttachmentRow" class="btn btn-sm btn-outline-primary mt-2">
+                        <i class="bi bi-plus"></i> Weitere Anlage hinzufügen
+                    </button>
+                    {% if protocol_payload and protocol_payload.attachments %}
+                    <div class="alert alert-secondary mt-3 mb-0 small">
+                        <div class="fw-semibold">Bereits hinterlegte Anlagen</div>
+                        <ul class="mb-0 ps-3">
+                            {% for att in protocol_payload.attachments %}
+                            <li>
+                                {{ (att.caption or ('Anlage ' ~ loop.index)) if att.caption is defined else (att if att is string else ('Anlage ' ~ loop.index)) }}
+                                {% if att.file is defined %}<span class="text-muted">– {{ att.file }}</span>{% endif %}
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
             <div class="d-flex justify-content-end mt-4">
@@ -367,6 +397,48 @@
         const initialInventory = (JSON.parse(invStorage.value || '[]') || []).filter(item => (item.name || item.location || item.notes || item.damages));
         invStorage.value = JSON.stringify(initialInventory);
         renderInventory(initialInventory);
+
+        // Anlagen-Handling
+        const attachmentRows = document.getElementById('attachmentRows');
+        const addAttachmentRow = document.getElementById('addAttachmentRow');
+
+        const bindAttachmentRemoval = () => {
+            if (!attachmentRows) return;
+            attachmentRows.querySelectorAll('.remove-attachment').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const row = btn.closest('.attachment-row');
+                    if (row && attachmentRows.children.length > 1) {
+                        row.remove();
+                    } else if (row) {
+                        row.querySelectorAll('input').forEach(input => input.value = '');
+                    }
+                });
+            });
+        };
+
+        if (addAttachmentRow && attachmentRows) {
+            addAttachmentRow.addEventListener('click', () => {
+                const newRow = document.createElement('div');
+                newRow.className = 'row g-2 align-items-center attachment-row';
+                newRow.innerHTML = `
+                    <div class="col-md-6">
+                        <input type="file" class="form-control" name="protocol_upload" accept="application/pdf,image/*">
+                    </div>
+                    <div class="col-md-5">
+                        <input type="text" class="form-control" name="attachment_captions[]" placeholder="Untertitel / Beschreibung (optional)">
+                    </div>
+                    <div class="col-md-1 d-grid">
+                        <button type="button" class="btn btn-outline-danger btn-sm remove-attachment" title="Eintrag entfernen">
+                            <i class="bi bi-x"></i>
+                        </button>
+                    </div>
+                `;
+                attachmentRows.appendChild(newRow);
+                bindAttachmentRemoval();
+            });
+        }
+
+        bindAttachmentRemoval();
     });
 </script>
 {% endblock %}

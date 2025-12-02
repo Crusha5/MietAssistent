@@ -164,5 +164,37 @@
             </div>
         </div>
     </section>
+    {% set attachments = attachment_entries if attachment_entries is defined else (protocol_data.attachments if protocol_data else []) %}
+    {% if attachments %}
+    <div class="page-break"></div>
+    <section class="clause clause-attachments">
+        <div class="clause-title">Anlagen</div>
+        <p class="attachment-note">Die folgenden Dateien sind Bestandteil des Protokolls.</p>
+    </section>
+    <div class="attachments-wrapper">
+        {% for att in attachments %}
+        <div class="attachment-card">
+            <div class="attachment-header">
+                <div class="attachment-caption">Anlage {{ loop.index }}{% if att.caption %}: {{ att.caption }}{% endif %}</div>
+                <div class="attachment-filename">{{ att.file }}</div>
+            </div>
+            {% if att.is_image and att.local_path %}
+            <div class="attachment-media">
+                <img src="{{ att.local_path }}" alt="Anlage {{ loop.index }}" class="attachment-image">
+            </div>
+            {% else %}
+            <div class="attachment-filebox">
+                <div class="file-icon">📄</div>
+                <div>
+                    <div class="file-name">{{ att.caption or att.file }}</div>
+                    <div class="file-meta text-muted">{{ att.mime or 'Datei' }}</div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% if not loop.last %}<div class="page-break attachment-break"></div>{% endif %}
+        {% endfor %}
+    </div>
+    {% endif %}
 </body>
 </html>

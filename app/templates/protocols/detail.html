@@ -187,10 +187,13 @@
         </div>
         {% if protocol_attachments %}
         <div class="mb-3">
-            <h6 class="text-muted">Hochgeladene Dokumente</h6>
+            <h6 class="text-muted">Hochgeladene Anlagen</h6>
             <ul class="mb-0">
-                {% for file in protocol_attachments %}
-                <li><a href="{{ url_for('protocols.protocol_photo', filename=file) }}" target="_blank">{{ file }}</a></li>
+                {% for att in protocol_attachments %}
+                <li>
+                    <a href="{{ url_for('protocols.protocol_photo', filename=att.file) }}" target="_blank">{{ att.caption or ('Anlage ' ~ loop.index) }}</a>
+                    <span class="text-muted">({{ att.file }})</span>
+                </li>
                 {% endfor %}
             </ul>
         </div>
