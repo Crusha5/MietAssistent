@@ -12,6 +12,7 @@ from types import SimpleNamespace
 from io import BytesIO
 import base64
 import pandas as pd
+from PIL import Image, ImageOps
 from app.utils.pdf_generator import generate_pdf_bytes, save_protocol_pdf
 from app.utils.schema_helpers import ensure_archiving_columns
 
@@ -67,6 +68,39 @@ def _build_attachment_views(raw_attachments):
         else:
             item['image_data_uri'] = ''
     return normalized
+
+
+def _save_protocol_file(file, upload_dir: str, prefix: str) -> str:
+    """Speichert eine Datei unterhalb des Protokoll-Ordners und skaliert Bilder."""
+    ext = os.path.splitext(file.filename or '')[1]
+    stored_name = f"{prefix}_{uuid.uuid4().hex}{ext}"
+    target_path = os.path.join(upload_dir, stored_name)
+
+    try:
+        mime = (file.mimetype or '').lower()
+        if mime.startswith('image/'):
+            file.stream.seek(0)
+            with Image.open(file.stream) as img:
+                img = ImageOps.exif_transpose(img)
+                img.thumbnail((1800, 1800), Image.LANCZOS)
+                format_hint = (img.format or '').upper()
+                save_kwargs = {}
+
+                if (format_hint == 'JPEG') or ext.lower() in ['.jpg', '.jpeg']:
+                    format_hint = 'JPEG'
+                    save_kwargs.update({'quality': 90, 'optimize': True})
+                elif (format_hint == 'PNG') or ext.lower() == '.png':
+                    format_hint = 'PNG'
+                else:
+                    format_hint = 'PNG'
+
+                img.save(target_path, format=format_hint, **save_kwargs)
+        else:
+            file.save(target_path)
+    except Exception:
+        file.save(target_path)
+
+    return stored_name
 
 
 def _is_protocol_finalized(payload: dict) -> bool:
@@ -188,9 +222,7 @@ def create_protocol():
                 photo_name = None
 
                 if photo and photo.filename:
-                    ext = os.path.splitext(photo.filename)[1]
-                    photo_name = f"meter_{meter.id}_{uuid.uuid4().hex}{ext}"
-                    photo.save(os.path.join(upload_dir, photo_name))
+                    photo_name = _save_protocol_file(photo, upload_dir, prefix=f"meter_{meter.id}")
                     meter_photo_map[str(meter.id)] = photo_name
 
                 meter_entries.append({
@@ -219,9 +251,7 @@ def create_protocol():
             # Protokollanhänge speichern
             for idx, file in enumerate(uploaded_files):
                 if file and file.filename:
-                    ext = os.path.splitext(file.filename)[1]
-                    stored_name = f"protocol_{uuid.uuid4().hex}{ext}"
-                    file.save(os.path.join(upload_dir, stored_name))
+                    stored_name = _save_protocol_file(file, upload_dir, prefix='protocol')
                     caption = attachment_captions[idx] if idx < len(attachment_captions) else ''
                     attachment_meta.append({
                         'file': stored_name,
@@ -408,9 +438,7 @@ def edit_protocol(protocol_id):
                 photo = request.files.get(f'meter_photo_{meter.id}')
                 photo_name = meter_photo_map.get(str(meter.id)) if isinstance(meter_photo_map, dict) else None
                 if photo and photo.filename:
-                    ext = os.path.splitext(photo.filename)[1]
-                    photo_name = f"meter_{meter.id}_{uuid.uuid4().hex}{ext}"
-                    photo.save(os.path.join(upload_dir, photo_name))
+                    photo_name = _save_protocol_file(photo, upload_dir, prefix=f"meter_{meter.id}")
                     meter_photo_map[str(meter.id)] = photo_name
 
                 meter_entries.append({
@@ -458,9 +486,7 @@ def edit_protocol(protocol_id):
                 attachment_paths = remaining_paths
             for idx, file in enumerate(uploaded_files):
                 if file and file.filename:
-                    ext = os.path.splitext(file.filename)[1]
-                    stored_name = f"protocol_{uuid.uuid4().hex}{ext}"
-                    file.save(os.path.join(upload_dir, stored_name))
+                    stored_name = _save_protocol_file(file, upload_dir, prefix='protocol')
                     caption = attachment_captions[idx] if idx < len(attachment_captions) else ''
                     attachment_paths.append({
                         'file': stored_name,

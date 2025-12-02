@@ -390,8 +390,7 @@ h2 {
 }
 
 .attachments-wrapper {
-    display: flex;
-    flex-direction: column;
+    display: block;
     gap: 18px;
 }
 
@@ -401,6 +400,12 @@ h2 {
     padding: 12px;
     background: #f9fafb;
     page-break-inside: avoid;
+    break-inside: avoid;
+    margin-bottom: 16px;
+}
+
+.attachment-card + .attachment-card {
+    page-break-before: always;
 }
 
 .attachment-header {
@@ -427,12 +432,13 @@ h2 {
     border-radius: 6px;
     padding: 8px;
     page-break-inside: avoid;
+    break-inside: avoid;
 }
 
 .attachment-image {
     width: 100%;
     height: auto;
-    max-height: 22cm;
+    max-height: 18cm;
     border-radius: 6px;
     object-fit: contain;
     display: block;
@@ -462,4 +468,5 @@ h2 {
 
 .attachment-break {
     margin-top: 6px;
+    page-break-before: always;
 }
