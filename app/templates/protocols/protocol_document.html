@@ -36,26 +36,22 @@
     <section class="clause">
         <div class="clause-title">Schlüssel (gesamt {{ protocol_data.key_count or (keys|length) or 0 }})</div>
         {% if keys %}
-        <table class="table table-keys-grid">
-            <tbody>
-                {% for row in keys|batch(4, fill_with=None) %}
+        <table class="table table-keys">
+            <thead>
                 <tr>
-                    {% for key in row %}
-                    <td class="key-grid-cell">
-                        {% if key %}
-                        <div class="key-card-compact">
-                            <div class="key-card-header">
-                                <div class="value">{{ key.title or 'Schlüssel ' ~ ((loop.parentloop.index0 * 4) + loop.index) }}</div>
-                                <span class="key-qty-chip">{{ key.quantity or 1 }}×</span>
-                            </div>
-                            <div class="key-card-body">
-                                <div class="muted">{{ key.location or 'Ort unbekannt' }}</div>
-                                {% if key.description %}<div class="key-card-notes">{{ key.description }}</div>{% endif %}
-                            </div>
-                        </div>
-                        {% endif %}
-                    </td>
-                    {% endfor %}
+                    <th>Bezeichnung</th>
+                    <th>Ort</th>
+                    <th>Menge</th>
+                    <th>Notizen</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for key in keys %}
+                <tr>
+                    <td>{{ key.title or 'Schlüssel ' ~ loop.index }}</td>
+                    <td>{{ key.location or '' }}</td>
+                    <td class="text-right">{{ key.quantity or 1 }}</td>
+                    <td>{{ key.description or '' }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
