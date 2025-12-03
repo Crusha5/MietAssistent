@@ -174,7 +174,8 @@ def protocols_list():
     """Liste aller Protokolle"""
     ensure_archiving_columns()
     protocols = Protocol.query.filter((Protocol.is_archived.is_(False)) | (Protocol.is_archived.is_(None))).order_by(Protocol.protocol_date.desc()).all()
-    return render_template('protocols/list.html', protocols=protocols)
+    contracts_endpoint_available = current_app.view_functions.get('contracts.contract_detail') is not None
+    return render_template('protocols/list.html', protocols=protocols, contracts_endpoint_available=contracts_endpoint_available)
 
 
 @protocols_bp.route('/create', methods=['GET', 'POST'])

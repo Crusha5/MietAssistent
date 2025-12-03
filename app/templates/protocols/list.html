@@ -33,10 +33,12 @@
                             <span class="badge bg-secondary">{{ protocol.protocol_type|replace('ueber','Über')|replace('rueck','Rück') }}</span>
                         </td>
                         <td>
-                            {% if protocol.protocol_contract %}
+                            {% if protocol.protocol_contract and contracts_endpoint_available %}
                             <a href="{{ url_for('contracts.contract_detail', contract_id=protocol.contract_id) }}" class="text-decoration-none">
                                 {{ protocol.protocol_contract.contract_number or 'Vertrag' }}
                             </a>
+                            {% elif protocol.protocol_contract %}
+                                {{ protocol.protocol_contract.contract_number or 'Vertrag' }}
                             {% else %}
                                 <span class="text-muted">Kein Vertrag verknüpft</span>
                             {% endif %}
