@@ -637,6 +637,8 @@ class Contract(db.Model):
     status = db.Column(db.String(20), default='draft')
     start_date = db.Column(db.Date, nullable=False)
     end_date = db.Column(db.Date)
+    move_out_date = db.Column(db.Date)
+    is_locked = db.Column(db.Boolean, default=False)
     notice_period = db.Column(db.Integer, default=3)
     rent_net = db.Column(db.Float, nullable=False)
     rent_additional = db.Column(db.Float, default=0.0)
@@ -679,6 +681,7 @@ class Contract(db.Model):
     
     # Dokumente
     pdf_path = db.Column(db.String(255))
+    final_document = db.Column(db.String(255))
     is_archived = db.Column(db.Boolean, default=False)
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -766,6 +769,8 @@ class Protocol(db.Model):
     contract_id = db.Column(db.String(36), db.ForeignKey('contracts.id'), nullable=False)
     protocol_type = db.Column(db.String(20), nullable=False)  # uebergabe, uebernahme, schlussuebergabe
     protocol_date = db.Column(db.Date, nullable=False)
+    is_closed = db.Column(db.Boolean, default=False)
+    manual_pdf_path = db.Column(db.String(255))
     
     # Protokolldaten
     protocol_data = db.Column(db.Text)  # JSON mit Protokolldaten (Raumzustände, Mängel, etc.)

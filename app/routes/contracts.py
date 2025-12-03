@@ -12,6 +12,7 @@ from app.routes.contract_editor import load_contract_tree
 from app.models import Landlord, Protocol, Meter, MeterReading, Document, Tenant
 from app.utils.schema_helpers import ensure_archiving_columns
 from app.utils.pdf_generator import generate_professional_contract_html, save_contract_pdf
+from PyPDF2 import PdfMerger
 
 contracts_bp = Blueprint('contracts', __name__)
 
@@ -33,6 +34,62 @@ def ensure_writable_dir(path: str):
         # Letzter Versuch mit großzügigeren Rechten
         os.makedirs(path, mode=0o777, exist_ok=True)
         os.chmod(path, 0o777)
+
+
+def _collect_protocol_pdfs(protocols: list) -> list:
+    pdfs = []
+    for proto in protocols:
+        if proto.pdf_path:
+            pdfs.append(proto.pdf_path)
+        if getattr(proto, 'manual_pdf_path', None):
+            pdfs.append(proto.manual_pdf_path)
+        try:
+            payload = json.loads(proto.protocol_data) if proto.protocol_data else {}
+        except Exception:
+            payload = {}
+        attachments = payload.get('attachments') if isinstance(payload, dict) else []
+        if isinstance(attachments, list):
+            for att in attachments:
+                if not isinstance(att, dict):
+                    continue
+                mime = (att.get('mime') or '').lower()
+                if mime != 'application/pdf':
+                    continue
+                candidate = att.get('file') or att.get('path')
+                if candidate:
+                    pdfs.append(candidate)
+    return pdfs
+
+
+def _merge_contract_final_document(contract, protocols: list) -> str:
+    upload_root = current_app.config.get('UPLOAD_FOLDER') or os.path.join(current_app.root_path, 'uploads')
+    target_dir = os.path.join(upload_root, 'contracts')
+    ensure_writable_dir(target_dir)
+    filename = f"abschlussdokument_{contract.id}.pdf"
+    target_path = os.path.join(target_dir, filename)
+    if os.path.exists(target_path):
+        return target_path
+
+    merger = PdfMerger()
+    sources = []
+    if contract.pdf_path:
+        sources.append(contract.pdf_path)
+    proto_pdfs = _collect_protocol_pdfs(protocols)
+    sources.extend(proto_pdfs)
+
+    for pdf in sources:
+        if pdf and os.path.exists(pdf):
+            try:
+                merger.append(pdf)
+            except Exception:
+                current_app.logger.warning('Konnte PDF %s nicht zusammenführen', pdf)
+    if not merger.pages:
+        return ''
+    with open(target_path, 'wb') as f:
+        merger.write(f)
+    merger.close()
+    os.chmod(target_path, 0o444)
+    return target_path
 
 # Späte Import-Funktion um Zirkelbezüge zu vermeiden
 def get_contract_models():
@@ -429,6 +486,50 @@ def terminate_contract(contract_id):
         current_app.logger.error(f"Error terminating contract {contract_id}: {str(e)}", exc_info=True)
         flash(f'Fehler beim Kündigen des Vertrags: {str(e)}', 'danger')
         return redirect(url_for('contracts.contract_detail', contract_id=contract_id))
+
+
+@contracts_bp.route('/<contract_id>/move-out', methods=['POST'])
+@login_required
+def register_move_out(contract_id):
+    """Erfasst den Auszug und sperrt den Vertrag."""
+    Contract, _, _, _, _, _ = get_contract_models()
+    if Contract is None:
+        flash('Vertragsmodelle sind nicht verfügbar.', 'warning')
+        return redirect(url_for('contracts.contracts_list'))
+    contract = Contract.query.get_or_404(contract_id)
+    if contract.move_out_date:
+        flash('Auszug wurde bereits erfasst. Der Vertrag ist gesperrt.', 'info')
+        return redirect(url_for('contracts.contract_detail', contract_id=contract.id))
+
+    protocols = Protocol.query.filter_by(contract_id=contract.id).all()
+    open_protocols = [p for p in protocols if not getattr(p, 'is_closed', False)]
+    if open_protocols:
+        flash('Alle Protokolle müssen abgeschlossen sein, bevor ein Auszug erfasst werden kann.', 'danger')
+        return redirect(url_for('contracts.contract_detail', contract_id=contract.id))
+
+    for proto in protocols:
+        try:
+            payload = json.loads(proto.protocol_data) if proto.protocol_data else {}
+        except Exception:
+            payload = {}
+        meter_entries = payload.get('meter_entries') if isinstance(payload, dict) else []
+        if any(entry.get('reading_value') in (None, '') for entry in meter_entries):
+            flash('Alle Protokolle benötigen vollständige Zählerstände.', 'danger')
+            return redirect(url_for('contracts.contract_detail', contract_id=contract.id))
+        attachments = payload.get('attachments') if isinstance(payload, dict) else []
+        has_pdf = any((att.get('mime') or '').lower() == 'application/pdf' for att in attachments if isinstance(att, dict))
+        if not has_pdf and not proto.pdf_path and not proto.manual_pdf_path:
+            flash('Jedes Protokoll benötigt ein ausgefülltes PDF.', 'danger')
+            return redirect(url_for('contracts.contract_detail', contract_id=contract.id))
+
+    contract.move_out_date = datetime.strptime(request.form.get('move_out_date'), '%Y-%m-%d').date() if request.form.get('move_out_date') else datetime.utcnow().date()
+    contract.is_locked = True
+    final_path = _merge_contract_final_document(contract, protocols)
+    if final_path:
+        contract.final_document = final_path
+    db.session.commit()
+    flash('Auszug erfasst und Vertrag gesperrt. Alle Bearbeitungen sind nun deaktiviert.', 'success')
+    return redirect(url_for('contracts.contract_detail', contract_id=contract.id))
 
 
 @contracts_bp.route('/<contract_id>/duplicate', methods=['POST'])

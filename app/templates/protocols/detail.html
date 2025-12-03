@@ -13,7 +13,7 @@
             <i class="bi bi-arrow-left me-1"></i>Zurück zum Vertrag
         </a>
         {% endif %}
-        {% if protocol_data.is_finalized %}
+        {% if is_locked or is_closed %}
         <button class="btn btn-outline-secondary" disabled>
             <i class="bi bi-check2-circle me-1"></i>Bearbeitung gesperrt
         </button>
@@ -27,7 +27,7 @@
             </button>
         </form>
         {% endif %}
-        <a href="{{ url_for('protocols.create_protocol', contract_id=contract.id if contract else None) }}" class="btn btn-primary">
+        <a href="{{ url_for('protocols.create_protocol', contract_id=contract.id if contract else None) }}" class="btn btn-primary {% if is_locked %}disabled{% endif %}">
             <i class="bi bi-plus-circle me-1"></i>Neues Protokoll
         </a>
         <a href="{{ url_for('protocols.download_protocol_pdf', protocol_id=protocol.id) }}" class="btn btn-outline-primary">
@@ -51,7 +51,7 @@
         <div>
             <span class="badge bg-primary me-2">{{ protocol.protocol_date.strftime('%d.%m.%Y') }}</span>
             <span class="badge bg-secondary">{{ protocol.protocol_type|replace('ueber','Über')|replace('rueck','Rück') }}</span>
-            {% if protocol_data.is_finalized %}
+            {% if is_closed %}
             <span class="badge bg-success">Abgeschlossen</span>
             {% endif %}
         </div>
