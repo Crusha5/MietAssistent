@@ -531,7 +531,40 @@ def initialize_database(app):
                     print("✅ tenant_id added")
             except Exception as mig_exc:
                 print(f"⚠️ Could not migrate settlements columns: {mig_exc}")
-                
+
+            # Neue Vertrags- und Protokollspalten für Sperrlogiken sicherstellen
+            try:
+                contract_columns = [col['name'] for col in inspector.get_columns('contracts')]
+                if 'move_out_date' not in contract_columns:
+                    print("🔄 Adding move_out_date to contracts...")
+                    db.session.execute(text('ALTER TABLE contracts ADD COLUMN move_out_date DATE'))
+                    db.session.commit()
+                    print("✅ move_out_date added")
+                if 'is_locked' not in contract_columns:
+                    print("🔄 Adding is_locked to contracts...")
+                    db.session.execute(text('ALTER TABLE contracts ADD COLUMN is_locked BOOLEAN DEFAULT 0'))
+                    db.session.commit()
+                    print("✅ is_locked added")
+                if 'final_document' not in contract_columns:
+                    print("🔄 Adding final_document to contracts...")
+                    db.session.execute(text('ALTER TABLE contracts ADD COLUMN final_document VARCHAR(255)'))
+                    db.session.commit()
+                    print("✅ final_document added")
+
+                protocol_columns = [col['name'] for col in inspector.get_columns('protocols')]
+                if 'is_closed' not in protocol_columns:
+                    print("🔄 Adding is_closed to protocols...")
+                    db.session.execute(text('ALTER TABLE protocols ADD COLUMN is_closed BOOLEAN DEFAULT 0'))
+                    db.session.commit()
+                    print("✅ is_closed added")
+                if 'manual_pdf_path' not in protocol_columns:
+                    print("🔄 Adding manual_pdf_path to protocols...")
+                    db.session.execute(text('ALTER TABLE protocols ADD COLUMN manual_pdf_path VARCHAR(255)'))
+                    db.session.commit()
+                    print("✅ manual_pdf_path added")
+            except Exception as mig_exc:
+                print(f"⚠️ Could not migrate contract/protocol columns: {mig_exc}")
+
         except Exception as e:
             print(f"❌ Database initialization error: {e}")
             import traceback
