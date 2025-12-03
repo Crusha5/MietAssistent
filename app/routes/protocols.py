@@ -55,10 +55,26 @@ def _resolve_protocol_file_path(file_name: str) -> str:
         return ''
 
     sanitized = file_name.replace('file://', '')
-    if os.path.isabs(sanitized):
-        return sanitized
+    base_root = current_app.config['UPLOAD_FOLDER']
+    base_dir = os.path.join(base_root, 'protocols')
 
-    base_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'protocols')
+    if os.path.isabs(sanitized):
+        if os.path.exists(sanitized):
+            return sanitized
+
+        # Versuche absolute Host-Pfade (z. B. /home/pascal/.../uploads) auf das konfigurierte Upload-Root abzubilden
+        parts = sanitized.strip(os.sep).split(os.sep)
+        if 'uploads' in parts:
+            uploads_idx = parts.index('uploads')
+            relative_tail = os.path.join(*parts[uploads_idx + 1:]) if uploads_idx + 1 < len(parts) else ''
+            if relative_tail:
+                candidate = os.path.join(base_root, relative_tail)
+                if os.path.exists(candidate):
+                    return candidate
+
+        # Fallback: lege die Datei im konfigurierten Protokoll-Ordner an
+        return os.path.join(base_dir, os.path.basename(sanitized))
+
     return os.path.abspath(os.path.join(base_dir, sanitized))
 
 
@@ -86,6 +102,7 @@ def _build_attachment_views(raw_attachments):
 
 def _save_protocol_file(file, upload_dir: str, prefix: str) -> str:
     """Speichert eine Datei unterhalb des Protokoll-Ordners und skaliert Bilder."""
+    os.makedirs(upload_dir, exist_ok=True)
     ext = os.path.splitext(file.filename or '')[1]
     stored_name = f"{prefix}_{uuid.uuid4().hex}{ext}"
     target_path = os.path.join(upload_dir, stored_name)

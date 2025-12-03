@@ -19,7 +19,11 @@ contracts_bp = Blueprint('contracts', __name__)
 def ensure_writable_dir(path: str):
     """Erstellt ein Verzeichnis falls nötig und stellt Schreibrechte sicher."""
     if not path:
-        path = os.path.abspath(current_app.config.get('UPLOAD_FOLDER', '/app/uploads'))
+        fallback_root = os.environ.get('UPLOAD_FOLDER')
+        if not fallback_root:
+            project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+            fallback_root = os.path.join(project_root, 'uploads')
+        path = os.path.abspath(current_app.config.get('UPLOAD_FOLDER', fallback_root))
 
     try:
         os.makedirs(path, mode=0o775, exist_ok=True)

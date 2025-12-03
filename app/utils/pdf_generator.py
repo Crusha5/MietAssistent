@@ -64,14 +64,31 @@ def generate_pdf_bytes(html_content: str) -> bytes:
         return b""
 
 
+def _get_upload_root() -> str:
+    """Ermittelt den Upload-Stammordner robust aus Config oder Umgebung."""
+    upload_root = None
+    try:
+        upload_root = current_app.config.get('UPLOAD_FOLDER')
+    except Exception:
+        upload_root = None
+
+    if not upload_root:
+        upload_root = os.environ.get('UPLOAD_FOLDER')
+
+    if not upload_root:
+        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+        upload_root = os.path.join(project_root, 'uploads')
+
+    return os.path.abspath(upload_root)
+
+
 def save_contract_pdf(contract, html_content: str) -> bool:
     """
     Speichert ein Vertrags-PDF im uploads/contracts-Verzeichnis
     und setzt contract.pdf_path auf den Dateinamen.
     """
     filename = f"contract_{contract.contract_number}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
-    default_root = os.path.abspath('/app/uploads')
-    upload_root = current_app.config.get('UPLOAD_FOLDER') or default_root
+    upload_root = _get_upload_root()
     upload_dir = os.path.join(upload_root, 'contracts')
     output_path = os.path.join(upload_dir, filename)
 
@@ -87,8 +104,7 @@ def save_protocol_pdf(protocol, html_content: str) -> bool:
     Speichert ein Protokoll-PDF im uploads/protocols-Verzeichnis.
     """
     filename = f"protocol_{protocol.protocol_type}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
-    default_root = os.path.abspath('/app/uploads')
-    upload_root = current_app.config.get('UPLOAD_FOLDER') or default_root
+    upload_root = _get_upload_root()
     upload_dir = os.path.join(upload_root, 'protocols')
     output_path = os.path.join(upload_dir, filename)
 
