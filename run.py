@@ -34,6 +34,7 @@ try:
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
     from app import create_app, db
+    from app import _ensure_contract_protocol_columns
 
     app = create_app()
 
@@ -42,6 +43,12 @@ try:
         print("📦 Creating database tables...")
         db.create_all()
         print("✅ Database tables created")
+
+        # Laufzeitmigration für alte Datenbanken absichern (insbesondere fehlende Sperrspalten)
+        try:
+            _ensure_contract_protocol_columns()
+        except Exception as migration_exc:
+            print(f"⚠️  Konnte Laufzeitmigration nicht ausführen: {migration_exc}")
 
         # Prüfen ob Setup bereits durchgeführt wurde
         from app.models import User

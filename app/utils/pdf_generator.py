@@ -5,7 +5,11 @@ import re
 from datetime import datetime
 
 from flask import current_app
-from weasyprint import CSS, HTML
+try:
+    from weasyprint import CSS, HTML
+except ImportError:  # pragma: no cover - Fallback für Installationen ohne WeasyPrint
+    CSS = None
+    HTML = None
 
 
 def _clean_bullet_markers(html_text: str) -> str:
@@ -40,6 +44,14 @@ def _get_stylesheets():
     return [CSS(filename=css_path)]
 
 
+def _require_weasyprint():
+    """Stellt sicher, dass WeasyPrint verfügbar ist, andernfalls aussagekräftige Fehlermeldung."""
+    if HTML is None or CSS is None:
+        raise RuntimeError(
+            "WeasyPrint ist nicht installiert. Bitte 'pip install weasyprint' ausführen, um PDF-Generierung zu aktivieren."
+        )
+
+
 def embed_file_as_data_uri(file_path: str) -> str:
     """Liest eine Datei binär und gibt einen Data-URI zurück."""
     if not file_path:
@@ -69,6 +81,7 @@ def embed_file_as_data_uri(file_path: str) -> str:
 def generate_pdf_from_html_weasyprint(html_content: str, output_path: str) -> bool:
     """Generiert ein PDF aus HTML-Inhalt mit WeasyPrint und speichert es auf dem Dateisystem."""
     try:
+        _require_weasyprint()
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         HTML(string=html_content, base_url=_get_base_path()).write_pdf(
             output_path, stylesheets=_get_stylesheets()
@@ -87,6 +100,7 @@ def generate_pdf_weasyprint(html_content: str, output_path: str) -> bool:
 def generate_pdf_bytes(html_content: str) -> bytes:
     """Rendert HTML zu PDF-Bytes (für In-Memory-Downloads)."""
     try:
+        _require_weasyprint()
         return HTML(string=html_content, base_url=_get_base_path()).write_pdf(
             stylesheets=_get_stylesheets()
         )

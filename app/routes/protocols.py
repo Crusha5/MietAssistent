@@ -174,7 +174,8 @@ def protocols_list():
     """Liste aller Protokolle"""
     ensure_archiving_columns()
     protocols = Protocol.query.filter((Protocol.is_archived.is_(False)) | (Protocol.is_archived.is_(None))).order_by(Protocol.protocol_date.desc()).all()
-    return render_template('protocols/list.html', protocols=protocols)
+    contracts_endpoint_available = current_app.view_functions.get('contracts.contract_detail') is not None
+    return render_template('protocols/list.html', protocols=protocols, contracts_endpoint_available=contracts_endpoint_available)
 
 
 @protocols_bp.route('/create', methods=['GET', 'POST'])
@@ -189,6 +190,10 @@ def create_protocol():
     if not contract:
         flash('Bitte wählen Sie zuerst einen Vertrag aus, um ein Protokoll zu erstellen.', 'danger')
         return redirect(url_for('contracts.contracts_list'))
+
+    if getattr(contract, 'move_out_date', None) or getattr(contract, 'is_locked', False):
+        flash('Für ausgezogene Verträge sind keine neuen Protokolle mehr erlaubt.', 'warning')
+        return redirect(url_for('contracts.contract_detail', contract_id=contract_id))
 
     if not contract.apartment:
         flash('Dem Vertrag ist keine Wohnung zugeordnet.', 'danger')
@@ -459,6 +464,14 @@ def edit_protocol(protocol_id):
         flash('Vertrag nicht gefunden.', 'danger')
         return redirect(url_for('protocols.protocols_list'))
 
+    if getattr(contract, 'move_out_date', None) or getattr(contract, 'is_locked', False):
+        flash('Der Vertrag ist nach Auszug gesperrt. Bearbeitungen sind nicht mehr möglich.', 'warning')
+        return redirect(url_for('protocols.protocol_detail', protocol_id=protocol.id))
+
+    if getattr(protocol, 'is_closed', False):
+        flash('Das Protokoll ist abgeschlossen und kann nicht mehr verändert werden.', 'warning')
+        return redirect(url_for('protocols.protocol_detail', protocol_id=protocol.id))
+
     if not getattr(contract, 'apartment', None):
         flash('Dem Vertrag ist keine Wohnung zugeordnet. Bitte weisen Sie zuerst eine Wohnung zu, bevor das Protokoll bearbeitet wird.', 'danger')
         return redirect(url_for('contracts.contract_detail', contract_id=contract.id))
@@ -687,6 +700,8 @@ def protocol_detail(protocol_id):
                 data['key_count'] = len(keys)
 
         protocol_data = SimpleNamespace(**data)
+        is_locked = bool(getattr(contract, 'move_out_date', None) or getattr(contract, 'is_locked', False))
+        is_closed = bool(getattr(protocol, 'is_closed', False) or data.get('is_finalized'))
 
         return render_template(
             'protocols/detail.html',
@@ -697,6 +712,8 @@ def protocol_detail(protocol_id):
             protocol_meter_entries=meter_entries,
             protocol_attachments=attachment_views,
             protocol_inventory=inventory_entries,
+            is_locked=is_locked,
+            is_closed=is_closed,
         )
     except Exception as exc:
         current_app.logger.error('Protocol detail failed: %s', exc, exc_info=True)
@@ -710,6 +727,13 @@ def finalize_protocol(protocol_id):
     ensure_archiving_columns()
     protocol = Protocol.query.get_or_404(protocol_id)
     contract = Contract.query.get(protocol.contract_id)
+    if getattr(contract, 'move_out_date', None) or getattr(contract, 'is_locked', False):
+        flash('Der Vertrag ist nach Auszug gesperrt. Abschlussänderungen sind nicht möglich.', 'warning')
+        return redirect(url_for('protocols.protocol_detail', protocol_id=protocol.id))
+
+    if getattr(protocol, 'is_closed', False):
+        flash('Das Protokoll ist bereits abgeschlossen.', 'info')
+        return redirect(url_for('protocols.protocol_detail', protocol_id=protocol.id))
     try:
         data = json.loads(protocol.protocol_data) if protocol.protocol_data else {}
     except Exception:
@@ -719,14 +743,24 @@ def finalize_protocol(protocol_id):
         flash('Der Vorgang ist bereits abgeschlossen.', 'info')
         return redirect(url_for('protocols.protocol_detail', protocol_id=protocol.id))
 
-    data['is_finalized'] = True
-    data['finalized_at'] = datetime.utcnow().isoformat()
-    data['finalized_by'] = session.get('user_id')
-
     keys = data.get('keys') if isinstance(data.get('keys'), list) else []
     meter_entries = data.get('meter_entries') if isinstance(data.get('meter_entries'), list) else []
     inventory_entries = data.get('inventory') if isinstance(data.get('inventory'), list) else []
     attachments = _normalize_attachments(data.get('attachments', []))
+
+    missing_meters = [m for m in meter_entries if m.get('reading_value') in (None, '')]
+    has_pdf_attachment = any((att.get('mime') or '').lower() == 'application/pdf' for att in attachments if isinstance(att, dict))
+    if missing_meters:
+        flash('Alle Zählerstände müssen erfasst sein, bevor das Protokoll abgeschlossen werden kann.', 'danger')
+        return redirect(url_for('protocols.protocol_detail', protocol_id=protocol.id))
+    if not has_pdf_attachment and not protocol.pdf_path and not protocol.manual_pdf_path:
+        flash('Bitte laden Sie das ausgefüllte Protokoll-PDF hoch, bevor Sie abschließen.', 'danger')
+        return redirect(url_for('protocols.protocol_detail', protocol_id=protocol.id))
+
+    data['is_finalized'] = True
+    data['finalized_at'] = datetime.utcnow().isoformat()
+    data['finalized_by'] = session.get('user_id')
+
     attachment_views = _build_attachment_views(attachments)
 
     protocol.protocol_data = json.dumps(data, ensure_ascii=False)
@@ -740,6 +774,11 @@ def finalize_protocol(protocol_id):
         inventory_entries=inventory_entries,
         attachment_entries=attachment_views
     )
+    protocol.is_closed = True
+    if not protocol.pdf_path and has_pdf_attachment:
+        first_pdf = next((att for att in attachments if (att.get('mime') or '').lower() == 'application/pdf'), None)
+        if first_pdf:
+            protocol.manual_pdf_path = first_pdf.get('file') or first_pdf.get('path')
     db.session.commit()
     flash('Protokoll revisionssicher abgeschlossen.', 'success')
     return redirect(url_for('protocols.protocol_detail', protocol_id=protocol.id))
