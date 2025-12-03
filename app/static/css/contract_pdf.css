@@ -190,6 +190,13 @@ h2 {
     color: #4b5563;
 }
 
+.signature-meta {
+    display: flex;
+    justify-content: space-between;
+    margin: 12px 0 4px 0;
+    font-size: 10.5pt;
+}
+
 .sig-name {
     font-weight: 600;
 }
@@ -222,6 +229,102 @@ h2 {
     font-size: 11pt;
 }
 
+.key-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 8px 10px;
+    margin-top: 8px;
+}
+
+.key-card {
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    padding: 8px 10px;
+    background: #f9fafb;
+    font-size: 10pt;
+    min-height: 68px;
+}
+
+.key-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+
+.key-qty {
+    font-size: 10pt;
+    background: #e5e7eb;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.key-meta {
+    color: #4b5563;
+    font-size: 9.5pt;
+}
+
+.key-notes {
+    color: #111827;
+    font-size: 9.5pt;
+    margin-top: 2px;
+}
+.table-keys-grid {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 8px;
+}
+
+.table-keys-grid td {
+    border: none;
+    padding: 4px 6px;
+    width: 25%;
+    vertical-align: top;
+}
+
+.key-grid-cell {
+    page-break-inside: avoid;
+}
+
+.key-card-compact {
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    padding: 8px 10px;
+    background: #f9fafb;
+    page-break-inside: avoid;
+}
+
+.key-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+}
+
+.key-qty-chip {
+    display: inline-block;
+    background: #e5e7eb;
+    color: #111827;
+    padding: 2px 6px;
+    border-radius: 5px;
+    font-size: 9.5pt;
+    min-width: 28px;
+    text-align: center;
+}
+
+.key-card-body {
+    font-size: 10pt;
+    line-height: 1.4;
+}
+
+.key-card-notes {
+    color: #111827;
+    font-size: 9.5pt;
+    margin-top: 3px;
+}
+
 .signature-date {
     margin-top: 8px;
     font-size: 11pt;
@@ -245,6 +348,20 @@ h2 {
     font-weight: 700;
 }
 
+.table-keys th,
+.table-keys td {
+    font-size: 10pt;
+}
+
+.text-right {
+    text-align: right;
+}
+
+.muted {
+    color: #6b7280;
+    font-size: 9.5pt;
+}
+
 .info-box {
     background: #f8fafc;
     border: 1px solid #e5e7eb;
@@ -258,5 +375,96 @@ h2 {
 }
 
 .page-break {
+    page-break-before: always;
+}
+
+.clause-attachments {
+    margin-top: 10px;
+}
+
+.attachment-note {
+    text-align: center;
+    color: #4b5563;
+    font-size: 10pt;
+    margin-top: -8px;
+}
+
+
+.attachments-wrapper {
+    display: block;
+    gap: 22px;
+}
+
+.attachment-card {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 12px;
+    background: #f9fafb;
+    page-break-inside: avoid;
+    break-inside: avoid;
+    margin-bottom: 22px;
+}
+
+.attachment-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    align-items: baseline;
+    margin-bottom: 8px;
+}
+
+.attachment-caption {
+    font-weight: 700;
+    font-size: 11pt;
+}
+
+.attachment-filename {
+    font-size: 9.5pt;
+    color: #6b7280;
+}
+
+.attachment-media {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    padding: 8px;
+    page-break-inside: avoid;
+    break-inside: avoid;
+    margin-top: 6px;
+}
+
+.attachment-image {
+    width: 100%;
+    height: auto;
+    max-height: 16cm;
+    border-radius: 6px;
+    object-fit: contain;
+    display: block;
+}
+
+.attachment-filebox {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    background: #fff;
+    border: 1px dashed #d1d5db;
+    border-radius: 6px;
+}
+
+.file-icon {
+    font-size: 18pt;
+}
+
+.file-name {
+    font-weight: 600;
+}
+
+.file-meta {
+    font-size: 9.5pt;
+}
+
+.attachment-break {
+    margin-top: 6px;
     page-break-before: always;
 }

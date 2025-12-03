@@ -16,8 +16,8 @@ fi
 echo "✅ Docker und Docker Compose gefunden"
 
 # Create directories
-mkdir -p data uploads backups logs
-chmod 755 data uploads backups logs
+mkdir -p data uploads/protocolls logs
+chmod 755 data uploads uploads/protocolls logs
 
 echo "✅ Verzeichnisse erstellt"
 

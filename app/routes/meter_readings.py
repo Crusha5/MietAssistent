@@ -564,7 +564,7 @@ def create_meter_reading():
                 if file and file.filename and allowed_file(file.filename):
                     filename = secure_filename(file.filename)
                     unique_filename = f"{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{filename}"
-                    upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'meter_photos')
+                    upload_dir = os.path.join(current_app.config.get('UPLOAD_ROOT') or '/uploads', 'meter_photos')
                     os.makedirs(upload_dir, exist_ok=True)
                     file_path = os.path.join(upload_dir, unique_filename)
                     file.save(file_path)
@@ -615,7 +615,7 @@ def reading_detail(reading_id):
 @login_required
 def meter_photo(filename):
     """Stellt hochgeladene Zählerfotos bereit."""
-    directory = os.path.join(current_app.config['UPLOAD_FOLDER'], 'meter_photos')
+    directory = os.path.join(current_app.config.get('UPLOAD_ROOT') or '/uploads', 'meter_photos')
     return send_from_directory(directory, filename)
 
 @meter_bp.route('/debug/upload-test')
@@ -623,12 +623,12 @@ def meter_photo(filename):
 def debug_upload_test():
     """Debug-Route um Upload-Konfiguration zu testen"""
     try:
-        upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'meter_photos')
+        upload_dir = os.path.join(current_app.config.get('UPLOAD_ROOT') or '/uploads', 'meter_photos')
         exists = os.path.exists(upload_dir)
         writable = os.access(upload_dir, os.W_OK) if exists else False
         
         return jsonify({
-            'upload_folder': current_app.config['UPLOAD_FOLDER'],
+            'upload_folder': current_app.config.get('UPLOAD_ROOT') or '/uploads',
             'meter_photos_dir': upload_dir,
             'dir_exists': exists,
             'dir_writable': writable,

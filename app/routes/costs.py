@@ -70,7 +70,7 @@ def _handle_invoice_upload(file_storage, existing_path=None):
     if not document or not document.filename:
         return existing_path
 
-    upload_root = current_app.config['UPLOAD_FOLDER']
+    upload_root = current_app.config.get('UPLOAD_ROOT') or '/uploads'
     ensure_writable_dir(upload_root)
     cost_dir = os.path.join(upload_root, 'costs')
     ensure_writable_dir(cost_dir)

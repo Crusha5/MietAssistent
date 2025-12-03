@@ -7,13 +7,166 @@ import json
 from datetime import datetime
 import re
 import os
+import mimetypes
 from types import SimpleNamespace
 from io import BytesIO
 import pandas as pd
-from app.utils.pdf_generator import generate_pdf_bytes, save_protocol_pdf
+from PIL import Image, ImageOps
+from werkzeug.utils import secure_filename
+from app.utils.pdf_generator import generate_pdf_bytes, save_protocol_pdf, embed_file_as_data_uri
 from app.utils.schema_helpers import ensure_archiving_columns
 
 protocols_bp = Blueprint('protocols', __name__)
+
+
+def _normalize_attachments(raw_attachments):
+    """Ensure attachments have a uniform dict structure."""
+    normalized = []
+    if not isinstance(raw_attachments, list):
+        return normalized
+
+    for item in raw_attachments:
+        if isinstance(item, dict):
+            file_name = item.get('file') or item.get('file_name') or item.get('path') or item.get('filename')
+            caption = item.get('caption') or item.get('title') or ''
+            mime = item.get('mime') or mimetypes.guess_type(file_name or '')[0]
+        elif isinstance(item, str):
+            file_name = item
+            caption = ''
+            mime = mimetypes.guess_type(file_name or '')[0]
+        else:
+            continue
+
+        if not file_name:
+            continue
+
+        absolute_file = _resolve_protocol_file_path(file_name)
+        display_name = os.path.basename(absolute_file or file_name)
+
+        normalized.append({
+            'file': absolute_file or os.path.abspath(file_name),
+            'display_name': display_name,
+            'caption': caption,
+            'mime': mime
+        })
+
+    return normalized
+
+
+def _resolve_protocol_file_path(file_name: str) -> str:
+    """Gibt den absoluten Pfad eines Protokollanhangs zurück."""
+    if not file_name:
+        return ''
+
+    sanitized = file_name.replace('file://', '')
+    base_dir = current_app.config['UPLOAD_FOLDER']
+
+    try:
+        os.makedirs(base_dir, exist_ok=True)
+    except PermissionError:
+        current_app.logger.warning('Keine Berechtigung zum Anlegen des Protokoll-Ordners %s', base_dir)
+    except Exception as exc:
+        current_app.logger.warning('Konnte Protokoll-Ordner %s nicht prüfen: %s', base_dir, exc)
+
+    if os.path.isabs(sanitized):
+        if os.path.exists(sanitized):
+            return sanitized
+
+        # Versuche absolute Host-Pfade (z. B. /home/pascal/.../uploads) auf das konfigurierte Upload-Root abzubilden
+        parts = sanitized.strip(os.sep).split(os.sep)
+        if 'uploads' in parts:
+            uploads_idx = parts.index('uploads')
+            relative_tail = os.path.join(*parts[uploads_idx + 1:]) if uploads_idx + 1 < len(parts) else ''
+            if relative_tail:
+                candidate = os.path.join(base_dir, relative_tail)
+                if os.path.exists(candidate):
+                    return candidate
+
+        # Fallback: lege die Datei im konfigurierten Protokoll-Ordner an
+        return os.path.join(base_dir, os.path.basename(sanitized))
+
+    return os.path.abspath(os.path.join(base_dir, sanitized))
+
+
+def _build_attachment_views(raw_attachments):
+    normalized = _normalize_attachments(raw_attachments)
+    base_dir = current_app.config['UPLOAD_FOLDER']
+    for item in normalized:
+        ext = (os.path.splitext(item.get('file') or '')[1] or '').lower()
+        mime = (item.get('mime') or '').lower()
+        absolute_path = _resolve_protocol_file_path(item.get('file'))
+        item['is_image'] = mime.startswith('image') or ext in ['.png', '.jpg', '.jpeg', '.gif', '.webp']
+        item['display_name'] = item.get('display_name') or os.path.basename(absolute_path or '') or os.path.basename(item.get('file') or '')
+
+        if item['is_image'] and absolute_path and os.path.exists(absolute_path):
+            if not os.path.commonpath([os.path.abspath(absolute_path), os.path.abspath(base_dir)]) == os.path.abspath(base_dir):
+                current_app.logger.warning('Anlage außerhalb des Upload-Pfads ignoriert: %s', absolute_path)
+                item['image_data_uri'] = ''
+            else:
+                item['image_data_uri'] = embed_file_as_data_uri(absolute_path)
+        else:
+            item['image_data_uri'] = ''
+        item['local_path'] = ''
+    return normalized
+
+
+def _build_file_stem(prefix: str, caption: str = '', contract_number: str = '') -> str:
+    """Erzeugt einen sprechenden Dateinamenstamm für Protokollanhänge."""
+    safe_caption = re.sub(r'[^A-Za-z0-9_-]+', '_', caption or '').strip('_')
+    safe_contract = re.sub(r'[^A-Za-z0-9_-]+', '_', contract_number or '').strip('_')
+    timestamp = datetime.now().strftime('%Y%m%d-%H%M%S')
+
+    parts = [prefix or 'protocol']
+    if safe_caption:
+        parts.append(safe_caption)
+    if safe_contract:
+        parts.append(safe_contract)
+    parts.append(timestamp)
+    return "_".join(parts)
+
+
+def _save_protocol_file(file, upload_dir: str, prefix: str, caption: str = '', contract_number: str = '') -> str:
+    """Speichert eine Datei unterhalb des Protokoll-Ordners und skaliert Bilder."""
+    try:
+        os.makedirs(upload_dir, exist_ok=True)
+    except PermissionError:
+        raise PermissionError(f"Upload-Verzeichnis nicht beschreibbar: {upload_dir}")
+    ext = os.path.splitext(file.filename or '')[1]
+    stem = _build_file_stem(prefix, caption=caption, contract_number=contract_number)
+    stored_name = secure_filename(f"{stem}{ext}")
+    target_path = os.path.join(upload_dir, stored_name)
+
+    try:
+        mime = (file.mimetype or '').lower()
+        if mime.startswith('image/'):
+            file.stream.seek(0)
+            with Image.open(file.stream) as img:
+                img = ImageOps.exif_transpose(img)
+                img.thumbnail((1800, 1800), Image.LANCZOS)
+                format_hint = (img.format or '').upper()
+                save_kwargs = {}
+
+                if (format_hint == 'JPEG') or ext.lower() in ['.jpg', '.jpeg']:
+                    format_hint = 'JPEG'
+                    save_kwargs.update({'quality': 90, 'optimize': True})
+                elif (format_hint == 'PNG') or ext.lower() == '.png':
+                    format_hint = 'PNG'
+                else:
+                    format_hint = 'PNG'
+
+                img.save(target_path, format=format_hint, **save_kwargs)
+        else:
+            file.save(target_path)
+    except Exception:
+        file.save(target_path)
+
+    return os.path.abspath(target_path)
+
+
+def _is_protocol_finalized(payload: dict) -> bool:
+    if not isinstance(payload, dict):
+        return False
+    return bool(payload.get('is_finalized'))
 
 @protocols_bp.route('/')
 @login_required
@@ -31,6 +184,7 @@ def create_protocol():
     ensure_archiving_columns()
     contract_id = request.args.get('contract_id') or request.form.get('contract_id')
     contract = Contract.query.get(contract_id) if contract_id else None
+    requested_type = request.args.get('protocol_type')
 
     if not contract:
         flash('Bitte wählen Sie zuerst einen Vertrag aus, um ein Protokoll zu erstellen.', 'danger')
@@ -54,6 +208,9 @@ def create_protocol():
             .first()
         )
         meter.latest_reading_value = last_reading.reading_value if last_reading else None
+
+    # Neuerfassung beginnt immer mit leerem Payload
+    existing_payload = {}
 
     if request.method == 'POST':
         try:
@@ -106,11 +263,17 @@ def create_protocol():
 
             meter_entries = []
             meter_photo_map = {}
-            upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'protocols')
-            os.makedirs(upload_dir, exist_ok=True)
+            upload_dir = current_app.config['UPLOAD_FOLDER']
+            try:
+                os.makedirs(upload_dir, exist_ok=True)
+            except PermissionError:
+                current_app.logger.error("Keine Berechtigung zum Schreiben in %s", upload_dir)
+                flash('Upload-Verzeichnis nicht beschreibbar. Bitte Berechtigungen prüfen.', 'danger')
+                return redirect(url_for('protocols.protocols_list'))
 
             uploaded_files = request.files.getlist('protocol_upload')
-            attachment_paths = []
+            attachment_captions = request.form.getlist('attachment_captions[]') or []
+            attachment_meta = []
 
             for meter in meters:
                 raw_value = request.form.get(f'meter_readings[{meter.id}]')
@@ -127,10 +290,12 @@ def create_protocol():
                 photo_name = None
 
                 if photo and photo.filename:
-                    ext = os.path.splitext(photo.filename)[1]
-                    photo_name = f"meter_{meter.id}_{uuid.uuid4().hex}{ext}"
-                    photo.save(os.path.join(upload_dir, photo_name))
-                    meter_photo_map[str(meter.id)] = photo_name
+                    try:
+                        photo_name = _save_protocol_file(photo, upload_dir, prefix=f"meter_{meter.id}")
+                        meter_photo_map[str(meter.id)] = photo_name
+                    except PermissionError:
+                        flash('Upload-Verzeichnis nicht beschreibbar. Bitte Berechtigungen prüfen.', 'danger')
+                        return redirect(url_for('protocols.protocols_list'))
 
                 meter_entries.append({
                     'id': meter.id,
@@ -156,12 +321,26 @@ def create_protocol():
                     db.session.add(reading)
 
             # Protokollanhänge speichern
-            for file in uploaded_files:
+            for idx, file in enumerate(uploaded_files):
                 if file and file.filename:
-                    ext = os.path.splitext(file.filename)[1]
-                    stored_name = f"protocol_{uuid.uuid4().hex}{ext}"
-                    file.save(os.path.join(upload_dir, stored_name))
-                    attachment_paths.append(stored_name)
+                    caption = attachment_captions[idx] if idx < len(attachment_captions) else ''
+                    try:
+                        stored_name = _save_protocol_file(
+                            file,
+                            upload_dir,
+                            prefix='protocol',
+                            caption=caption,
+                            contract_number=contract.contract_number if contract else ''
+                        )
+                    except PermissionError:
+                        flash('Upload-Verzeichnis nicht beschreibbar. Bitte Berechtigungen prüfen.', 'danger')
+                        return redirect(url_for('protocols.protocols_list'))
+                    attachment_meta.append({
+                        'file': stored_name,
+                        'display_name': os.path.basename(file.filename),
+                        'caption': caption,
+                        'mime': file.mimetype
+                    })
 
             try:
                 computed_key_count = sum(
@@ -182,11 +361,18 @@ def create_protocol():
                 'inventory': inventory_entries,
                 'meter_entries': meter_entries,
                 'meter_photos': meter_photo_map,
-                'attachments': attachment_paths,
+                'attachments': attachment_meta,
                 'room_notes': request.form.get('room_notes'),
                 'handover_notes': request.form.get('handover_notes'),
-                'follow_up_notes': request.form.get('follow_up_notes')
+                'follow_up_notes': request.form.get('follow_up_notes'),
+                'return_notes': request.form.get('return_notes')
             }
+
+            protocol_data['is_finalized'] = existing_payload.get('is_finalized') if isinstance(existing_payload, dict) else False
+
+            protocol_data.setdefault('is_finalized', False)
+
+            attachment_entries = _build_attachment_views(attachment_meta)
 
             protocol = Protocol(
                 id=str(uuid.uuid4()),
@@ -197,9 +383,9 @@ def create_protocol():
                 created_by=session.get('user_id')
             )
 
-            if attachment_paths:
+            if attachment_meta:
                 # erstes PDF oder Bild als pdf_path, damit abrufbar
-                protocol.pdf_path = attachment_paths[0]
+                protocol.pdf_path = attachment_meta[0].get('file')
 
             protocol.final_content = render_template(
                 'protocols/protocol_document.html',
@@ -208,7 +394,8 @@ def create_protocol():
                 protocol_data=protocol_data,
                 meter_entries=meter_entries,
                 keys=key_entries,
-                inventory_entries=inventory_entries
+                inventory_entries=inventory_entries,
+                attachment_entries=attachment_entries
             )
 
             db.session.add(protocol)
@@ -232,12 +419,34 @@ def create_protocol():
             current_app.logger.error(f"Error creating protocol: {e}", exc_info=True)
             flash(f'Protokoll konnte nicht gespeichert werden: {e}', 'danger')
 
+    prefill_payload = None
+    if request.method == 'GET':
+        if (requested_type or 'uebernahme') == 'ruecknahme':
+            reference_protocol = (
+                Protocol.query
+                .filter_by(contract_id=contract_id, protocol_type='uebernahme')
+                .order_by(Protocol.protocol_date.desc())
+                .first()
+            )
+            try:
+                reference_data = json.loads(reference_protocol.protocol_data) if reference_protocol and reference_protocol.protocol_data else {}
+            except Exception:
+                reference_data = {}
+
+            if reference_data:
+                if not reference_data.get('key_count') and isinstance(reference_data.get('keys'), list):
+                    try:
+                        reference_data['key_count'] = sum((int(item.get('quantity') or 1) for item in reference_data.get('keys', [])))
+                    except Exception:
+                        reference_data['key_count'] = len(reference_data.get('keys', []))
+                prefill_payload = SimpleNamespace(**reference_data)
+
     return render_template('protocols/create.html',
                          contract=contract,
                          contract_id=contract_id,
                          meters=meters,
                          protocol=None,
-                         protocol_payload=None)
+                         protocol_payload=prefill_payload)
 
 
 @protocols_bp.route('/<protocol_id>/edit', methods=['GET', 'POST'])
@@ -268,6 +477,10 @@ def edit_protocol(protocol_id):
     except Exception:
         existing_payload = {}
 
+    if _is_protocol_finalized(existing_payload):
+        flash('Der Vorgang ist abgeschlossen und kann nicht mehr bearbeitet werden.', 'warning')
+        return redirect(url_for('protocols.protocol_detail', protocol_id=protocol.id))
+
     if request.method == 'POST':
         try:
             protocol_type = request.form.get('protocol_type', protocol.protocol_type)
@@ -294,8 +507,13 @@ def edit_protocol(protocol_id):
             meter_photo_map = existing_payload.get('meter_photos', {}) if isinstance(existing_payload, dict) else {}
             if not isinstance(meter_photo_map, dict):
                 meter_photo_map = {}
-            upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'protocols')
-            os.makedirs(upload_dir, exist_ok=True)
+            upload_dir = current_app.config['UPLOAD_FOLDER']
+            try:
+                os.makedirs(upload_dir, exist_ok=True)
+            except PermissionError:
+                current_app.logger.error("Keine Berechtigung zum Schreiben in %s", upload_dir)
+                flash('Upload-Verzeichnis nicht beschreibbar. Bitte Berechtigungen prüfen.', 'danger')
+                return redirect(url_for('protocols.protocol_detail', protocol_id=protocol_id))
 
             for meter in meters:
                 raw_value = request.form.get(f'meter_readings[{meter.id}]')
@@ -308,10 +526,12 @@ def edit_protocol(protocol_id):
                 photo = request.files.get(f'meter_photo_{meter.id}')
                 photo_name = meter_photo_map.get(str(meter.id)) if isinstance(meter_photo_map, dict) else None
                 if photo and photo.filename:
-                    ext = os.path.splitext(photo.filename)[1]
-                    photo_name = f"meter_{meter.id}_{uuid.uuid4().hex}{ext}"
-                    photo.save(os.path.join(upload_dir, photo_name))
-                    meter_photo_map[str(meter.id)] = photo_name
+                    try:
+                        photo_name = _save_protocol_file(photo, upload_dir, prefix=f"meter_{meter.id}")
+                        meter_photo_map[str(meter.id)] = photo_name
+                    except PermissionError:
+                        flash('Upload-Verzeichnis nicht beschreibbar. Bitte Berechtigungen prüfen.', 'danger')
+                        return redirect(url_for('protocols.protocol_detail', protocol_id=protocol_id))
 
                 meter_entries.append({
                     'id': meter.id,
@@ -337,15 +557,45 @@ def edit_protocol(protocol_id):
                     db.session.add(reading)
 
             uploaded_files = request.files.getlist('protocol_upload')
-            attachment_paths = existing_payload.get('attachments', []) if isinstance(existing_payload, dict) else []
-            if not isinstance(attachment_paths, list):
-                attachment_paths = []
-            for file in uploaded_files:
+            attachment_captions = request.form.getlist('attachment_captions[]') or []
+            attachment_paths = _normalize_attachments(existing_payload.get('attachments', [])) if isinstance(existing_payload, dict) else []
+
+            remove_targets = {item for item in request.form.getlist('remove_attachments[]') if item}
+            if remove_targets:
+                base_dir = current_app.config['UPLOAD_FOLDER']
+                remaining_paths = []
+                for att in attachment_paths:
+                    fname = att.get('file') if isinstance(att, dict) else att
+                    if fname in remove_targets:
+                        try:
+                            file_path = fname if os.path.isabs(fname) else os.path.join(base_dir, fname)
+                            if os.path.exists(file_path):
+                                os.remove(file_path)
+                        except Exception:
+                            current_app.logger.warning('Konnte Anlage %s nicht entfernen', fname)
+                        continue
+                    remaining_paths.append(att)
+                attachment_paths = remaining_paths
+            for idx, file in enumerate(uploaded_files):
                 if file and file.filename:
-                    ext = os.path.splitext(file.filename)[1]
-                    stored_name = f"protocol_{uuid.uuid4().hex}{ext}"
-                    file.save(os.path.join(upload_dir, stored_name))
-                    attachment_paths.append(stored_name)
+                    caption = attachment_captions[idx] if idx < len(attachment_captions) else ''
+                    try:
+                        stored_name = _save_protocol_file(
+                            file,
+                            upload_dir,
+                            prefix='protocol',
+                            caption=caption,
+                            contract_number=contract.contract_number if contract else ''
+                        )
+                    except PermissionError:
+                        flash('Upload-Verzeichnis nicht beschreibbar. Bitte Berechtigungen prüfen.', 'danger')
+                        return redirect(url_for('protocols.protocol_detail', protocol_id=protocol_id))
+                    attachment_paths.append({
+                        'file': stored_name,
+                        'display_name': os.path.basename(file.filename),
+                        'caption': caption,
+                        'mime': file.mimetype
+                    })
 
             try:
                 computed_key_count = sum((int(item.get('quantity') or 1) for item in key_entries))
@@ -365,12 +615,25 @@ def edit_protocol(protocol_id):
                 'attachments': attachment_paths,
                 'room_notes': request.form.get('room_notes'),
                 'handover_notes': request.form.get('handover_notes'),
-                'follow_up_notes': request.form.get('follow_up_notes')
+                'follow_up_notes': request.form.get('follow_up_notes'),
+                'return_notes': request.form.get('return_notes')
             }
+
+            attachment_entries = _build_attachment_views(attachment_paths)
 
             protocol.protocol_type = protocol_type
             protocol.protocol_date = protocol_date
             protocol.protocol_data = json.dumps(protocol_data, ensure_ascii=False)
+            protocol.final_content = render_template(
+                'protocols/protocol_document.html',
+                protocol=protocol,
+                contract=contract,
+                protocol_data=protocol_data,
+                meter_entries=meter_entries,
+                keys=key_entries,
+                inventory_entries=inventory_entries,
+                attachment_entries=attachment_entries
+            )
             db.session.commit()
             flash('Protokoll aktualisiert.', 'success')
             return redirect(url_for('protocols.protocol_detail', protocol_id=protocol.id))
@@ -406,9 +669,11 @@ def protocol_detail(protocol_id):
 
         keys = data.get('keys') if isinstance(data.get('keys'), list) else []
         meter_entries = data.get('meter_entries') if isinstance(data.get('meter_entries'), list) else []
-        attachments = data.get('attachments') if isinstance(data.get('attachments'), list) else []
+        attachments = _normalize_attachments(data.get('attachments', []))
+        attachment_views = _build_attachment_views(attachments)
         inventory_entries = data.get('inventory') if isinstance(data.get('inventory'), list) else []
 
+        data['is_finalized'] = bool(data.get('is_finalized'))
         data['keys'] = keys
         data['meter_entries'] = meter_entries
         data['meter_photos'] = data.get('meter_photos') if isinstance(data.get('meter_photos'), dict) else {}
@@ -430,7 +695,7 @@ def protocol_detail(protocol_id):
             protocol_data=protocol_data,
             protocol_keys=keys,
             protocol_meter_entries=meter_entries,
-            protocol_attachments=attachments,
+            protocol_attachments=attachment_views,
             protocol_inventory=inventory_entries,
         )
     except Exception as exc:
@@ -439,12 +704,54 @@ def protocol_detail(protocol_id):
         return redirect(url_for('protocols.protocols_list'))
 
 
+@protocols_bp.route('/<protocol_id>/finalize', methods=['POST'])
+@login_required
+def finalize_protocol(protocol_id):
+    ensure_archiving_columns()
+    protocol = Protocol.query.get_or_404(protocol_id)
+    contract = Contract.query.get(protocol.contract_id)
+    try:
+        data = json.loads(protocol.protocol_data) if protocol.protocol_data else {}
+    except Exception:
+        data = {}
+
+    if _is_protocol_finalized(data):
+        flash('Der Vorgang ist bereits abgeschlossen.', 'info')
+        return redirect(url_for('protocols.protocol_detail', protocol_id=protocol.id))
+
+    data['is_finalized'] = True
+    data['finalized_at'] = datetime.utcnow().isoformat()
+    data['finalized_by'] = session.get('user_id')
+
+    keys = data.get('keys') if isinstance(data.get('keys'), list) else []
+    meter_entries = data.get('meter_entries') if isinstance(data.get('meter_entries'), list) else []
+    inventory_entries = data.get('inventory') if isinstance(data.get('inventory'), list) else []
+    attachments = _normalize_attachments(data.get('attachments', []))
+    attachment_views = _build_attachment_views(attachments)
+
+    protocol.protocol_data = json.dumps(data, ensure_ascii=False)
+    protocol.final_content = render_template(
+        'protocols/protocol_document.html',
+        protocol=protocol,
+        contract=contract,
+        protocol_data=data,
+        meter_entries=meter_entries,
+        keys=keys,
+        inventory_entries=inventory_entries,
+        attachment_entries=attachment_views
+    )
+    db.session.commit()
+    flash('Protokoll revisionssicher abgeschlossen.', 'success')
+    return redirect(url_for('protocols.protocol_detail', protocol_id=protocol.id))
+
+
 @protocols_bp.route('/photos/<path:filename>')
 @login_required
 def protocol_photo(filename):
     """Stellt hochgeladene Zählerstand-Fotos bereit."""
-    directory = os.path.join(current_app.config['UPLOAD_FOLDER'], 'protocols')
-    return send_from_directory(directory, filename)
+    directory = current_app.config['UPLOAD_FOLDER']
+    target_name = os.path.basename(filename)
+    return send_from_directory(directory, target_name)
 
 
 @protocols_bp.route('/export/<string:fmt>')
@@ -504,20 +811,39 @@ def download_protocol_pdf(protocol_id):
     protocol = Protocol.query.get_or_404(protocol_id)
     contract = Contract.query.get(protocol.contract_id)
 
-    html = protocol.final_content or render_template(
+    try:
+        data = json.loads(protocol.protocol_data) if protocol.protocol_data else {}
+    except json.JSONDecodeError:
+        data = {}
+
+    keys = data.get('keys') if isinstance(data.get('keys'), list) else []
+    meter_entries = data.get('meter_entries') if isinstance(data.get('meter_entries'), list) else []
+    inventory_entries = data.get('inventory') if isinstance(data.get('inventory'), list) else []
+    attachments = _build_attachment_views(_normalize_attachments(data.get('attachments', [])))
+
+    # Fallback für fehlende Schlüsselanzahl, damit das PDF konsistent ist
+    if not data.get('key_count') and keys:
+        try:
+            data['key_count'] = sum((int(k.get('quantity') or 1) for k in keys))
+        except Exception:
+            data['key_count'] = len(keys)
+
+    html = render_template(
         'protocols/protocol_document.html',
         protocol=protocol,
         contract=contract,
-        protocol_data=json.loads(protocol.protocol_data or '{}'),
-        meter_entries=json.loads(protocol.protocol_data or '{}').get('meter_entries', []) if protocol.protocol_data else [],
-        keys=json.loads(protocol.protocol_data or '{}').get('keys', []) if protocol.protocol_data else [],
-        inventory_entries=json.loads(protocol.protocol_data or '{}').get('inventory', []) if protocol.protocol_data else []
+        protocol_data=data,
+        meter_entries=meter_entries,
+        keys=keys,
+        inventory_entries=inventory_entries,
+        attachment_entries=attachments
     )
 
     pdf_bytes = generate_pdf_bytes(html)
     buffer = BytesIO(pdf_bytes)
     buffer.seek(0)
 
+    protocol.final_content = html
     save_protocol_pdf(protocol, html)
     db.session.commit()
 

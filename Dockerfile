@@ -2,6 +2,9 @@ FROM python:3.9-slim
 
 WORKDIR /app
 
+ENV UPLOAD_ROOT=/uploads
+ENV UPLOAD_FOLDER=/uploads/protocolls
+
 # Systemabhängigkeiten installieren
 RUN apt-get update && apt-get install -y \
     gcc \
@@ -32,7 +35,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # ZUERST Verzeichnisse erstellen
-RUN mkdir -p data uploads app/routes app/templates
+RUN mkdir -p data ${UPLOAD_ROOT}/contracts ${UPLOAD_ROOT}/documents ${UPLOAD_ROOT}/meter_photos ${UPLOAD_ROOT}/costs ${UPLOAD_FOLDER} app/routes app/templates
 
 # Applikation kopieren - EXPLIZIT alle Verzeichnisse
 COPY app/ ./app/
@@ -40,7 +43,7 @@ COPY run.py .
 COPY requirements.txt .
 
 # Berechtigungen setzen
-RUN chmod -R 755 data uploads
+RUN chmod -R 755 data ${UPLOAD_ROOT} ${UPLOAD_FOLDER}
 
 # Prüfen ob Contract-Dateien vorhanden sind
 RUN echo "=== Checking for contract files ===" && \
@@ -51,8 +54,8 @@ RUN echo "=== Checking for contract files ===" && \
     ls -la /app/app/routes/
 
 # Nicht als root User laufen
-RUN useradd -m -u 1000 rentaluser && chown -R rentaluser:rentaluser /app
-USER rentaluser
+# Wir laufen als Root, um Schreibrechte auf gemounteten Upload-Verzeichnissen sicherzustellen
+# (Host-Volume ./uploads -> /uploads)
 
 EXPOSE 5000
 

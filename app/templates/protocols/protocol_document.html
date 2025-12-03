@@ -5,6 +5,10 @@
     <link rel="stylesheet" href="static/css/contract_pdf.css">
 </head>
 <body class="contract-body">
+    {% set landlord = contract.landlord if contract else None %}
+    {% set landlord_name = (landlord.company_name or ((landlord.first_name or '') ~ ' ' ~ (landlord.last_name or '')))|trim if landlord else '' %}
+    {% set tenant = contract.tenant if contract else None %}
+    {% set tenant_name = ((tenant.first_name or '') ~ ' ' ~ (tenant.last_name or ''))|trim if tenant else '' %}
     <h1 class="main-title">Protokoll {{ protocol.protocol_type|replace('ueber','Über')|replace('rueck','Rück') }}</h1>
     <section class="meta-grid">
         <div>
@@ -32,7 +36,7 @@
     <section class="clause">
         <div class="clause-title">Schlüssel (gesamt {{ protocol_data.key_count or (keys|length) or 0 }})</div>
         {% if keys %}
-        <table class="table">
+        <table class="table table-keys">
             <thead>
                 <tr>
                     <th>Bezeichnung</th>
@@ -46,7 +50,7 @@
                 <tr>
                     <td>{{ key.title or 'Schlüssel ' ~ loop.index }}</td>
                     <td>{{ key.location or '' }}</td>
-                    <td style="text-align:right;">{{ key.quantity or 1 }}</td>
+                    <td class="text-right">{{ key.quantity or 1 }}</td>
                     <td>{{ key.description or '' }}</td>
                 </tr>
                 {% endfor %}
@@ -100,7 +104,6 @@
                     <th>Nummer</th>
                     <th>Ort</th>
                     <th>Wert</th>
-                    <th>Foto</th>
                 </tr>
             </thead>
             <tbody>
@@ -110,7 +113,6 @@
                     <td>{{ entry.number }}</td>
                     <td>{{ entry.location or '' }}</td>
                     <td>{{ entry.reading_value or '' }}</td>
-                    <td>{{ 'Foto hinterlegt' if entry.photo else '' }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -133,6 +135,10 @@
         <div class="info-box box-large">{{ protocol_data.damages or '' }}</div>
     </section>
     <section class="clause">
+        <div class="clause-title">Abweichungen / Rücknahme</div>
+        <div class="info-box box-large">{{ protocol_data.return_notes or '' }}</div>
+    </section>
+    <section class="clause">
         <div class="clause-title">Notizen</div>
         <div class="info-box box-large">{{ protocol_data.notes or '' }}</div>
     </section>
@@ -144,5 +150,59 @@
         <div class="clause-title">Nacharbeiten / To-dos</div>
         <div class="info-box box-large">{{ protocol_data.follow_up_notes or '' }}</div>
     </section>
+    <section class="clause">
+        <div class="clause-title">Einverständniserklärung</div>
+        <div class="legal-box">
+            Mit den oben dokumentierten Zuständen, Zählerständen und übergebenen bzw. zurückgenommenen Gegenständen sind beide Parteien einverstanden. Abweichungen wurden festgehalten. Änderungen nach Unterzeichnung bedürfen einer gesonderten schriftlichen Vereinbarung.
+        </div>
+    </section>
+    <section class="signature-block">
+        <p class="label">Ort, Datum</p>
+        <div class="signature-date-line"></div>
+        <div class="signature-row">
+            <div class="sig-cell">
+                <div class="sig-line"></div>
+                <div class="sig-label">Unterschrift Vermieter</div>
+                <div class="sig-name">{{ landlord_name }}</div>
+            </div>
+            <div class="sig-cell">
+                <div class="sig-line"></div>
+                <div class="sig-label">Unterschrift Mieter</div>
+                <div class="sig-name">{{ tenant_name }}</div>
+            </div>
+        </div>
+    </section>
+    {% set attachments = attachment_entries if attachment_entries is defined else (protocol_data.attachments if protocol_data else []) %}
+    {% if attachments %}
+    <div class="page-break"></div>
+    <section class="clause clause-attachments">
+        <div class="clause-title">Anlagen</div>
+        <p class="attachment-note">Die folgenden Dateien sind Bestandteil des Protokolls.</p>
+    </section>
+    <div class="attachments-wrapper">
+        {% for att in attachments %}
+        <div class="attachment-card">
+            <div class="attachment-header">
+                <div class="attachment-caption">Anlage {{ loop.index }}{% if att.caption %}: {{ att.caption }}{% endif %}</div>
+                <div class="attachment-filename">{{ att.display_name or att.file }}</div>
+            </div>
+            {% if att.is_image and att.image_data_uri %}
+            <div class="attachment-media">
+                <img src="{{ att.image_data_uri }}" alt="Anlage {{ loop.index }}" class="attachment-image">
+            </div>
+            {% else %}
+            <div class="attachment-filebox">
+                <div class="file-icon">📄</div>
+                <div>
+                    <div class="file-name">{{ att.caption or att.file }}</div>
+                    <div class="file-meta text-muted">{{ att.mime or 'Datei' }}</div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% if loop.index % 2 == 0 and not loop.last %}<div class="page-break attachment-break"></div>{% endif %}
+        {% endfor %}
+    </div>
+    {% endif %}
 </body>
 </html>

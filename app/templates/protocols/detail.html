@@ -13,9 +13,20 @@
             <i class="bi bi-arrow-left me-1"></i>Zurück zum Vertrag
         </a>
         {% endif %}
+        {% if protocol_data.is_finalized %}
+        <button class="btn btn-outline-secondary" disabled>
+            <i class="bi bi-check2-circle me-1"></i>Bearbeitung gesperrt
+        </button>
+        {% else %}
         <a href="{{ url_for('protocols.edit_protocol', protocol_id=protocol.id) }}" class="btn btn-outline-primary">
             <i class="bi bi-pencil-square me-1"></i>Bearbeiten
         </a>
+        <form method="POST" action="{{ url_for('protocols.finalize_protocol', protocol_id=protocol.id) }}" class="d-inline">
+            <button type="submit" class="btn btn-success">
+                <i class="bi bi-lock-fill me-1"></i>Vorgang abschließen
+            </button>
+        </form>
+        {% endif %}
         <a href="{{ url_for('protocols.create_protocol', contract_id=contract.id if contract else None) }}" class="btn btn-primary">
             <i class="bi bi-plus-circle me-1"></i>Neues Protokoll
         </a>
@@ -40,6 +51,9 @@
         <div>
             <span class="badge bg-primary me-2">{{ protocol.protocol_date.strftime('%d.%m.%Y') }}</span>
             <span class="badge bg-secondary">{{ protocol.protocol_type|replace('ueber','Über')|replace('rueck','Rück') }}</span>
+            {% if protocol_data.is_finalized %}
+            <span class="badge bg-success">Abgeschlossen</span>
+            {% endif %}
         </div>
         {% if contract %}
         <span class="text-muted">Vertrag {{ contract.contract_number }}</span>
@@ -137,7 +151,7 @@
                             <td>{{ entry.reading_value or '' }}</td>
                             <td>
                                 {% if entry.photo %}
-                                    <a href="{{ url_for('protocols.protocol_photo', filename=entry.photo) }}" class="badge bg-success text-decoration-none" target="_blank">Foto ansehen</a>
+                                    <a href="{{ url_for('protocols.protocol_photo', filename=entry.photo.rsplit('/', 1)[-1]) }}" class="badge bg-success text-decoration-none" target="_blank">Foto ansehen</a>
                                 {% else %}
                                     <span class="text-muted"></span>
                                 {% endif %}
@@ -164,6 +178,10 @@
             <p class="mb-0">{{ protocol_data.damages or '—' }}</p>
         </div>
         <div class="mb-3">
+            <h6 class="text-muted">Abweichungen / Rücknahme</h6>
+            <p class="mb-0">{{ protocol_data.return_notes or ('—' if protocol.protocol_type != 'ruecknahme' else 'Keine Abweichungen erfasst.') }}</p>
+        </div>
+        <div class="mb-3">
             <h6 class="text-muted">Schlüsselanzahl</h6>
             <p class="mb-0">{{ protocol_data.key_count or protocol_keys|length or '—' }}</p>
         </div>
@@ -183,10 +201,13 @@
         </div>
         {% if protocol_attachments %}
         <div class="mb-3">
-            <h6 class="text-muted">Hochgeladene Dokumente</h6>
+            <h6 class="text-muted">Hochgeladene Anlagen</h6>
             <ul class="mb-0">
-                {% for file in protocol_attachments %}
-                <li><a href="{{ url_for('protocols.protocol_photo', filename=file) }}" target="_blank">{{ file }}</a></li>
+                {% for att in protocol_attachments %}
+                <li>
+                    <a href="{{ url_for('protocols.protocol_photo', filename=(att.file if att.file is defined else att).rsplit('/', 1)[-1]) }}" target="_blank">{{ att.caption or ('Anlage ' ~ loop.index) }}</a>
+                    <span class="text-muted">({{ att.file }})</span>
+                </li>
                 {% endfor %}
             </ul>
         </div>

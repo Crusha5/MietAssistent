@@ -1,3 +1,5 @@
+import base64
+import mimetypes
 import os
 import re
 from datetime import datetime
@@ -18,14 +20,17 @@ def _clean_bullet_markers(html_text: str) -> str:
 
 def _get_base_path() -> str:
     try:
-        return current_app.root_path
+        return "/"
     except Exception:
-        return os.getcwd()
+        return "/"
 
 
 def _get_stylesheets():
     """Builds the stylesheet list for WeasyPrint with a stable path."""
-    base_path = _get_base_path()
+    try:
+        base_path = current_app.root_path
+    except Exception:
+        base_path = os.getcwd()
     css_path = os.path.join(base_path, 'static', 'css', 'contract_pdf.css')
     if not os.path.exists(css_path):
         try:
@@ -33,6 +38,32 @@ def _get_stylesheets():
         except Exception:
             pass
     return [CSS(filename=css_path)]
+
+
+def embed_file_as_data_uri(file_path: str) -> str:
+    """Liest eine Datei binär und gibt einen Data-URI zurück."""
+    if not file_path:
+        return ''
+
+    abs_path = os.path.abspath(file_path)
+    if not os.path.exists(abs_path):
+        try:
+            current_app.logger.warning("Datei für Data-URI nicht gefunden: %s", abs_path)
+        except Exception:
+            pass
+        return ''
+
+    mime = mimetypes.guess_type(abs_path)[0] or 'application/octet-stream'
+    try:
+        with open(abs_path, 'rb') as fh:
+            encoded = base64.b64encode(fh.read()).decode('utf-8')
+        return f"data:{mime};base64,{encoded}"
+    except Exception as exc:
+        try:
+            current_app.logger.warning("Konnte Datei %s nicht als Data-URI einbetten: %s", abs_path, exc)
+        except Exception:
+            pass
+        return ''
 
 
 def generate_pdf_from_html_weasyprint(html_content: str, output_path: str) -> bool:
@@ -64,13 +95,30 @@ def generate_pdf_bytes(html_content: str) -> bytes:
         return b""
 
 
+def _get_upload_root() -> str:
+    """Ermittelt den Upload-Stammordner robust aus Config oder Umgebung."""
+    upload_root = None
+    try:
+        upload_root = current_app.config.get('UPLOAD_ROOT')
+    except Exception:
+        upload_root = None
+
+    if not upload_root:
+        upload_root = os.environ.get('UPLOAD_ROOT')
+
+    if not upload_root:
+        upload_root = '/uploads'
+
+    return os.path.abspath(upload_root)
+
+
 def save_contract_pdf(contract, html_content: str) -> bool:
     """
     Speichert ein Vertrags-PDF im uploads/contracts-Verzeichnis
     und setzt contract.pdf_path auf den Dateinamen.
     """
     filename = f"contract_{contract.contract_number}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
-    upload_root = current_app.config.get('UPLOAD_FOLDER') or os.path.abspath('uploads')
+    upload_root = _get_upload_root()
     upload_dir = os.path.join(upload_root, 'contracts')
     output_path = os.path.join(upload_dir, filename)
 
@@ -86,8 +134,16 @@ def save_protocol_pdf(protocol, html_content: str) -> bool:
     Speichert ein Protokoll-PDF im uploads/protocols-Verzeichnis.
     """
     filename = f"protocol_{protocol.protocol_type}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
-    upload_root = current_app.config.get('UPLOAD_FOLDER') or os.path.abspath('uploads')
-    upload_dir = os.path.join(upload_root, 'protocols')
+    protocol_dir = None
+    try:
+        protocol_dir = current_app.config.get('UPLOAD_FOLDER')
+    except Exception:
+        protocol_dir = None
+
+    if not protocol_dir:
+        protocol_dir = os.path.join(_get_upload_root(), 'protocolls')
+
+    upload_dir = os.path.abspath(protocol_dir)
     output_path = os.path.join(upload_dir, filename)
 
     if generate_pdf_from_html_weasyprint(html_content, output_path):
