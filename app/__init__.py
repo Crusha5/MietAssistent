@@ -110,13 +110,7 @@ def create_app():
     initialize_database(app)
 
     # Falls die Runtime-Migration aufgrund alter Datenbanken nicht griff, einmal pro Prozess nachziehen
-    @app.before_first_request
-    def _ensure_runtime_migrations():
-        try:
-            with app.app_context():
-                _ensure_contract_protocol_columns()
-        except Exception as exc:
-            print(f"⚠️  Konnte Runtime-Migration nicht ausführen: {exc}")
+    _register_runtime_migration_hook(app)
 
     # Add context processor for buildings after database is initialized
     @app.context_processor
@@ -457,6 +451,22 @@ def register_blueprints(app):
 
     print("🔍 DEBUG: Checking template directories...")
     print(f"  Template folders: {app.jinja_loader.list_templates()[:10]}...")
+
+
+def _register_runtime_migration_hook(app):
+    """Simuliert das entfernte before_first_request-Hook für Flask >=3."""
+    app._runtime_migration_done = False
+
+    @app.before_request
+    def _ensure_runtime_migrations_once():
+        if getattr(app, "_runtime_migration_done", False):
+            return
+        try:
+            _ensure_contract_protocol_columns()
+        except Exception as exc:
+            print(f"⚠️  Konnte Runtime-Migration nicht ausführen: {exc}")
+        finally:
+            app._runtime_migration_done = True
 
 def initialize_database(app):
     """Initialize database after all blueprints are registered"""
