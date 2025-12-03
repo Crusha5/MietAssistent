@@ -49,21 +49,35 @@ def _normalize_attachments(raw_attachments):
     return normalized
 
 
-def _build_attachment_views(raw_attachments):
+def _resolve_protocol_file_path(file_name: str) -> str:
+    """Gibt den absoluten Pfad eines Protokollanhangs zurück."""
+    if not file_name:
+        return ''
+
+    sanitized = file_name.replace('file://', '')
+    if os.path.isabs(sanitized):
+        return sanitized
+
     base_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'protocols')
+    return os.path.abspath(os.path.join(base_dir, sanitized))
+
+
+def _build_attachment_views(raw_attachments):
     normalized = _normalize_attachments(raw_attachments)
     for item in normalized:
         ext = (os.path.splitext(item.get('file') or '')[1] or '').lower()
         mime = (item.get('mime') or '').lower()
-        absolute_path = os.path.abspath(os.path.join(base_dir, item['file'])) if item.get('file') else ''
+        absolute_path = _resolve_protocol_file_path(item.get('file'))
         item['local_path'] = f"file://{absolute_path}" if absolute_path else ''
         item['is_image'] = mime.startswith('image') or ext in ['.png', '.jpg', '.jpeg', '.gif', '.webp']
+
         if item['is_image'] and absolute_path and os.path.exists(absolute_path):
             try:
                 with open(absolute_path, 'rb') as fh:
                     encoded = base64.b64encode(fh.read()).decode('utf-8')
                 item['image_data_uri'] = f"data:{mime or 'image/png'};base64,{encoded}"
             except Exception:
+                current_app.logger.warning('Konnte Anlage %s nicht einbetten', absolute_path)
                 item['image_data_uri'] = ''
         else:
             item['image_data_uri'] = ''
