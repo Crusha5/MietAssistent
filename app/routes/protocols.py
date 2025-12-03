@@ -12,6 +12,7 @@ from types import SimpleNamespace
 from io import BytesIO
 import pandas as pd
 from PIL import Image, ImageOps
+from werkzeug.utils import secure_filename
 from app.utils.pdf_generator import generate_pdf_bytes, save_protocol_pdf, embed_file_as_data_uri
 from app.utils.schema_helpers import ensure_archiving_columns
 
@@ -109,14 +110,30 @@ def _build_attachment_views(raw_attachments):
     return normalized
 
 
-def _save_protocol_file(file, upload_dir: str, prefix: str) -> str:
+def _build_file_stem(prefix: str, caption: str = '', contract_number: str = '') -> str:
+    """Erzeugt einen sprechenden Dateinamenstamm für Protokollanhänge."""
+    safe_caption = re.sub(r'[^A-Za-z0-9_-]+', '_', caption or '').strip('_')
+    safe_contract = re.sub(r'[^A-Za-z0-9_-]+', '_', contract_number or '').strip('_')
+    timestamp = datetime.now().strftime('%Y%m%d-%H%M%S')
+
+    parts = [prefix or 'protocol']
+    if safe_caption:
+        parts.append(safe_caption)
+    if safe_contract:
+        parts.append(safe_contract)
+    parts.append(timestamp)
+    return "_".join(parts)
+
+
+def _save_protocol_file(file, upload_dir: str, prefix: str, caption: str = '', contract_number: str = '') -> str:
     """Speichert eine Datei unterhalb des Protokoll-Ordners und skaliert Bilder."""
     try:
         os.makedirs(upload_dir, exist_ok=True)
     except PermissionError:
         raise PermissionError(f"Upload-Verzeichnis nicht beschreibbar: {upload_dir}")
     ext = os.path.splitext(file.filename or '')[1]
-    stored_name = f"{prefix}_{uuid.uuid4().hex}{ext}"
+    stem = _build_file_stem(prefix, caption=caption, contract_number=contract_number)
+    stored_name = secure_filename(f"{stem}{ext}")
     target_path = os.path.join(upload_dir, stored_name)
 
     try:
@@ -306,12 +323,18 @@ def create_protocol():
             # Protokollanhänge speichern
             for idx, file in enumerate(uploaded_files):
                 if file and file.filename:
+                    caption = attachment_captions[idx] if idx < len(attachment_captions) else ''
                     try:
-                        stored_name = _save_protocol_file(file, upload_dir, prefix='protocol')
+                        stored_name = _save_protocol_file(
+                            file,
+                            upload_dir,
+                            prefix='protocol',
+                            caption=caption,
+                            contract_number=contract.contract_number if contract else ''
+                        )
                     except PermissionError:
                         flash('Upload-Verzeichnis nicht beschreibbar. Bitte Berechtigungen prüfen.', 'danger')
                         return redirect(url_for('protocols.protocols_list'))
-                    caption = attachment_captions[idx] if idx < len(attachment_captions) else ''
                     attachment_meta.append({
                         'file': stored_name,
                         'display_name': os.path.basename(file.filename),
@@ -555,12 +578,18 @@ def edit_protocol(protocol_id):
                 attachment_paths = remaining_paths
             for idx, file in enumerate(uploaded_files):
                 if file and file.filename:
+                    caption = attachment_captions[idx] if idx < len(attachment_captions) else ''
                     try:
-                        stored_name = _save_protocol_file(file, upload_dir, prefix='protocol')
+                        stored_name = _save_protocol_file(
+                            file,
+                            upload_dir,
+                            prefix='protocol',
+                            caption=caption,
+                            contract_number=contract.contract_number if contract else ''
+                        )
                     except PermissionError:
                         flash('Upload-Verzeichnis nicht beschreibbar. Bitte Berechtigungen prüfen.', 'danger')
                         return redirect(url_for('protocols.protocol_detail', protocol_id=protocol_id))
-                    caption = attachment_captions[idx] if idx < len(attachment_captions) else ''
                     attachment_paths.append({
                         'file': stored_name,
                         'display_name': os.path.basename(file.filename),
