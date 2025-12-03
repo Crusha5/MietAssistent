@@ -21,7 +21,7 @@
     "Mobil-App",
     "Revisionssicherheit",
     "API-Integration",
-    "Backup & Monitoring"
+    "Monitoring"
   ],
 
   "branding": {
@@ -218,7 +218,7 @@
 
   "docker": {
     "services": {
-      "web": { "port": 5000, "volumes": ["data","uploads","logs","backups"] },
+      "web": { "port": 5000, "volumes": ["data","uploads","logs"] },
       "ocr": { "port": 5001 },
       "db": { "type": "sqlite default, optional postgres" }
     }
@@ -252,6 +252,6 @@
     "healthchecks": true,
     "performance_metrics": true,
     "logging": "Full structured JSON logs",
-    "alerts": ["high cpu","db corruption","backup failure"]
+    "alerts": ["high cpu","db corruption"]
   }
 }

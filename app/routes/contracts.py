@@ -19,11 +19,11 @@ contracts_bp = Blueprint('contracts', __name__)
 def ensure_writable_dir(path: str):
     """Erstellt ein Verzeichnis falls nötig und stellt Schreibrechte sicher."""
     if not path:
-        fallback_root = os.environ.get('UPLOAD_FOLDER')
+        fallback_root = os.environ.get('UPLOAD_ROOT') or os.environ.get('UPLOAD_FOLDER')
         if not fallback_root:
             project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
             fallback_root = os.path.join(project_root, 'uploads')
-        path = os.path.abspath(current_app.config.get('UPLOAD_FOLDER', fallback_root))
+        path = os.path.abspath(current_app.config.get('UPLOAD_ROOT', fallback_root))
 
     try:
         os.makedirs(path, mode=0o775, exist_ok=True)
@@ -836,7 +836,7 @@ def download_contract(contract_id):
         from flask import send_file
         import os
         
-        upload_root = current_app.config.get('UPLOAD_FOLDER') or os.path.abspath('uploads')
+        upload_root = current_app.config.get('UPLOAD_ROOT') or os.path.abspath('/uploads')
         file_path = os.path.join(upload_root, 'contracts', contract.pdf_path)
         
         if not os.path.exists(file_path):
@@ -878,7 +878,7 @@ def upload_contract_pdf(contract_id):
             
             filename = secure_filename(file.filename)
             unique_filename = f"contract_{contract.contract_number}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
-            upload_root = current_app.config.get('UPLOAD_FOLDER') or os.path.abspath('uploads')
+            upload_root = current_app.config.get('UPLOAD_ROOT') or os.path.abspath('/uploads')
             file_path = os.path.join(upload_root, 'contracts', unique_filename)
             os.makedirs(os.path.dirname(file_path), exist_ok=True)
             file.save(file_path)

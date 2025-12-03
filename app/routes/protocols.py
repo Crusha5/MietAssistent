@@ -40,8 +40,12 @@ def _normalize_attachments(raw_attachments):
         if not file_name:
             continue
 
+        absolute_file = _resolve_protocol_file_path(file_name)
+        display_name = os.path.basename(absolute_file or file_name)
+
         normalized.append({
-            'file': file_name,
+            'file': absolute_file or os.path.abspath(file_name),
+            'display_name': display_name,
             'caption': caption,
             'mime': mime
         })
@@ -55,8 +59,7 @@ def _resolve_protocol_file_path(file_name: str) -> str:
         return ''
 
     sanitized = file_name.replace('file://', '')
-    base_root = current_app.config['UPLOAD_FOLDER']
-    base_dir = os.path.join(base_root, 'protocols')
+    base_dir = current_app.config['UPLOAD_FOLDER']
 
     if os.path.isabs(sanitized):
         if os.path.exists(sanitized):
@@ -68,7 +71,7 @@ def _resolve_protocol_file_path(file_name: str) -> str:
             uploads_idx = parts.index('uploads')
             relative_tail = os.path.join(*parts[uploads_idx + 1:]) if uploads_idx + 1 < len(parts) else ''
             if relative_tail:
-                candidate = os.path.join(base_root, relative_tail)
+                candidate = os.path.join(base_dir, relative_tail)
                 if os.path.exists(candidate):
                     return candidate
 
@@ -84,8 +87,8 @@ def _build_attachment_views(raw_attachments):
         ext = (os.path.splitext(item.get('file') or '')[1] or '').lower()
         mime = (item.get('mime') or '').lower()
         absolute_path = _resolve_protocol_file_path(item.get('file'))
-        item['local_path'] = f"file://{absolute_path}" if absolute_path else ''
         item['is_image'] = mime.startswith('image') or ext in ['.png', '.jpg', '.jpeg', '.gif', '.webp']
+        item['display_name'] = item.get('display_name') or os.path.basename(absolute_path or '') or os.path.basename(item.get('file') or '')
 
         if item['is_image'] and absolute_path and os.path.exists(absolute_path):
             try:
@@ -97,6 +100,7 @@ def _build_attachment_views(raw_attachments):
                 item['image_data_uri'] = ''
         else:
             item['image_data_uri'] = ''
+        item['local_path'] = ''
     return normalized
 
 
@@ -131,7 +135,7 @@ def _save_protocol_file(file, upload_dir: str, prefix: str) -> str:
     except Exception:
         file.save(target_path)
 
-    return stored_name
+    return os.path.abspath(target_path)
 
 
 def _is_protocol_finalized(payload: dict) -> bool:
@@ -234,7 +238,7 @@ def create_protocol():
 
             meter_entries = []
             meter_photo_map = {}
-            upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'protocols')
+            upload_dir = current_app.config['UPLOAD_FOLDER']
             os.makedirs(upload_dir, exist_ok=True)
 
             uploaded_files = request.files.getlist('protocol_upload')
@@ -289,6 +293,7 @@ def create_protocol():
                     caption = attachment_captions[idx] if idx < len(attachment_captions) else ''
                     attachment_meta.append({
                         'file': stored_name,
+                        'display_name': os.path.basename(file.filename),
                         'caption': caption,
                         'mime': file.mimetype
                     })
@@ -458,7 +463,7 @@ def edit_protocol(protocol_id):
             meter_photo_map = existing_payload.get('meter_photos', {}) if isinstance(existing_payload, dict) else {}
             if not isinstance(meter_photo_map, dict):
                 meter_photo_map = {}
-            upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'protocols')
+            upload_dir = current_app.config['UPLOAD_FOLDER']
             os.makedirs(upload_dir, exist_ok=True)
 
             for meter in meters:
@@ -504,13 +509,13 @@ def edit_protocol(protocol_id):
 
             remove_targets = {item for item in request.form.getlist('remove_attachments[]') if item}
             if remove_targets:
-                base_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'protocols')
+                base_dir = current_app.config['UPLOAD_FOLDER']
                 remaining_paths = []
                 for att in attachment_paths:
                     fname = att.get('file') if isinstance(att, dict) else att
                     if fname in remove_targets:
                         try:
-                            file_path = os.path.join(base_dir, fname)
+                            file_path = fname if os.path.isabs(fname) else os.path.join(base_dir, fname)
                             if os.path.exists(file_path):
                                 os.remove(file_path)
                         except Exception:
@@ -524,6 +529,7 @@ def edit_protocol(protocol_id):
                     caption = attachment_captions[idx] if idx < len(attachment_captions) else ''
                     attachment_paths.append({
                         'file': stored_name,
+                        'display_name': os.path.basename(file.filename),
                         'caption': caption,
                         'mime': file.mimetype
                     })
@@ -680,8 +686,9 @@ def finalize_protocol(protocol_id):
 @login_required
 def protocol_photo(filename):
     """Stellt hochgeladene Zählerstand-Fotos bereit."""
-    directory = os.path.join(current_app.config['UPLOAD_FOLDER'], 'protocols')
-    return send_from_directory(directory, filename)
+    directory = current_app.config['UPLOAD_FOLDER']
+    target_name = os.path.basename(filename)
+    return send_from_directory(directory, target_name)
 
 
 @protocols_bp.route('/export/<string:fmt>')

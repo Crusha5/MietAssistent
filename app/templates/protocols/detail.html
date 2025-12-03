@@ -151,7 +151,7 @@
                             <td>{{ entry.reading_value or '' }}</td>
                             <td>
                                 {% if entry.photo %}
-                                    <a href="{{ url_for('protocols.protocol_photo', filename=entry.photo) }}" class="badge bg-success text-decoration-none" target="_blank">Foto ansehen</a>
+                                    <a href="{{ url_for('protocols.protocol_photo', filename=entry.photo.rsplit('/', 1)[-1]) }}" class="badge bg-success text-decoration-none" target="_blank">Foto ansehen</a>
                                 {% else %}
                                     <span class="text-muted"></span>
                                 {% endif %}
@@ -205,7 +205,7 @@
             <ul class="mb-0">
                 {% for att in protocol_attachments %}
                 <li>
-                    <a href="{{ url_for('protocols.protocol_photo', filename=att.file) }}" target="_blank">{{ att.caption or ('Anlage ' ~ loop.index) }}</a>
+                    <a href="{{ url_for('protocols.protocol_photo', filename=(att.file if att.file is defined else att).rsplit('/', 1)[-1]) }}" target="_blank">{{ att.caption or ('Anlage ' ~ loop.index) }}</a>
                     <span class="text-muted">({{ att.file }})</span>
                 </li>
                 {% endfor %}

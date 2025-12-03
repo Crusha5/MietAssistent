@@ -18,14 +18,17 @@ def _clean_bullet_markers(html_text: str) -> str:
 
 def _get_base_path() -> str:
     try:
-        return current_app.root_path
+        return "/"
     except Exception:
-        return os.getcwd()
+        return "/"
 
 
 def _get_stylesheets():
     """Builds the stylesheet list for WeasyPrint with a stable path."""
-    base_path = _get_base_path()
+    try:
+        base_path = current_app.root_path
+    except Exception:
+        base_path = os.getcwd()
     css_path = os.path.join(base_path, 'static', 'css', 'contract_pdf.css')
     if not os.path.exists(css_path):
         try:
@@ -68,16 +71,15 @@ def _get_upload_root() -> str:
     """Ermittelt den Upload-Stammordner robust aus Config oder Umgebung."""
     upload_root = None
     try:
-        upload_root = current_app.config.get('UPLOAD_FOLDER')
+        upload_root = current_app.config.get('UPLOAD_ROOT')
     except Exception:
         upload_root = None
 
     if not upload_root:
-        upload_root = os.environ.get('UPLOAD_FOLDER')
+        upload_root = os.environ.get('UPLOAD_ROOT')
 
     if not upload_root:
-        project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-        upload_root = os.path.join(project_root, 'uploads')
+        upload_root = '/uploads'
 
     return os.path.abspath(upload_root)
 
@@ -104,8 +106,16 @@ def save_protocol_pdf(protocol, html_content: str) -> bool:
     Speichert ein Protokoll-PDF im uploads/protocols-Verzeichnis.
     """
     filename = f"protocol_{protocol.protocol_type}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
-    upload_root = _get_upload_root()
-    upload_dir = os.path.join(upload_root, 'protocols')
+    protocol_dir = None
+    try:
+        protocol_dir = current_app.config.get('UPLOAD_FOLDER')
+    except Exception:
+        protocol_dir = None
+
+    if not protocol_dir:
+        protocol_dir = os.path.join(_get_upload_root(), 'protocolls')
+
+    upload_dir = os.path.abspath(protocol_dir)
     output_path = os.path.join(upload_dir, filename)
 
     if generate_pdf_from_html_weasyprint(html_content, output_path):

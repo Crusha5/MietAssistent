@@ -86,18 +86,12 @@
         <div class="card border-0 shadow-sm mt-4">
             <div class="card-body p-4">
                 <div class="d-flex align-items-center justify-content-between mb-3">
-                    <h4 class="mb-0">Monitoring &amp; Backups</h4>
+                    <h4 class="mb-0">Monitoring</h4>
                     <span class="badge bg-primary">Betrieb</span>
                 </div>
                 <div class="row g-3">
-                    <div class="col-md-6">
-                        <h6 class="text-muted text-uppercase">Backups</h6>
-                        <p class="mb-1">Frequenz: {{ profile.backup_strategy.automated_backups.frequency }}</p>
-                        <p class="mb-1">Aufbewahrung: {{ profile.backup_strategy.automated_backups.retention }}</p>
-                        <p class="mb-0">Verifikation: {{ profile.backup_strategy.automated_backups.verification }}</p>
-                    </div>
-                    <div class="col-md-6">
-                        <h6 class="text-muted text-uppercase">Monitoring</h6>
+                    <div class="col-md-12">
+                        <h6 class="text-muted text-uppercase">Systemüberwachung</h6>
                         <p class="mb-1">Health Checks: {{ profile.monitoring_analytics.system_monitoring.health_checks }}</p>
                         <p class="mb-1">Performance: {{ profile.monitoring_analytics.system_monitoring.performance_metrics }}</p>
                         <p class="mb-0">Fehlertracking: {{ profile.monitoring_analytics.system_monitoring.error_tracking }}</p>

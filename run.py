@@ -7,7 +7,12 @@ print(f"Python version: {sys.version}")
 print(f"Current working directory: {os.getcwd()}")
 
 # Prüfe Verzeichnisse
-for directory in ['data', 'uploads', 'backups', 'logs']:
+upload_root = os.environ.get('UPLOAD_ROOT', '/uploads')
+protocol_dir = os.environ.get('UPLOAD_FOLDER', os.path.join(upload_root, 'protocolls'))
+
+for directory in ['data', upload_root, protocol_dir, 'logs']:
+    if not os.path.isabs(directory):
+        directory = os.path.abspath(directory)
     if not os.path.exists(directory):
         print(f"⚠️  Creating directory: {directory}")
         os.makedirs(directory, exist_ok=True)

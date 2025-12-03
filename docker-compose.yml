@@ -13,12 +13,14 @@ services:
       - proxy-network
     volumes:
       - ./data:/app/data
-      - ./uploads:/app/uploads
+      - ./uploads:/uploads
     environment:
       - FLASK_ENV=production
       - SECRET_KEY=your-production-secret-key-change-this-in-production
       - JWT_SECRET_KEY=your-jwt-secret-key-change-this-in-production
       - PREFERRED_URL_SCHEME=https
+      - UPLOAD_ROOT=/uploads
+      - UPLOAD_FOLDER=/uploads/protocolls
 
 networks:
   proxy-network:

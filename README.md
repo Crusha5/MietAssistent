@@ -17,8 +17,7 @@ Professionelle Nebenkostenabrechnung mit flexibler Zählerstruktur. Dieses Repos
 2. Starten: `docker-compose up -d`
 3. Aufruf: http://localhost:5000/setup führt durch Systemcheck, DB-Initialisierung, Admin-Anlage und Erstkonfiguration
 
-## Backup & Betrieb
-- Automatische Backups täglich um 02:00 Uhr nach `./backups` (30 Tage Aufbewahrung)
+## Betrieb
 - Healthcheck unter `/health`, Log-Level per `LOG_LEVEL` variierbar
 - Uploads und Datenbank werden in `./uploads` bzw. `./data` persistiert
 

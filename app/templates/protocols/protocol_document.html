@@ -184,11 +184,11 @@
         <div class="attachment-card">
             <div class="attachment-header">
                 <div class="attachment-caption">Anlage {{ loop.index }}{% if att.caption %}: {{ att.caption }}{% endif %}</div>
-                <div class="attachment-filename">{{ att.file }}</div>
+                <div class="attachment-filename">{{ att.display_name or att.file }}</div>
             </div>
-            {% if att.is_image and (att.image_data_uri or att.local_path) %}
+            {% if att.is_image and att.image_data_uri %}
             <div class="attachment-media">
-                <img src="{{ att.image_data_uri or att.local_path }}" alt="Anlage {{ loop.index }}" class="attachment-image">
+                <img src="{{ att.image_data_uri }}" alt="Anlage {{ loop.index }}" class="attachment-image">
             </div>
             {% else %}
             <div class="attachment-filebox">
