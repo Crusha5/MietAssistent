@@ -164,7 +164,7 @@
                             <div class="list-group-item d-flex justify-content-between align-items-start">
                                 <div>
                                     <div class="fw-semibold">{{ (att.caption or ('Anlage ' ~ loop.index)) if att.caption is defined else (att if att is string else ('Anlage ' ~ loop.index)) }}</div>
-                                    <div class="text-muted">{{ att.display_name if att.display_name is defined else (fname|default('', true).rsplit('/', 1)[-1]) }}</div>
+                                    <div class="text-muted">{{ att.display_name if att.display_name is defined else ((fname|default('', true)).rsplit('/', 1)[-1]) }}</div>
                                 </div>
                                 <div class="form-check ms-2">
                                     <input class="form-check-input" type="checkbox" value="{{ fname }}" name="remove_attachments[]" id="removeAttachment{{ loop.index }}">
