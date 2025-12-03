@@ -10,17 +10,24 @@ print(f"Current working directory: {os.getcwd()}")
 upload_root = os.environ.get('UPLOAD_ROOT', '/uploads')
 protocol_dir = os.environ.get('UPLOAD_FOLDER', os.path.join(upload_root, 'protocolls'))
 
-directories_to_check = ['data', upload_root, protocol_dir, 'logs']
-for raw_dir in directories_to_check:
-    directory = os.path.abspath(raw_dir)
-    if not os.path.exists(directory):
-        try:
-            print(f"⚠️  Creating directory: {directory}")
-            os.makedirs(directory, exist_ok=True)
-        except PermissionError:
-            print(f"❌ Keine Berechtigung zum Anlegen von {directory} – bitte Mount/Owner prüfen.")
-        except Exception as exc:
-            print(f"❌ Konnte Verzeichnis {directory} nicht anlegen: {exc}")
+
+def _ensure_dir(path: str):
+    """Legt ein Verzeichnis an, ohne beim Start abzubrechen."""
+    directory = os.path.abspath(path)
+    if os.path.exists(directory):
+        return
+    try:
+        print(f"⚠️  Creating directory: {directory}")
+        os.makedirs(directory, exist_ok=True)
+    except PermissionError:
+        # Keine Ausnahme hochwerfen, damit die App trotzdem startet
+        print(f"❌ Keine Berechtigung zum Anlegen von {directory} – bitte Mount/Owner prüfen.")
+    except Exception as exc:
+        print(f"❌ Konnte Verzeichnis {directory} nicht anlegen: {exc}")
+
+
+for raw_dir in ['data', upload_root, protocol_dir, 'logs']:
+    _ensure_dir(raw_dir)
 
 try:
     # Füge das aktuelle Verzeichnis zum Python-Pfad hinzu

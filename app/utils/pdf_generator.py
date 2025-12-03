@@ -1,3 +1,5 @@
+import base64
+import mimetypes
 import os
 import re
 from datetime import datetime
@@ -36,6 +38,32 @@ def _get_stylesheets():
         except Exception:
             pass
     return [CSS(filename=css_path)]
+
+
+def embed_file_as_data_uri(file_path: str) -> str:
+    """Liest eine Datei binär und gibt einen Data-URI zurück."""
+    if not file_path:
+        return ''
+
+    abs_path = os.path.abspath(file_path)
+    if not os.path.exists(abs_path):
+        try:
+            current_app.logger.warning("Datei für Data-URI nicht gefunden: %s", abs_path)
+        except Exception:
+            pass
+        return ''
+
+    mime = mimetypes.guess_type(abs_path)[0] or 'application/octet-stream'
+    try:
+        with open(abs_path, 'rb') as fh:
+            encoded = base64.b64encode(fh.read()).decode('utf-8')
+        return f"data:{mime};base64,{encoded}"
+    except Exception as exc:
+        try:
+            current_app.logger.warning("Konnte Datei %s nicht als Data-URI einbetten: %s", abs_path, exc)
+        except Exception:
+            pass
+        return ''
 
 
 def generate_pdf_from_html_weasyprint(html_content: str, output_path: str) -> bool:

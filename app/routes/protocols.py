@@ -10,10 +10,9 @@ import os
 import mimetypes
 from types import SimpleNamespace
 from io import BytesIO
-import base64
 import pandas as pd
 from PIL import Image, ImageOps
-from app.utils.pdf_generator import generate_pdf_bytes, save_protocol_pdf
+from app.utils.pdf_generator import generate_pdf_bytes, save_protocol_pdf, embed_file_as_data_uri
 from app.utils.schema_helpers import ensure_archiving_columns
 
 protocols_bp = Blueprint('protocols', __name__)
@@ -61,6 +60,13 @@ def _resolve_protocol_file_path(file_name: str) -> str:
     sanitized = file_name.replace('file://', '')
     base_dir = current_app.config['UPLOAD_FOLDER']
 
+    try:
+        os.makedirs(base_dir, exist_ok=True)
+    except PermissionError:
+        current_app.logger.warning('Keine Berechtigung zum Anlegen des Protokoll-Ordners %s', base_dir)
+    except Exception as exc:
+        current_app.logger.warning('Konnte Protokoll-Ordner %s nicht prüfen: %s', base_dir, exc)
+
     if os.path.isabs(sanitized):
         if os.path.exists(sanitized):
             return sanitized
@@ -83,6 +89,7 @@ def _resolve_protocol_file_path(file_name: str) -> str:
 
 def _build_attachment_views(raw_attachments):
     normalized = _normalize_attachments(raw_attachments)
+    base_dir = current_app.config['UPLOAD_FOLDER']
     for item in normalized:
         ext = (os.path.splitext(item.get('file') or '')[1] or '').lower()
         mime = (item.get('mime') or '').lower()
@@ -91,13 +98,11 @@ def _build_attachment_views(raw_attachments):
         item['display_name'] = item.get('display_name') or os.path.basename(absolute_path or '') or os.path.basename(item.get('file') or '')
 
         if item['is_image'] and absolute_path and os.path.exists(absolute_path):
-            try:
-                with open(absolute_path, 'rb') as fh:
-                    encoded = base64.b64encode(fh.read()).decode('utf-8')
-                item['image_data_uri'] = f"data:{mime or 'image/png'};base64,{encoded}"
-            except Exception:
-                current_app.logger.warning('Konnte Anlage %s nicht einbetten', absolute_path)
+            if not os.path.commonpath([os.path.abspath(absolute_path), os.path.abspath(base_dir)]) == os.path.abspath(base_dir):
+                current_app.logger.warning('Anlage außerhalb des Upload-Pfads ignoriert: %s', absolute_path)
                 item['image_data_uri'] = ''
+            else:
+                item['image_data_uri'] = embed_file_as_data_uri(absolute_path)
         else:
             item['image_data_uri'] = ''
         item['local_path'] = ''
