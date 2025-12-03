@@ -54,8 +54,8 @@ RUN echo "=== Checking for contract files ===" && \
     ls -la /app/app/routes/
 
 # Nicht als root User laufen
-RUN useradd -m -u 1000 rentaluser && chown -R rentaluser:rentaluser /app ${UPLOAD_ROOT} ${UPLOAD_FOLDER}
-USER rentaluser
+# Wir laufen als Root, um Schreibrechte auf gemounteten Upload-Verzeichnissen sicherzustellen
+# (Host-Volume ./uploads -> /uploads)
 
 EXPOSE 5000
 

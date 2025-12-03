@@ -106,7 +106,10 @@ def _build_attachment_views(raw_attachments):
 
 def _save_protocol_file(file, upload_dir: str, prefix: str) -> str:
     """Speichert eine Datei unterhalb des Protokoll-Ordners und skaliert Bilder."""
-    os.makedirs(upload_dir, exist_ok=True)
+    try:
+        os.makedirs(upload_dir, exist_ok=True)
+    except PermissionError:
+        raise PermissionError(f"Upload-Verzeichnis nicht beschreibbar: {upload_dir}")
     ext = os.path.splitext(file.filename or '')[1]
     stored_name = f"{prefix}_{uuid.uuid4().hex}{ext}"
     target_path = os.path.join(upload_dir, stored_name)
@@ -239,7 +242,12 @@ def create_protocol():
             meter_entries = []
             meter_photo_map = {}
             upload_dir = current_app.config['UPLOAD_FOLDER']
-            os.makedirs(upload_dir, exist_ok=True)
+            try:
+                os.makedirs(upload_dir, exist_ok=True)
+            except PermissionError:
+                current_app.logger.error("Keine Berechtigung zum Schreiben in %s", upload_dir)
+                flash('Upload-Verzeichnis nicht beschreibbar. Bitte Berechtigungen prüfen.', 'danger')
+                return redirect(url_for('protocols.protocols_list'))
 
             uploaded_files = request.files.getlist('protocol_upload')
             attachment_captions = request.form.getlist('attachment_captions[]') or []
@@ -260,8 +268,12 @@ def create_protocol():
                 photo_name = None
 
                 if photo and photo.filename:
-                    photo_name = _save_protocol_file(photo, upload_dir, prefix=f"meter_{meter.id}")
-                    meter_photo_map[str(meter.id)] = photo_name
+                    try:
+                        photo_name = _save_protocol_file(photo, upload_dir, prefix=f"meter_{meter.id}")
+                        meter_photo_map[str(meter.id)] = photo_name
+                    except PermissionError:
+                        flash('Upload-Verzeichnis nicht beschreibbar. Bitte Berechtigungen prüfen.', 'danger')
+                        return redirect(url_for('protocols.protocols_list'))
 
                 meter_entries.append({
                     'id': meter.id,
@@ -289,7 +301,11 @@ def create_protocol():
             # Protokollanhänge speichern
             for idx, file in enumerate(uploaded_files):
                 if file and file.filename:
-                    stored_name = _save_protocol_file(file, upload_dir, prefix='protocol')
+                    try:
+                        stored_name = _save_protocol_file(file, upload_dir, prefix='protocol')
+                    except PermissionError:
+                        flash('Upload-Verzeichnis nicht beschreibbar. Bitte Berechtigungen prüfen.', 'danger')
+                        return redirect(url_for('protocols.protocols_list'))
                     caption = attachment_captions[idx] if idx < len(attachment_captions) else ''
                     attachment_meta.append({
                         'file': stored_name,
@@ -464,7 +480,12 @@ def edit_protocol(protocol_id):
             if not isinstance(meter_photo_map, dict):
                 meter_photo_map = {}
             upload_dir = current_app.config['UPLOAD_FOLDER']
-            os.makedirs(upload_dir, exist_ok=True)
+            try:
+                os.makedirs(upload_dir, exist_ok=True)
+            except PermissionError:
+                current_app.logger.error("Keine Berechtigung zum Schreiben in %s", upload_dir)
+                flash('Upload-Verzeichnis nicht beschreibbar. Bitte Berechtigungen prüfen.', 'danger')
+                return redirect(url_for('protocols.protocol_detail', protocol_id=protocol_id))
 
             for meter in meters:
                 raw_value = request.form.get(f'meter_readings[{meter.id}]')
@@ -477,8 +498,12 @@ def edit_protocol(protocol_id):
                 photo = request.files.get(f'meter_photo_{meter.id}')
                 photo_name = meter_photo_map.get(str(meter.id)) if isinstance(meter_photo_map, dict) else None
                 if photo and photo.filename:
-                    photo_name = _save_protocol_file(photo, upload_dir, prefix=f"meter_{meter.id}")
-                    meter_photo_map[str(meter.id)] = photo_name
+                    try:
+                        photo_name = _save_protocol_file(photo, upload_dir, prefix=f"meter_{meter.id}")
+                        meter_photo_map[str(meter.id)] = photo_name
+                    except PermissionError:
+                        flash('Upload-Verzeichnis nicht beschreibbar. Bitte Berechtigungen prüfen.', 'danger')
+                        return redirect(url_for('protocols.protocol_detail', protocol_id=protocol_id))
 
                 meter_entries.append({
                     'id': meter.id,
@@ -525,7 +550,11 @@ def edit_protocol(protocol_id):
                 attachment_paths = remaining_paths
             for idx, file in enumerate(uploaded_files):
                 if file and file.filename:
-                    stored_name = _save_protocol_file(file, upload_dir, prefix='protocol')
+                    try:
+                        stored_name = _save_protocol_file(file, upload_dir, prefix='protocol')
+                    except PermissionError:
+                        flash('Upload-Verzeichnis nicht beschreibbar. Bitte Berechtigungen prüfen.', 'danger')
+                        return redirect(url_for('protocols.protocol_detail', protocol_id=protocol_id))
                     caption = attachment_captions[idx] if idx < len(attachment_captions) else ''
                     attachment_paths.append({
                         'file': stored_name,

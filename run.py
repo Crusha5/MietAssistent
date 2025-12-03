@@ -10,27 +10,32 @@ print(f"Current working directory: {os.getcwd()}")
 upload_root = os.environ.get('UPLOAD_ROOT', '/uploads')
 protocol_dir = os.environ.get('UPLOAD_FOLDER', os.path.join(upload_root, 'protocolls'))
 
-for directory in ['data', upload_root, protocol_dir, 'logs']:
-    if not os.path.isabs(directory):
-        directory = os.path.abspath(directory)
+directories_to_check = ['data', upload_root, protocol_dir, 'logs']
+for raw_dir in directories_to_check:
+    directory = os.path.abspath(raw_dir)
     if not os.path.exists(directory):
-        print(f"⚠️  Creating directory: {directory}")
-        os.makedirs(directory, exist_ok=True)
+        try:
+            print(f"⚠️  Creating directory: {directory}")
+            os.makedirs(directory, exist_ok=True)
+        except PermissionError:
+            print(f"❌ Keine Berechtigung zum Anlegen von {directory} – bitte Mount/Owner prüfen.")
+        except Exception as exc:
+            print(f"❌ Konnte Verzeichnis {directory} nicht anlegen: {exc}")
 
 try:
     # Füge das aktuelle Verzeichnis zum Python-Pfad hinzu
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-    
+
     from app import create_app, db
-    
+
     app = create_app()
-    
+
     with app.app_context():
         # Datenbank-Tabellen erstellen
         print("📦 Creating database tables...")
         db.create_all()
         print("✅ Database tables created")
-        
+
         # Prüfen ob Setup bereits durchgeführt wurde
         from app.models import User
         users_count = User.query.count()
@@ -38,12 +43,12 @@ try:
             print("⚠️  No users found - please run setup at /setup")
         else:
             print(f"✅ Found {users_count} users - setup completed")
-            
+
     if __name__ == '__main__':
         print("🚀 Starting Flask server on port 5000...")
         print("📊 Access the application at: http://localhost:5000")
         app.run(host='0.0.0.0', port=5000, debug=False)
-        
+
 except Exception as e:
     print(f"❌ Failed to start app: {e}")
     import traceback

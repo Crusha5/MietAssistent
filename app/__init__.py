@@ -22,19 +22,14 @@ def create_app():
     upload_root = os.path.abspath(os.environ.get('UPLOAD_ROOT') or '/uploads')
     protocol_dir = os.path.abspath(os.environ.get('UPLOAD_FOLDER') or os.path.join(upload_root, 'protocolls'))
 
-    # Robust gegen gemountete Verzeichnisse ohne Schreibrechte
+    # Verzeichnisse vorbereiten (Warnung statt Fallback bei fehlenden Rechten)
     try:
         os.makedirs(upload_root, exist_ok=True)
         os.makedirs(protocol_dir, mode=0o755, exist_ok=True)
         for sub in ['contracts', 'documents', 'meter_photos', 'costs']:
             os.makedirs(os.path.join(upload_root, sub), mode=0o755, exist_ok=True)
     except PermissionError:
-        fallback_root = os.path.abspath('/tmp/mietassistent_uploads')
-        protocol_dir = os.path.join(fallback_root, 'protocolls')
-        os.makedirs(protocol_dir, exist_ok=True)
-        for sub in ['contracts', 'documents', 'meter_photos', 'costs']:
-            os.makedirs(os.path.join(fallback_root, sub), mode=0o755, exist_ok=True)
-        upload_root = fallback_root
+        print(f"❌ Keine Berechtigung für Upload-Verzeichnisse unter {upload_root}. Bitte Mount/Owner prüfen.")
 
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(data_dir, 'rental.db')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
