@@ -70,7 +70,8 @@ def save_contract_pdf(contract, html_content: str) -> bool:
     und setzt contract.pdf_path auf den Dateinamen.
     """
     filename = f"contract_{contract.contract_number}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
-    upload_root = current_app.config.get('UPLOAD_FOLDER') or os.path.abspath('/uploads')
+    default_root = os.path.abspath('/home/pascal/docker-services/rental-management/uploads')
+    upload_root = current_app.config.get('UPLOAD_FOLDER') or default_root
     upload_dir = os.path.join(upload_root, 'contracts')
     output_path = os.path.join(upload_dir, filename)
 
@@ -86,7 +87,8 @@ def save_protocol_pdf(protocol, html_content: str) -> bool:
     Speichert ein Protokoll-PDF im uploads/protocols-Verzeichnis.
     """
     filename = f"protocol_{protocol.protocol_type}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
-    upload_root = current_app.config.get('UPLOAD_FOLDER') or os.path.abspath('/uploads')
+    default_root = os.path.abspath('/home/pascal/docker-services/rental-management/uploads')
+    upload_root = current_app.config.get('UPLOAD_FOLDER') or default_root
     upload_dir = os.path.join(upload_root, 'protocols')
     output_path = os.path.join(upload_dir, filename)
 

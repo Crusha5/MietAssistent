@@ -19,7 +19,7 @@ contracts_bp = Blueprint('contracts', __name__)
 def ensure_writable_dir(path: str):
     """Erstellt ein Verzeichnis falls nötig und stellt Schreibrechte sicher."""
     if not path:
-        path = os.path.abspath('/uploads')
+        path = os.path.abspath('/home/pascal/docker-services/rental-management/uploads')
 
     try:
         os.makedirs(path, mode=0o775, exist_ok=True)

@@ -19,17 +19,18 @@ def create_app():
     data_dir = os.path.abspath('data')
     os.makedirs(data_dir, exist_ok=True)
 
-    upload_dir = os.path.abspath(os.environ.get('UPLOAD_FOLDER', '/uploads'))
+    default_upload_root = '/home/pascal/docker-services/rental-management/uploads'
+    upload_dir = os.path.abspath(os.environ.get('UPLOAD_FOLDER', default_upload_root))
 
     # Robust gegen gemountete Verzeichnisse ohne Schreibrechte
     try:
         os.makedirs(upload_dir, exist_ok=True)
-        for sub in ['contracts', 'protocols']:
+        for sub in ['contracts', 'protocols', 'documents', 'meter_photos']:
             os.makedirs(os.path.join(upload_dir, sub), mode=0o755, exist_ok=True)
     except PermissionError:
         fallback_dir = os.path.abspath('/tmp/mietassistent_uploads')
         os.makedirs(fallback_dir, exist_ok=True)
-        for sub in ['contracts', 'protocols']:
+        for sub in ['contracts', 'protocols', 'documents', 'meter_photos']:
             os.makedirs(os.path.join(fallback_dir, sub), mode=0o755, exist_ok=True)
         upload_dir = fallback_dir
 
