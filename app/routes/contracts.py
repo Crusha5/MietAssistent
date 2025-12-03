@@ -12,7 +12,10 @@ from app.routes.contract_editor import load_contract_tree
 from app.models import Landlord, Protocol, Meter, MeterReading, Document, Tenant
 from app.utils.schema_helpers import ensure_archiving_columns
 from app.utils.pdf_generator import generate_professional_contract_html, save_contract_pdf
-from PyPDF2 import PdfMerger
+try:
+    from PyPDF2 import PdfMerger
+except ImportError:  # pragma: no cover - optional dependency für PDF-Merge
+    PdfMerger = None
 
 contracts_bp = Blueprint('contracts', __name__)
 
@@ -70,6 +73,8 @@ def _merge_contract_final_document(contract, protocols: list) -> str:
     if os.path.exists(target_path):
         return target_path
 
+    if PdfMerger is None:
+        raise RuntimeError("PyPDF2 ist nicht installiert. Bitte 'pip install PyPDF2' ausführen, um PDFs zusammenzuführen.")
     merger = PdfMerger()
     sources = []
     if contract.pdf_path:
