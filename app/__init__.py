@@ -19,7 +19,7 @@ def create_app():
     data_dir = os.path.abspath('data')
     os.makedirs(data_dir, exist_ok=True)
 
-    default_upload_root = '/home/pascal/docker-services/rental-management/uploads'
+    default_upload_root = '/app/uploads'
     upload_dir = os.path.abspath(os.environ.get('UPLOAD_FOLDER', default_upload_root))
 
     # Robust gegen gemountete Verzeichnisse ohne Schreibrechte
