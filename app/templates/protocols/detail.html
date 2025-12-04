@@ -42,7 +42,7 @@
         </a>
         <div class="btn-group">
             <button class="btn btn-outline-secondary dropdown-toggle action-btn" data-bs-toggle="dropdown" aria-expanded="false"
-                    aria-label="Exporte" data-bs-title="Exporte" data-bs-placement="bottom">
+                    aria-label="Exporte" data-bs-title="Exporte" data-tooltip="true">
                 <i class="bi bi-box-arrow-down action-btn-icon"></i>
                 <span class="action-btn-text ms-1">Exporte</span>
             </button>
@@ -267,11 +267,4 @@
 </style>
 {% endblock %}
 
-{% block extra_js %}
-<script>
-    document.addEventListener('DOMContentLoaded', () => {
-        const tooltipTriggerList = Array.from(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-        tooltipTriggerList.forEach((tooltipTriggerEl) => new bootstrap.Tooltip(tooltipTriggerEl));
-    });
-</script>
-{% endblock %}
+{% block extra_js %}{% endblock %}
