@@ -846,6 +846,8 @@ def calculate_settlement_page():
             total_costs = 0.0
             balance = round(total_costs - total_prepayments, 2)
 
+            creator_id = session.get('user_id')
+
             settlement = Settlement(
                 settlement_year=period_end.year,
                 period_start=period_start,
@@ -859,7 +861,7 @@ def calculate_settlement_page():
                 apartment_id=apartment_id,
                 tenant_id=tenant.id,
                 status='draft',
-                created_by=current_user.id,
+                created_by=creator_id,
                 cost_breakdown={},
                 consumption_details={},
             )
