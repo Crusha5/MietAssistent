@@ -16,6 +16,8 @@
     {% set landlord_company = (landlord_data.company_name or landlord_data.company) if landlord_data else '' %}
     {% set landlord_personal = ((landlord_data.first_name or '') ~ ' ' ~ (landlord_data.last_name or '')).strip() if landlord_data else '' %}
     {% set landlord_display_name = (landlord_data.name or landlord_personal) if landlord_data else '' %}
+    {% set balance_val = settlement.balance or 0 %}
+    {% set balance_abs = balance_val | abs %}
 
     <div class="letter-block">
         <div class="sender-info">
@@ -56,6 +58,14 @@
             <p class="paragraph-gap spacer-row"></p>
             <p class="paragraph-gap">Guten Tag{% if tenant %} {{ tenant.first_name }} {{ tenant.last_name }}{% endif %},</p>
             <p class="paragraph-gap">anbei erhalten Sie die Nebenkostenabrechnung für Ihre Wohnung im oben genannten Zeitraum. Wir haben die Kosten transparent aufbereitet und die Vorauszahlungen berücksichtigt.</p>
+            <p class="paragraph-gap spacer-row"></p>
+            {% if balance_val > 0.01 %}
+                <p class="paragraph-gap">Es ergibt sich eine Nachzahlung in Höhe von {{ '%.2f'|format(balance_abs) }} €. Bitte überweisen Sie den Betrag innerhalb von 14 Tagen auf die unten stehende Bankverbindung.</p>
+            {% elif balance_val < -0.01 %}
+                <p class="paragraph-gap">Zu Ihren Gunsten entsteht ein Guthaben in Höhe von {{ '%.2f'|format(balance_abs) }} €. Wir erstatten den Betrag zeitnah auf die hinterlegte Bankverbindung. Teilen Sie uns bitte eine Kontoverbindung mit, falls wir noch keine haben.</p>
+            {% else %}
+                <p class="paragraph-gap">Die Abrechnung ist ausgeglichen. Ein Zahlungsbedarf besteht derzeit nicht.</p>
+            {% endif %}
             <p class="paragraph-gap spacer-row"></p>
             <p class="paragraph-gap">Bitte prüfen Sie die Aufstellung in Ruhe. Bei Rückfragen stehen wir Ihnen gerne zur Verfügung.</p>
             <p class="paragraph-gap spacer-row"></p>
@@ -134,6 +144,13 @@
         <p>Keine Vertragsdaten gefunden.</p>
         {% endif %}
     </div>
+
+    {% if settlement.tenant_notes %}
+    <div class="section summary-box">
+        <h3>Hinweise</h3>
+        <p>{{ settlement.tenant_notes }}</p>
+    </div>
+    {% endif %}
 
     <div class="section summary-box">
         <h3>Zusammenfassung</h3>
@@ -219,7 +236,13 @@
 
     <div class="section notice">
         Gemäß § 556 Abs. 3 BGB kann der Mieter innerhalb von 12 Monaten nach Zugang der Abrechnung Einwendungen erheben.
-        Bitte überweisen Sie einen Nachzahlungsbetrag innerhalb von 14 Tagen auf das unten stehende Konto.
+        {% if balance_val > 0.01 %}
+            Bitte überweisen Sie den Nachzahlungsbetrag innerhalb von 14 Tagen auf das unten stehende Konto.
+        {% elif balance_val < -0.01 %}
+            Wir zahlen ein Guthaben innerhalb von 14 Tagen auf die uns bekannte Bankverbindung aus. Bitte teilen Sie uns andernfalls ein Konto mit.
+        {% else %}
+            Es ist keine Zahlung erforderlich; die Abrechnung ist ausgeglichen.
+        {% endif %}
     </div>
 
     <div class="section summary-box">

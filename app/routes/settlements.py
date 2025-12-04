@@ -377,6 +377,7 @@ def _calculate_settlement(apartment_id, period_start, period_end):
         balance=balance,
         status='calculated',
         notes='Automatisch berechnete Nebenkostenabrechnung gemäß BetrKV.',
+        tenant_notes=None,
         cost_breakdown=breakdown,
         consumption_details=[
             {
@@ -496,6 +497,7 @@ def calculate_settlement():
                 return redirect(request.url)
 
             settlement, apartment, tenant, contract = _calculate_settlement(apartment_id, period_start, period_end)
+            settlement.tenant_notes = request.form.get('tenant_notes', '').strip() or None
 
             db.session.add(settlement)
             db.session.commit()
@@ -568,6 +570,7 @@ def settlement_edit(settlement_id):
             settlement.contract_snapshot = recalculated.contract_snapshot
             settlement.status = request.form.get('status', settlement.status)
             settlement.notes = request.form.get('notes', '').strip()
+            settlement.tenant_notes = request.form.get('tenant_notes', '').strip() or None
 
             db.session.commit()
 
@@ -643,6 +646,8 @@ def calculate_settlement_api():
         period_start = datetime.strptime(data['period_start'], '%Y-%m-%d').date()
         period_end = datetime.strptime(data['period_end'], '%Y-%m-%d').date()
         settlement, apartment, tenant, contract = _calculate_settlement(data['apartment_id'], period_start, period_end)
+
+        settlement.tenant_notes = (data.get('tenant_notes') or '').strip() or None
 
         db.session.add(settlement)
         db.session.commit()

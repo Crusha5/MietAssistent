@@ -52,6 +52,11 @@
                             <label for="notes" class="form-label">Notizen</label>
                             <textarea class="form-control" id="notes" name="notes" rows="3" placeholder="Interne Hinweise...">{{ settlement.notes or '' }}</textarea>
                         </div>
+
+                        <div class="col-12">
+                            <label for="tenant_notes" class="form-label">Hinweise für den Mieter</label>
+                            <textarea class="form-control" id="tenant_notes" name="tenant_notes" rows="3" placeholder="Optionale Empfehlung, z. B. Anpassung der Vorauszahlungen">{{ settlement.tenant_notes or '' }}</textarea>
+                        </div>
                     </div>
 
                     <div class="mt-4">

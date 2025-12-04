@@ -439,6 +439,7 @@ class Settlement(db.Model):
     sent_date = db.Column(db.Date)
     due_date = db.Column(db.Date)
     notes = db.Column(db.Text)
+    tenant_notes = db.Column(db.Text)
     cost_breakdown = db.Column(db.JSON)
     consumption_details = db.Column(db.JSON)
     total_area = db.Column(db.Float)
@@ -471,6 +472,7 @@ class Settlement(db.Model):
             'status': self.status,
             'pdf_path': self.pdf_path,
             'notes': self.notes,
+            'tenant_notes': self.tenant_notes,
             'cost_breakdown': self.cost_breakdown,
             'consumption_details': self.consumption_details,
             'total_area': self.total_area,
