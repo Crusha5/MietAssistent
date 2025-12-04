@@ -10,7 +10,7 @@
                 <h5 class="card-title mb-0">
                     <i class="bi bi-calculator me-2"></i>Abrechnung {{ settlement.id }}
                 </h5>
-                <a href="/settlements" class="btn btn-light btn-sm">
+                <a href="/settlements" class="btn btn-outline-light btn-sm text-white">
                     <i class="bi bi-arrow-left"></i> Zurück
                 </a>
             </div>
@@ -107,6 +107,9 @@
             </div>
             <div class="card-body">
                 <div class="d-grid gap-2">
+                    <a href="/settlements/{{ settlement.id }}/edit" class="btn btn-primary">
+                        <i class="bi bi-pencil-square me-1"></i> Abrechnung bearbeiten
+                    </a>
                     <a href="/settlements/{{ settlement.id }}/pdf" class="btn btn-outline-primary">
                         <i class="bi bi-file-pdf me-1"></i> PDF herunterladen
                     </a>

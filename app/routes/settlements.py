@@ -184,13 +184,25 @@ def _calculate_settlement(apartment_id, period_start, period_end):
     months = _safe_months_between(period_start, period_end)
     advances = contract.get_monthly_operating_prepayment() * months
 
-    costs = OperatingCost.query.filter(
+    raw_costs = OperatingCost.query.filter(
         OperatingCost.building_id == apartment.building_id,
         or_(OperatingCost.apartment_id == None, OperatingCost.apartment_id == apartment.id),
         or_(OperatingCost.billing_period_start == None, OperatingCost.billing_period_start <= period_end),
         or_(OperatingCost.billing_period_end == None, OperatingCost.billing_period_end >= period_start),
         or_(OperatingCost.is_archived == False, OperatingCost.is_archived == None),
     ).all()
+
+    costs = []
+    for cost in raw_costs:
+        # Kosten außerhalb des Abrechnungszeitraums werden ignoriert
+        if cost.billing_period_start and cost.billing_period_start > period_end:
+            continue
+        if cost.billing_period_end and cost.billing_period_end < period_start:
+            continue
+        if not cost.billing_period_start and not cost.billing_period_end:
+            if cost.invoice_date and (cost.invoice_date < period_start or cost.invoice_date > period_end):
+                continue
+        costs.append(cost)
 
     # Zählerverbräuche vorbereiten
     meters = Meter.query.filter_by(building_id=apartment.building_id).all()
@@ -356,6 +368,57 @@ def calculate_settlement():
 def settlement_detail(settlement_id):
     settlement = Settlement.query.get_or_404(settlement_id)
     return render_template('settlements/detail.html', settlement=settlement)
+
+
+@settlements_bp.route('/settlements/<settlement_id>/edit', methods=['GET', 'POST'])
+@login_required
+def settlement_edit(settlement_id):
+    settlement = Settlement.query.get_or_404(settlement_id)
+    apartments = Apartment.query.all()
+
+    if request.method == 'POST':
+        try:
+            apartment_id = request.form['apartment_id']
+            period_start = datetime.strptime(request.form['period_start'], '%Y-%m-%d').date()
+            period_end = datetime.strptime(request.form['period_end'], '%Y-%m-%d').date()
+
+            if period_end < period_start:
+                flash('Das Ende des Abrechnungszeitraums muss nach dem Start liegen.', 'danger')
+                return redirect(request.url)
+
+            recalculated, apartment, tenant, contract = _calculate_settlement(apartment_id, period_start, period_end)
+
+            # vorhandenen Datensatz aktualisieren
+            settlement.apartment_id = recalculated.apartment_id
+            settlement.tenant_id = recalculated.tenant_id
+            settlement.contract_id = recalculated.contract_id
+            settlement.settlement_year = recalculated.settlement_year
+            settlement.period_start = recalculated.period_start
+            settlement.period_end = recalculated.period_end
+            settlement.total_costs = recalculated.total_costs
+            settlement.total_amount = recalculated.total_amount
+            settlement.advance_payments = recalculated.advance_payments
+            settlement.balance = recalculated.balance
+            settlement.cost_breakdown = recalculated.cost_breakdown
+            settlement.consumption_details = recalculated.consumption_details
+            settlement.total_area = recalculated.total_area
+            settlement.apartment_area = recalculated.apartment_area
+            settlement.contract_snapshot = recalculated.contract_snapshot
+            settlement.status = request.form.get('status', settlement.status)
+            settlement.notes = request.form.get('notes', '').strip()
+
+            db.session.commit()
+
+            _generate_settlement_pdf(settlement, apartment, tenant, contract)
+            db.session.commit()
+
+            flash('Abrechnung erfolgreich aktualisiert.', 'success')
+            return redirect(url_for('settlements.settlement_detail', settlement_id=settlement.id))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Fehler beim Aktualisieren der Abrechnung: {str(e)}', 'danger')
+
+    return render_template('settlements/edit.html', settlement=settlement, apartments=apartments)
 
 @settlements_bp.route('/settlements/<settlement_id>/pdf')
 @login_required
