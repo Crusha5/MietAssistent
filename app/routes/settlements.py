@@ -157,7 +157,8 @@ def _calculate_cost_share(cost, apartment, contract, meter_consumptions, total_a
     method = cost.distribution_method or (
         cost.cost_category.default_distribution_method if cost.cost_category else 'by_area'
     )
-    amount = cost.amount_gross if cost.amount_gross is not None else (cost.amount_net or 0.0)
+    gross_amount = cost.amount_gross if cost.amount_gross is not None else (cost.amount_net or 0.0)
+    amount = gross_amount
     method = method or 'by_area'
 
     note_parts = []
@@ -270,7 +271,8 @@ def _calculate_cost_share(cost, apartment, contract, meter_consumptions, total_a
         'apartment_specific': bool(cost.apartment_id),
         'category': category_name,
         'method': method,
-        'amount_total': round(amount_total, 2),
+        'amount_total': round(gross_amount, 2),
+        'adjusted_amount': round(amount_total, 2),
         'period_factor': round(period_factor, 4),
         'allocation_percent': cost.allocation_percent,
         'share': round(share, 2),
