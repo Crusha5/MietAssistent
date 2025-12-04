@@ -187,12 +187,10 @@ def _calculate_cost_share(cost, apartment, contract, meter_consumptions, total_a
         amount = amount * (1 + cost.distribution_factor / 100.0)
         note_parts.append(f"Auf-/Abschlag {cost.distribution_factor:.1f}%")
 
-    # Prozentuale Umlage (manuelle Auf-/Abschläge)
-    if cost.allocation_percent not in (None, 0):
-        amount = amount * (cost.allocation_percent / 100.0)
-        note_parts.append(f"Umlagefaktor {cost.allocation_percent:.1f}%")
+    amount_total = amount
+    tenant_percent = cost.allocation_percent if cost.allocation_percent not in (None, 0) else None
 
-    share = 0.0
+    share_base = 0.0
     basis = ''
     tenant_consumption = None
     total_consumption = None
@@ -201,14 +199,14 @@ def _calculate_cost_share(cost, apartment, contract, meter_consumptions, total_a
     if method == 'by_area':
         if total_area and apartment_area:
             fraction = apartment_area / total_area
-            share = amount * fraction
+            share_base = amount_total * fraction
             basis = f"Wohnfläche {apartment_area:.2f} m² / {total_area:.2f} m² ({fraction:.2%})"
         else:
             note_parts.append('Keine Flächendaten vorhanden')
     elif method in ['by_units', 'by_apartments', 'by_unit']:
         total_units = len(apartment.building.apartments) if apartment.building else 0
         if total_units:
-            share = amount / total_units
+            share_base = amount_total / total_units
             basis = f"1 von {total_units} Einheiten"
         else:
             note_parts.append('Keine Einheiten für Umlage vorhanden')
@@ -235,12 +233,12 @@ def _calculate_cost_share(cost, apartment, contract, meter_consumptions, total_a
 
         if total_consumption > 0:
             fraction = tenant_consumption / total_consumption
-            share = amount * fraction
+            share_base = amount_total * fraction
             basis = f"Verbrauch {tenant_consumption:.2f} / {total_consumption:.2f} {unit}"
         elif total_area and apartment_area:
             # Fallback auf Flächenverteilung
             fraction = apartment_area / total_area
-            share = amount * fraction
+            share_base = amount_total * fraction
             basis = f"Fallback Fläche {apartment_area:.2f} m² / {total_area:.2f} m²"
             note_parts.append('Kein Verbrauch ermittelbar, Flächenumlage verwendet')
         else:
@@ -248,10 +246,21 @@ def _calculate_cost_share(cost, apartment, contract, meter_consumptions, total_a
     else:
         if total_area and apartment_area:
             fraction = apartment_area / total_area
-            share = amount * fraction
+            share_base = amount_total * fraction
             basis = f"Standard Fläche {apartment_area:.2f} m² / {total_area:.2f} m²"
         else:
             note_parts.append('Standardverteilung nicht möglich (keine Fläche)')
+
+    share = share_base
+    if tenant_percent:
+        share = share_base * (tenant_percent / 100.0)
+        note_parts.append(f"Mieteranteil {tenant_percent:.1f}%")
+
+    max_share = max(0.0, amount_total)
+    if share > max_share:
+        share = max_share
+    if share < 0:
+        share = 0.0
 
     return {
         'cost_id': cost.id,
@@ -261,7 +270,7 @@ def _calculate_cost_share(cost, apartment, contract, meter_consumptions, total_a
         'apartment_specific': bool(cost.apartment_id),
         'category': category_name,
         'method': method,
-        'amount_total': round(amount, 2),
+        'amount_total': round(amount_total, 2),
         'period_factor': round(period_factor, 4),
         'allocation_percent': cost.allocation_percent,
         'share': round(share, 2),
