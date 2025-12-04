@@ -50,7 +50,12 @@ def _default_period_for_contract(contract):
 
 
 def _get_consumption(meter, start_date, end_date):
-    """Berechnet den Verbrauch eines Zählers im Zeitraum anhand der letzten Stände vor Start/Ende."""
+    """Berechnet den Verbrauch eines Zählers robust innerhalb des Zeitraums.
+
+    Falls vor dem Startdatum kein Zählerstand vorliegt, wird der erste Stand
+    nach Start genutzt. Analog wird für das Enddatum verfahren, um möglichst
+    immer einen verwertbaren Verbrauch zu liefern.
+    """
     if not meter:
         return None, None, None
 
@@ -61,6 +66,15 @@ def _get_consumption(meter, start_date, end_date):
         .order_by(MeterReading.reading_date.desc())
         .first()
     )
+    if not start_reading:
+        start_reading = (
+            MeterReading.query.filter(
+                MeterReading.meter_id == meter.id, MeterReading.reading_date >= start_date
+            )
+            .order_by(MeterReading.reading_date.asc())
+            .first()
+        )
+
     end_reading = (
         MeterReading.query.filter(
             MeterReading.meter_id == meter.id, MeterReading.reading_date <= end_date
@@ -68,6 +82,14 @@ def _get_consumption(meter, start_date, end_date):
         .order_by(MeterReading.reading_date.desc())
         .first()
     )
+    if not end_reading:
+        end_reading = (
+            MeterReading.query.filter(
+                MeterReading.meter_id == meter.id, MeterReading.reading_date >= end_date
+            )
+            .order_by(MeterReading.reading_date.asc())
+            .first()
+        )
 
     if not start_reading or not end_reading:
         return None, start_reading, end_reading
@@ -118,6 +140,9 @@ def _calculate_cost_share(cost, apartment, meter_consumptions, total_area, apart
     share = 0.0
     basis = ''
     note = ''
+    tenant_consumption = None
+    total_consumption = None
+    unit = None
 
     if method == 'by_area':
         if total_area and apartment_area:
@@ -146,11 +171,17 @@ def _calculate_cost_share(cost, apartment, meter_consumptions, total_area, apart
             for m, data in relevant_consumptions
             if m.apartment_id == apartment.id and data['consumption'] is not None
         )
+        if cost.meter and cost.meter.meter_type:
+            unit = cost.meter.meter_type.unit
+        elif relevant_consumptions:
+            m0 = relevant_consumptions[0][0]
+            unit = m0.meter_type.unit if m0.meter_type else 'Einheiten'
+        else:
+            unit = 'Einheiten'
 
         if total_consumption > 0:
             fraction = tenant_consumption / total_consumption
             share = amount * fraction
-            unit = cost.meter.meter_type.unit if cost.meter and cost.meter.meter_type else 'Einheiten'
             basis = f"Verbrauch {tenant_consumption:.2f} / {total_consumption:.2f} {unit}"
         elif total_area and apartment_area:
             # Fallback auf Flächenverteilung
@@ -180,6 +211,9 @@ def _calculate_cost_share(cost, apartment, meter_consumptions, total_area, apart
         'share': round(share, 2),
         'basis': basis,
         'note': note,
+        'tenant_consumption': tenant_consumption,
+        'total_consumption': total_consumption,
+        'unit': unit,
     }
 
 
@@ -421,8 +455,12 @@ def calculate_settlement():
             db.session.add(settlement)
             db.session.commit()
 
-            _generate_settlement_pdf(settlement, apartment, tenant, contract)
-            db.session.commit()
+            try:
+                _generate_settlement_pdf(settlement, apartment, tenant, contract)
+                db.session.commit()
+            except Exception as pdf_exc:
+                current_app.logger.exception("PDF-Erstellung fehlgeschlagen", exc_info=pdf_exc)
+                flash(f'Abrechnung gespeichert, PDF-Generierung fehlgeschlagen: {pdf_exc}', 'warning')
 
             flash('Abrechnung erfolgreich erstellt!', 'success')
             return redirect(url_for('settlements.settlement_detail', settlement_id=settlement.id))
@@ -488,8 +526,12 @@ def settlement_edit(settlement_id):
 
             db.session.commit()
 
-            _generate_settlement_pdf(settlement, apartment, tenant, contract)
-            db.session.commit()
+            try:
+                _generate_settlement_pdf(settlement, apartment, tenant, contract)
+                db.session.commit()
+            except Exception as pdf_exc:
+                current_app.logger.exception("PDF-Erstellung fehlgeschlagen", exc_info=pdf_exc)
+                flash(f'Abrechnung aktualisiert, PDF-Generierung fehlgeschlagen: {pdf_exc}', 'warning')
 
             flash('Abrechnung erfolgreich aktualisiert.', 'success')
             return redirect(url_for('settlements.settlement_detail', settlement_id=settlement.id))
@@ -525,8 +567,13 @@ def download_settlement_pdf(settlement_id):
     tenant = settlement.tenant
 
     if not settlement.pdf_path:
-        _generate_settlement_pdf(settlement, apartment, tenant, contract)
-        db.session.commit()
+        try:
+            _generate_settlement_pdf(settlement, apartment, tenant, contract)
+            db.session.commit()
+        except Exception as pdf_exc:
+            current_app.logger.exception("PDF-Erstellung fehlgeschlagen", exc_info=pdf_exc)
+            flash(f'PDF konnte nicht erzeugt werden: {pdf_exc}', 'danger')
+            return redirect(url_for('settlements.settlement_detail', settlement_id=settlement_id))
 
     upload_root = _resolve_upload_root()
     pdf_path = settlement.pdf_path if os.path.isabs(settlement.pdf_path) else os.path.join(upload_root, settlement.pdf_path)
@@ -535,7 +582,8 @@ def download_settlement_pdf(settlement_id):
         try:
             pdf_path = _generate_settlement_pdf(settlement, apartment, tenant, contract)
             db.session.commit()
-        except Exception:
+        except Exception as pdf_exc:
+            current_app.logger.exception("PDF-Erstellung fehlgeschlagen", exc_info=pdf_exc)
             flash('PDF konnte nicht gefunden oder erzeugt werden.', 'danger')
             return redirect(url_for('settlements.settlement_detail', settlement_id=settlement_id))
 
@@ -554,8 +602,12 @@ def calculate_settlement_api():
         db.session.add(settlement)
         db.session.commit()
 
-        _generate_settlement_pdf(settlement, apartment, tenant, contract)
-        db.session.commit()
+        try:
+            _generate_settlement_pdf(settlement, apartment, tenant, contract)
+            db.session.commit()
+        except Exception as pdf_exc:
+            current_app.logger.exception("PDF-Erstellung fehlgeschlagen", exc_info=pdf_exc)
+            return jsonify({'error': f'Abrechnung gespeichert, PDF-Generierung fehlgeschlagen: {pdf_exc}'}), 500
 
         return jsonify({
             'message': 'Abrechnung erfolgreich erstellt',

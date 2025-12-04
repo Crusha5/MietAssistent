@@ -83,6 +83,7 @@
                                 <th>Beleg</th>
                                 <th>Kostenart</th>
                                 <th>Umlageschlüssel</th>
+                                <th>Verbrauch</th>
                                 <th>Gesamtkosten</th>
                                 <th>Anteil Mieter</th>
                                 <th>Hinweis</th>
@@ -98,12 +99,49 @@
                                 </td>
                                 <td>{{ item.category }}</td>
                                 <td>{{ item.basis or item.method }}</td>
+                                <td>
+                                    {% if item.tenant_consumption is not none and item.total_consumption is not none %}
+                                        {{ "%.2f"|format(item.tenant_consumption or 0) }} / {{ "%.2f"|format(item.total_consumption or 0) }} {{ item.unit or '' }}
+                                    {% else %}
+                                        –
+                                    {% endif %}
+                                </td>
                                 <td>{{ "%.2f"|format(item.amount_total or 0) }} €</td>
                                 <td>{{ "%.2f"|format(item.share or 0) }} €</td>
                                 <td>{{ item.note }}</td>
                             </tr>
                             {% else %}
-                            <tr><td colspan="6" class="text-muted">Keine Kosten erfasst.</td></tr>
+                            <tr><td colspan="7" class="text-muted">Keine Kosten erfasst.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <hr>
+                <h6>Verbrauchszähler</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Zähler</th>
+                                <th>Einheit</th>
+                                <th>Wohnung</th>
+                                <th>Stand Anfang</th>
+                                <th>Stand Ende</th>
+                                <th>Verbrauch</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for meter in settlement.consumption_details or [] %}
+                            <tr>
+                                <td>{{ meter.meter_number }} {% if meter.meter_type %}({{ meter.meter_type }}){% endif %}</td>
+                                <td>{{ meter.unit or '' }}</td>
+                                <td>{{ meter.apartment_number or '-' }}</td>
+                                <td>{{ meter.start_value if meter.start_value is not none else '-' }} {% if meter.start_date %}<small class="text-muted">({{ meter.start_date }})</small>{% endif %}</td>
+                                <td>{{ meter.end_value if meter.end_value is not none else '-' }} {% if meter.end_date %}<small class="text-muted">({{ meter.end_date }})</small>{% endif %}</td>
+                                <td>{{ meter.consumption if meter.consumption is not none else '-' }}</td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="6" class="text-muted">Keine Zählerstände im Zeitraum gefunden.</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>

@@ -36,9 +36,15 @@
     <div class="section flex-row">
         <div class="flex-col summary-box">
             <strong>Mieter</strong><br>
-            {{ tenant.first_name }} {{ tenant.last_name }}<br>
-            {% if tenant.email %}{{ tenant.email }}<br>{% endif %}
-            {% if tenant.phone %}Tel.: {{ tenant.phone }}<br>{% endif %}
+            {% if tenant %}
+                {{ tenant.first_name }} {{ tenant.last_name }}<br>
+                {% if tenant.email %}{{ tenant.email }}<br>{% endif %}
+                {% if tenant.phone %}Tel.: {{ tenant.phone }}<br>{% endif %}
+            {% elif contract_data and contract_data.tenant_name %}
+                {{ contract_data.tenant_name }}
+            {% else %}
+                (nicht hinterlegt)
+            {% endif %}
         </div>
         <div class="flex-col summary-box">
             <strong>Objekt</strong><br>
@@ -100,6 +106,7 @@
                     <th>Beleg</th>
                     <th>Kostenart</th>
                     <th>Umlageschlüssel</th>
+                    <th>Verbrauch</th>
                     <th>Gesamtkosten</th>
                     <th>Anteil Mieter</th>
                     <th>Bemerkung</th>
@@ -115,12 +122,19 @@
                     </td>
                     <td>{{ item.category }}</td>
                     <td>{{ item.basis or item.method }}</td>
+                    <td>
+                        {% if item.tenant_consumption is not none and item.total_consumption is not none %}
+                            {{ '%.2f'|format(item.tenant_consumption or 0) }} / {{ '%.2f'|format(item.total_consumption or 0) }} {{ item.unit or '' }}
+                        {% else %}
+                            –
+                        {% endif %}
+                    </td>
                     <td style="text-align:right">{{ '%.2f'|format(item.amount_total or 0) }} €</td>
                     <td style="text-align:right">{{ '%.2f'|format(item.share or 0) }} €</td>
                     <td>{{ item.note }}</td>
                 </tr>
                 {% else %}
-                <tr><td colspan="6">Keine umlagefähigen Kosten erfasst.</td></tr>
+                <tr><td colspan="7">Keine umlagefähigen Kosten erfasst.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
