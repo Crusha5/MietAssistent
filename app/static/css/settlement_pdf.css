@@ -113,13 +113,12 @@ h1, h2, h3, h4 {
     line-height: 1.2;
 }
 
-.cost-table th:nth-child(1), .cost-table td:nth-child(1) { width: 12%; }
-.cost-table th:nth-child(2), .cost-table td:nth-child(2) { width: 12%; }
-.cost-table th:nth-child(3), .cost-table td:nth-child(3) { width: 11%; }
-.cost-table th:nth-child(4), .cost-table td:nth-child(4) { width: 12%; }
-.cost-table th:nth-child(5), .cost-table td:nth-child(5) { width: 13%; }
-.cost-table th:nth-child(6), .cost-table td:nth-child(6) { width: 12%; }
-.cost-table th:nth-child(7), .cost-table td:nth-child(7) { width: 28%; }
+.cost-table th:nth-child(1), .cost-table td:nth-child(1) { width: 18%; }
+.cost-table th:nth-child(2), .cost-table td:nth-child(2) { width: 18%; }
+.cost-table th:nth-child(3), .cost-table td:nth-child(3) { width: 16%; }
+.cost-table th:nth-child(4), .cost-table td:nth-child(4) { width: 10%; }
+.cost-table th:nth-child(5), .cost-table td:nth-child(5) { width: 14%; }
+.cost-table th:nth-child(6), .cost-table td:nth-child(6) { width: 24%; }
 
 .letter-block {
     padding-top: 10mm;
