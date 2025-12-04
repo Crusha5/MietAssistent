@@ -101,7 +101,7 @@ h1, h2, h3, h4 {
 }
 
 .cost-table {
-    font-size: 9px;
+    font-size: 8.5px;
     width: 94%;
     max-width: 94%;
     margin: 0 auto;
@@ -109,17 +109,17 @@ h1, h2, h3, h4 {
 }
 
 .cost-table th, .cost-table td {
-    padding: 3px 4px;
-    line-height: 1.25;
+    padding: 2px 3px;
+    line-height: 1.2;
 }
 
-.cost-table th:nth-child(1), .cost-table td:nth-child(1) { width: 11%; }
-.cost-table th:nth-child(2), .cost-table td:nth-child(2) { width: 11%; }
-.cost-table th:nth-child(3), .cost-table td:nth-child(3) { width: 10%; }
-.cost-table th:nth-child(4), .cost-table td:nth-child(4) { width: 11%; }
-.cost-table th:nth-child(5), .cost-table td:nth-child(5) { width: 12%; }
+.cost-table th:nth-child(1), .cost-table td:nth-child(1) { width: 12%; }
+.cost-table th:nth-child(2), .cost-table td:nth-child(2) { width: 12%; }
+.cost-table th:nth-child(3), .cost-table td:nth-child(3) { width: 11%; }
+.cost-table th:nth-child(4), .cost-table td:nth-child(4) { width: 12%; }
+.cost-table th:nth-child(5), .cost-table td:nth-child(5) { width: 13%; }
 .cost-table th:nth-child(6), .cost-table td:nth-child(6) { width: 12%; }
-.cost-table th:nth-child(7), .cost-table td:nth-child(7) { width: 33%; }
+.cost-table th:nth-child(7), .cost-table td:nth-child(7) { width: 28%; }
 
 .letter-block {
     padding-top: 10mm;
