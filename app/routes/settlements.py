@@ -109,6 +109,29 @@ def _resolve_upload_root():
     return os.path.abspath(upload_root)
 
 
+def _serialize_landlord(landlord: Landlord):
+    if not landlord:
+        return None
+    return {
+        'id': landlord.id,
+        'company_name': landlord.company_name,
+        'company': landlord.company_name,
+        'first_name': landlord.first_name,
+        'last_name': landlord.last_name,
+        'name': f"{landlord.first_name or ''} {landlord.last_name or ''}".strip(),
+        'street': landlord.street,
+        'street_number': landlord.street_number,
+        'zip_code': landlord.zip_code,
+        'city': landlord.city,
+        'email': landlord.email,
+        'phone': landlord.phone,
+        'iban': landlord.iban,
+        'bic': landlord.bic,
+        'bank_name': landlord.bank_name,
+        'account_holder': landlord.account_holder,
+    }
+
+
 def _determine_active_contract(apartment_id, period_start, period_end):
     return (
         Contract.query.filter(
@@ -129,7 +152,7 @@ def _collect_building_area(apartment):
     return sum((apt.area_sqm or 0.0) for apt in building.apartments)
 
 
-def _calculate_cost_share(cost, apartment, meter_consumptions, total_area, apartment_area):
+def _calculate_cost_share(cost, apartment, contract, meter_consumptions, total_area, apartment_area, period_start, period_end):
     category_name = cost.cost_category.name if cost.cost_category else (cost.description or 'Sonstige Kosten')
     method = cost.distribution_method or (
         cost.cost_category.default_distribution_method if cost.cost_category else 'by_area'
@@ -137,9 +160,30 @@ def _calculate_cost_share(cost, apartment, meter_consumptions, total_area, apart
     amount = cost.amount_gross if cost.amount_gross is not None else (cost.amount_net or 0.0)
     method = method or 'by_area'
 
+    note = ''
+
+    # Zeitraum anteilig berücksichtigen
+    period_factor = 1.0
+    if cost.billing_period_start and cost.billing_period_end:
+        overlap_start = max(cost.billing_period_start, period_start)
+        overlap_end = min(cost.billing_period_end, period_end)
+        overlap_days = (overlap_end - overlap_start).days + 1 if overlap_end >= overlap_start else 0
+        full_days = (cost.billing_period_end - cost.billing_period_start).days + 1
+        if full_days > 0 and overlap_days > 0:
+            period_factor = overlap_days / full_days
+            note = f"Anteiliger Zeitraum: {overlap_days} / {full_days} Tage"
+        else:
+            period_factor = 0.0
+
+    amount = amount * period_factor
+
+    # Prozentuale Umlage (manuelle Auf-/Abschläge)
+    if cost.allocation_percent not in (None, 0):
+        amount = amount * (cost.allocation_percent / 100.0)
+        note = (note + '; ' if note else '') + f"Umlagefaktor {cost.allocation_percent:.1f}%"
+
     share = 0.0
     basis = ''
-    note = ''
     tenant_consumption = None
     total_consumption = None
     unit = None
@@ -208,6 +252,8 @@ def _calculate_cost_share(cost, apartment, meter_consumptions, total_area, apart
         'category': category_name,
         'method': method,
         'amount_total': round(amount, 2),
+        'period_factor': round(period_factor, 4),
+        'allocation_percent': cost.allocation_percent,
         'share': round(share, 2),
         'basis': basis,
         'note': note,
@@ -276,30 +322,19 @@ def _calculate_settlement(apartment_id, period_start, period_end):
             _calculate_cost_share(
                 cost=cost,
                 apartment=apartment,
+                contract=contract,
                 meter_consumptions=meter_consumptions,
                 total_area=total_area,
                 apartment_area=apartment_area,
+                period_start=period_start,
+                period_end=period_end,
             )
         )
 
     total_share = sum(item['share'] for item in breakdown)
     balance = round(total_share - advances, 2)
 
-    landlord_addr = None
-    if contract and contract.landlord:
-        landlord_addr = {
-            'name': f"{contract.landlord.first_name} {contract.landlord.last_name}".strip(),
-            'company': contract.landlord.company_name,
-            'street': contract.landlord.street,
-            'street_number': contract.landlord.street_number,
-            'zip_code': contract.landlord.zip_code,
-            'city': contract.landlord.city,
-            'email': contract.landlord.email,
-            'phone': contract.landlord.phone,
-            'iban': contract.landlord.iban,
-            'bic': contract.landlord.bic,
-            'bank_name': contract.landlord.bank_name,
-        }
+    landlord_addr = _serialize_landlord(contract.landlord) if contract and contract.landlord else None
 
     contract_snapshot = {
         'id': contract.id,
@@ -363,9 +398,9 @@ def _generate_settlement_pdf(settlement, apartment, tenant, contract):
     building = apartment.building if apartment else None
     landlord = None
     if contract and contract.landlord:
-        landlord = contract.landlord
+        landlord = _serialize_landlord(contract.landlord)
     else:
-        landlord = Landlord.query.filter_by(is_active=True).first()
+        landlord = _serialize_landlord(Landlord.query.filter_by(is_active=True).first())
 
     html = render_template(
         'settlements/pdf.html',
