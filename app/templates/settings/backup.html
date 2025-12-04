@@ -101,146 +101,148 @@
 </div>
 
 <script>
-    const exportBtn = document.getElementById('exportBackupBtn');
-    const exportProgressBar = document.getElementById('exportProgressBar');
-    const exportStatus = document.getElementById('exportStatus');
-    const exportPercent = document.getElementById('exportPercent');
-    const exportDownloadBtn = document.getElementById('exportDownloadBtn');
+    document.addEventListener('DOMContentLoaded', () => {
+        const exportBtn = document.getElementById('exportBackupBtn');
+        const exportProgressBar = document.getElementById('exportProgressBar');
+        const exportStatus = document.getElementById('exportStatus');
+        const exportPercent = document.getElementById('exportPercent');
+        const exportDownloadBtn = document.getElementById('exportDownloadBtn');
 
-    const importBtn = document.getElementById('importBackupBtn');
-    const importFile = document.getElementById('importFile');
-    const importProgressBar = document.getElementById('importProgressBar');
-    const importStatus = document.getElementById('importStatus');
-    const importPercent = document.getElementById('importPercent');
-    const importHint = document.getElementById('importHint');
-    const restartModal = new bootstrap.Modal(document.getElementById('restartModal'));
-    const restartBtn = document.getElementById('confirmRestartBtn');
+        const importBtn = document.getElementById('importBackupBtn');
+        const importFile = document.getElementById('importFile');
+        const importProgressBar = document.getElementById('importProgressBar');
+        const importStatus = document.getElementById('importStatus');
+        const importPercent = document.getElementById('importPercent');
+        const importHint = document.getElementById('importHint');
+        const restartModal = new bootstrap.Modal(document.getElementById('restartModal'));
+        const restartBtn = document.getElementById('confirmRestartBtn');
 
-    let exportJobId = null;
-    let exportPoll = null;
-    let importJobId = null;
-    let importPoll = null;
+        let exportJobId = null;
+        let exportPoll = null;
+        let importJobId = null;
+        let importPoll = null;
 
-    function updateProgress(bar, percentEl, statusEl, value, statusText) {
-        const safeVal = Math.min(100, Math.max(0, value || 0));
-        bar.style.width = `${safeVal}%`;
-        bar.setAttribute('aria-valuenow', safeVal);
-        percentEl.textContent = `${safeVal}%`;
-        if (statusText) {
-            statusEl.textContent = statusText;
-        }
-    }
-
-    function handleExportStatus(payload) {
-        updateProgress(exportProgressBar, exportPercent, exportStatus, payload.progress, payload.message || '...');
-        if (payload.status === 'completed') {
-            clearInterval(exportPoll);
-            exportStatus.textContent = 'Backup erfolgreich erstellt';
-            exportDownloadBtn.classList.remove('d-none');
-            exportDownloadBtn.href = `{{ url_for('settings_web.backup_export_download', job_id='__JOB__') }}`.replace('__JOB__', exportJobId);
-            exportBtn.disabled = false;
-        } else if (payload.status === 'error') {
-            clearInterval(exportPoll);
-            exportStatus.textContent = payload.error || 'Fehler beim Export';
-            exportBtn.disabled = false;
-        }
-    }
-
-    function startExport() {
-        exportBtn.disabled = true;
-        exportDownloadBtn.classList.add('d-none');
-        updateProgress(exportProgressBar, exportPercent, exportStatus, 0, 'Backup wird erstellt...');
-        fetch('{{ url_for('settings_web.start_backup_export') }}', {method: 'POST'})
-            .then(r => r.json())
-            .then(data => {
-                if (data.error) {
-                    exportStatus.textContent = data.error;
-                    exportBtn.disabled = false;
-                    return;
-                }
-                exportJobId = data.job_id;
-                exportPoll = setInterval(() => {
-                    fetch(`{{ url_for('settings_web.backup_export_status') }}?job_id=${exportJobId}`)
-                        .then(r => r.json())
-                        .then(handleExportStatus)
-                        .catch(() => {
-                            exportStatus.textContent = 'Fortschritt konnte nicht gelesen werden';
-                        });
-                }, 1000);
-            })
-            .catch(() => {
-                exportStatus.textContent = 'Export konnte nicht gestartet werden';
-                exportBtn.disabled = false;
-            });
-    }
-
-    function handleImportStatus(payload) {
-        updateProgress(importProgressBar, importPercent, importStatus, payload.progress, payload.message || '...');
-        if (payload.status === 'completed') {
-            clearInterval(importPoll);
-            importStatus.textContent = 'Backup erfolgreich importiert';
-            importBtn.disabled = false;
-            if (payload.restart_required) {
-                restartModal.show();
+        function updateProgress(bar, percentEl, statusEl, value, statusText) {
+            const safeVal = Math.min(100, Math.max(0, value || 0));
+            bar.style.width = `${safeVal}%`;
+            bar.setAttribute('aria-valuenow', safeVal);
+            percentEl.textContent = `${safeVal}%`;
+            if (statusText) {
+                statusEl.textContent = statusText;
             }
-        } else if (payload.status === 'error') {
-            clearInterval(importPoll);
-            importStatus.textContent = payload.error || 'Fehler beim Import';
-            importBtn.disabled = false;
         }
-    }
 
-    function startImport() {
-        if (!importFile.files.length) {
-            importStatus.textContent = 'Bitte eine ZIP-Datei auswählen.';
-            return;
+        function handleExportStatus(payload) {
+            updateProgress(exportProgressBar, exportPercent, exportStatus, payload.progress, payload.message || '...');
+            if (payload.status === 'completed') {
+                clearInterval(exportPoll);
+                exportStatus.textContent = 'Backup erfolgreich erstellt';
+                exportDownloadBtn.classList.remove('d-none');
+                exportDownloadBtn.href = `{{ url_for('settings_web.backup_export_download', job_id='__JOB__') }}`.replace('__JOB__', exportJobId);
+                exportBtn.disabled = false;
+            } else if (payload.status === 'error') {
+                clearInterval(exportPoll);
+                exportStatus.textContent = payload.error || 'Fehler beim Export';
+                exportBtn.disabled = false;
+            }
         }
-        importBtn.disabled = true;
-        updateProgress(importProgressBar, importPercent, importStatus, 0, 'Validierung...');
 
-        const formData = new FormData();
-        formData.append('file', importFile.files[0]);
+        function startExport() {
+            exportBtn.disabled = true;
+            exportDownloadBtn.classList.add('d-none');
+            updateProgress(exportProgressBar, exportPercent, exportStatus, 0, 'Backup wird erstellt...');
+            fetch('{{ url_for('settings_web.start_backup_export') }}', {method: 'POST'})
+                .then(r => r.json())
+                .then(data => {
+                    if (data.error) {
+                        exportStatus.textContent = data.error;
+                        exportBtn.disabled = false;
+                        return;
+                    }
+                    exportJobId = data.job_id;
+                    exportPoll = setInterval(() => {
+                        fetch(`{{ url_for('settings_web.backup_export_status') }}?job_id=${exportJobId}`)
+                            .then(r => r.json())
+                            .then(handleExportStatus)
+                            .catch(() => {
+                                exportStatus.textContent = 'Fortschritt konnte nicht gelesen werden';
+                            });
+                    }, 1000);
+                })
+                .catch(() => {
+                    exportStatus.textContent = 'Export konnte nicht gestartet werden';
+                    exportBtn.disabled = false;
+                });
+        }
 
-        fetch('{{ url_for('settings_web.start_backup_import') }}', {
-            method: 'POST',
-            body: formData
-        })
-            .then(r => r.json())
-            .then(data => {
-                if (data.error) {
-                    importStatus.textContent = data.error;
-                    importBtn.disabled = false;
-                    return;
-                }
-                importJobId = data.job_id;
-                importPoll = setInterval(() => {
-                    fetch(`{{ url_for('settings_web.backup_import_status') }}?job_id=${importJobId}`)
-                        .then(r => r.json())
-                        .then(handleImportStatus)
-                        .catch(() => {
-                            importStatus.textContent = 'Fortschritt konnte nicht gelesen werden';
-                        });
-                }, 1000);
-            })
-            .catch(() => {
-                importStatus.textContent = 'Import konnte nicht gestartet werden';
+        function handleImportStatus(payload) {
+            updateProgress(importProgressBar, importPercent, importStatus, payload.progress, payload.message || '...');
+            if (payload.status === 'completed') {
+                clearInterval(importPoll);
+                importStatus.textContent = 'Backup erfolgreich importiert';
                 importBtn.disabled = false;
-            });
-    }
+                if (payload.restart_required) {
+                    restartModal.show();
+                }
+            } else if (payload.status === 'error') {
+                clearInterval(importPoll);
+                importStatus.textContent = payload.error || 'Fehler beim Import';
+                importBtn.disabled = false;
+            }
+        }
 
-    function confirmRestart() {
-        restartBtn.disabled = true;
-        restartBtn.textContent = 'Neustart wird ausgelöst...';
-        fetch('{{ url_for('settings_web.trigger_backup_restart') }}', {method: 'POST'})
-            .finally(() => {
-                restartBtn.textContent = 'Ja, jetzt neu starten';
-                restartBtn.disabled = false;
-                restartModal.hide();
-            });
-    }
+        function startImport() {
+            if (!importFile.files.length) {
+                importStatus.textContent = 'Bitte eine ZIP-Datei auswählen.';
+                return;
+            }
+            importBtn.disabled = true;
+            updateProgress(importProgressBar, importPercent, importStatus, 0, 'Validierung...');
 
-    exportBtn.addEventListener('click', startExport);
-    importBtn.addEventListener('click', startImport);
-    restartBtn.addEventListener('click', confirmRestart);
+            const formData = new FormData();
+            formData.append('file', importFile.files[0]);
+
+            fetch('{{ url_for('settings_web.start_backup_import') }}', {
+                method: 'POST',
+                body: formData
+            })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.error) {
+                        importStatus.textContent = data.error;
+                        importBtn.disabled = false;
+                        return;
+                    }
+                    importJobId = data.job_id;
+                    importPoll = setInterval(() => {
+                        fetch(`{{ url_for('settings_web.backup_import_status') }}?job_id=${importJobId}`)
+                            .then(r => r.json())
+                            .then(handleImportStatus)
+                            .catch(() => {
+                                importStatus.textContent = 'Fortschritt konnte nicht gelesen werden';
+                            });
+                    }, 1000);
+                })
+                .catch(() => {
+                    importStatus.textContent = 'Import konnte nicht gestartet werden';
+                    importBtn.disabled = false;
+                });
+        }
+
+        function confirmRestart() {
+            restartBtn.disabled = true;
+            restartBtn.textContent = 'Neustart wird ausgelöst...';
+            fetch('{{ url_for('settings_web.trigger_backup_restart') }}', {method: 'POST'})
+                .finally(() => {
+                    restartBtn.textContent = 'Ja, jetzt neu starten';
+                    restartBtn.disabled = false;
+                    restartModal.hide();
+                });
+        }
+
+        exportBtn.addEventListener('click', startExport);
+        importBtn.addEventListener('click', startImport);
+        restartBtn.addEventListener('click', confirmRestart);
+    });
 </script>
 {% endblock %}
