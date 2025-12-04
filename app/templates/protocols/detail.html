@@ -3,39 +3,48 @@
 {% block title %}Protokoll {{ protocol.protocol_type }} - MietAssistent{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h1 class="h2 mb-0">
+<div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
+    <h1 class="h2 mb-0 d-flex align-items-center">
         <i class="bi bi-clipboard-data text-primary me-2"></i>Protokoll
     </h1>
-    <div class="btn-group">
+    <div class="action-toolbar" role="toolbar" aria-label="Protokoll-Aktionen">
         {% if contract %}
-        <a href="{{ url_for('contracts.contract_detail', contract_id=contract.id) }}" class="btn btn-outline-secondary">
-            <i class="bi bi-arrow-left me-1"></i>Zurück zum Vertrag
+        <a href="{{ url_for('contracts.contract_detail', contract_id=contract.id) }}"
+           class="btn btn-outline-secondary action-btn"
+           aria-label="Zurück zum Vertrag"
+           data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="Zurück zum Vertrag">
+            <i class="bi bi-arrow-left action-btn-icon"></i>
+            <span class="action-btn-text ms-1">Zurück zum Vertrag</span>
         </a>
         {% endif %}
         {% if is_locked or is_closed %}
-        <button class="btn btn-outline-secondary" disabled>
-            <i class="bi bi-check2-circle me-1"></i>Bearbeitung gesperrt
+        <button class="btn btn-outline-secondary action-btn" disabled
+                aria-label="Bearbeitung gesperrt"
+                data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="Bearbeitung gesperrt">
+            <i class="bi bi-check2-circle action-btn-icon"></i>
+            <span class="action-btn-text ms-1">Bearbeitung gesperrt</span>
         </button>
         {% else %}
-        <a href="{{ url_for('protocols.edit_protocol', protocol_id=protocol.id) }}" class="btn btn-outline-primary">
-            <i class="bi bi-pencil-square me-1"></i>Bearbeiten
+        <a href="{{ url_for('protocols.edit_protocol', protocol_id=protocol.id) }}"
+           class="btn btn-outline-primary action-btn"
+           aria-label="Bearbeiten"
+           data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="Bearbeiten">
+            <i class="bi bi-pencil-square action-btn-icon"></i>
+            <span class="action-btn-text ms-1">Bearbeiten</span>
         </a>
-        <form method="POST" action="{{ url_for('protocols.finalize_protocol', protocol_id=protocol.id) }}" class="d-inline">
-            <button type="submit" class="btn btn-success">
-                <i class="bi bi-lock-fill me-1"></i>Vorgang abschließen
-            </button>
-        </form>
         {% endif %}
-        <a href="{{ url_for('protocols.create_protocol', contract_id=contract.id if contract else None) }}" class="btn btn-primary {% if is_locked %}disabled{% endif %}">
-            <i class="bi bi-plus-circle me-1"></i>Neues Protokoll
-        </a>
-        <a href="{{ url_for('protocols.download_protocol_pdf', protocol_id=protocol.id) }}" class="btn btn-outline-primary">
-            <i class="bi bi-filetype-pdf me-1"></i>PDF herunterladen
+        <a href="{{ url_for('protocols.download_protocol_pdf', protocol_id=protocol.id) }}"
+           class="btn btn-outline-primary action-btn"
+           aria-label="PDF herunterladen"
+           data-bs-toggle="tooltip" data-bs-placement="bottom" data-bs-title="PDF herunterladen">
+            <i class="bi bi-filetype-pdf action-btn-icon"></i>
+            <span class="action-btn-text ms-1">PDF herunterladen</span>
         </a>
         <div class="btn-group">
-            <button class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                Exporte
+            <button class="btn btn-outline-secondary dropdown-toggle action-btn" data-bs-toggle="dropdown" aria-expanded="false"
+                    aria-label="Exporte" data-bs-title="Exporte" data-tooltip="true">
+                <i class="bi bi-box-arrow-down action-btn-icon"></i>
+                <span class="action-btn-text ms-1">Exporte</span>
             </button>
             <ul class="dropdown-menu dropdown-menu-end">
                 <li><a class="dropdown-item" href="{{ url_for('protocols.export_protocols', fmt='csv') }}">CSV</a></li>
@@ -214,4 +223,48 @@
         {% endif %}
     </div>
 </div>
+{% if not (is_locked or is_closed) %}
+<div class="d-flex justify-content-end mt-4">
+    <form method="POST" action="{{ url_for('protocols.finalize_protocol', protocol_id=protocol.id) }}" class="d-inline">
+        <button type="submit" class="btn btn-success">
+            <i class="bi bi-lock-fill me-2"></i>Vorgang abschließen
+        </button>
+    </form>
+</div>
+{% endif %}
 {% endblock %}
+
+{% block extra_css %}
+<style>
+    .action-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        justify-content: flex-end;
+    }
+    .action-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+    .action-btn-icon {
+        font-size: 1.1rem;
+    }
+    .action-btn-text {
+        white-space: nowrap;
+    }
+    @media (max-width: 576px) {
+        .action-toolbar {
+            justify-content: flex-start;
+        }
+        .action-btn {
+            padding: 0.5rem 0.6rem;
+        }
+        .action-btn-text {
+            display: none;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}{% endblock %}

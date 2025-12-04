@@ -589,6 +589,9 @@
             const stored = JSON.parse(sessionStorage.getItem('sidebarState') || '{}');
             const collapses = {};
 
+            const tooltipTriggers = Array.from(document.querySelectorAll('[data-bs-toggle="tooltip"], [data-tooltip="true"]'));
+            tooltipTriggers.forEach(el => new bootstrap.Tooltip(el));
+
             const notificationList = document.getElementById('notificationList');
             const notificationBadge = document.getElementById('notificationBadge');
             const markReadBtn = document.getElementById('markNotificationsRead');
