@@ -379,6 +379,9 @@ class OperatingCost(db.Model):
     distribution_method = db.Column(db.String(20))  # by_meter, by_area, by_units, by_usage, manual
     is_distributed = db.Column(db.Boolean, default=False)
     allocation_percent = db.Column(db.Float, default=0.0)
+    # Anteilige Verteilung über mehrere Jahre sowie optionaler Auf-/Abschlag
+    spread_years = db.Column(db.Integer, default=1)
+    distribution_factor = db.Column(db.Float, default=0.0)
     until_consumed = db.Column(db.Boolean, default=False)
     is_archived = db.Column(db.Boolean, default=False)
     

@@ -160,7 +160,7 @@ def _calculate_cost_share(cost, apartment, contract, meter_consumptions, total_a
     amount = cost.amount_gross if cost.amount_gross is not None else (cost.amount_net or 0.0)
     method = method or 'by_area'
 
-    note = ''
+    note_parts = []
 
     # Zeitraum anteilig berücksichtigen
     period_factor = 1.0
@@ -171,16 +171,26 @@ def _calculate_cost_share(cost, apartment, contract, meter_consumptions, total_a
         full_days = (cost.billing_period_end - cost.billing_period_start).days + 1
         if full_days > 0 and overlap_days > 0:
             period_factor = overlap_days / full_days
-            note = f"Anteiliger Zeitraum: {overlap_days} / {full_days} Tage"
+            note_parts.append(f"Anteiliger Zeitraum: {overlap_days} / {full_days} Tage")
         else:
             period_factor = 0.0
 
     amount = amount * period_factor
 
+    # Mehrjahresverteilung und Auf-/Abschlag berücksichtigen
+    spread_years = cost.spread_years or 1
+    if spread_years > 1:
+        amount = amount / spread_years
+        note_parts.append(f"Verteilung auf {spread_years} Jahre")
+
+    if cost.distribution_factor not in (None, 0):
+        amount = amount * (1 + cost.distribution_factor / 100.0)
+        note_parts.append(f"Auf-/Abschlag {cost.distribution_factor:.1f}%")
+
     # Prozentuale Umlage (manuelle Auf-/Abschläge)
     if cost.allocation_percent not in (None, 0):
         amount = amount * (cost.allocation_percent / 100.0)
-        note = (note + '; ' if note else '') + f"Umlagefaktor {cost.allocation_percent:.1f}%"
+        note_parts.append(f"Umlagefaktor {cost.allocation_percent:.1f}%")
 
     share = 0.0
     basis = ''
@@ -194,14 +204,14 @@ def _calculate_cost_share(cost, apartment, contract, meter_consumptions, total_a
             share = amount * fraction
             basis = f"Wohnfläche {apartment_area:.2f} m² / {total_area:.2f} m² ({fraction:.2%})"
         else:
-            note = 'Keine Flächendaten vorhanden'
+            note_parts.append('Keine Flächendaten vorhanden')
     elif method in ['by_units', 'by_apartments', 'by_unit']:
         total_units = len(apartment.building.apartments) if apartment.building else 0
         if total_units:
             share = amount / total_units
             basis = f"1 von {total_units} Einheiten"
         else:
-            note = 'Keine Einheiten für Umlage vorhanden'
+            note_parts.append('Keine Einheiten für Umlage vorhanden')
     elif method in ['by_usage', 'by_meter']:
         meter_type_id = cost.meter.meter_type_id if cost.meter else None
         relevant_consumptions = [
@@ -232,16 +242,16 @@ def _calculate_cost_share(cost, apartment, contract, meter_consumptions, total_a
             fraction = apartment_area / total_area
             share = amount * fraction
             basis = f"Fallback Fläche {apartment_area:.2f} m² / {total_area:.2f} m²"
-            note = 'Kein Verbrauch ermittelbar, Flächenumlage verwendet'
+            note_parts.append('Kein Verbrauch ermittelbar, Flächenumlage verwendet')
         else:
-            note = 'Weder Verbrauch noch Fläche für Umlage verfügbar'
+            note_parts.append('Weder Verbrauch noch Fläche für Umlage verfügbar')
     else:
         if total_area and apartment_area:
             fraction = apartment_area / total_area
             share = amount * fraction
             basis = f"Standard Fläche {apartment_area:.2f} m² / {total_area:.2f} m²"
         else:
-            note = 'Standardverteilung nicht möglich (keine Fläche)'
+            note_parts.append('Standardverteilung nicht möglich (keine Fläche)')
 
     return {
         'cost_id': cost.id,
@@ -256,7 +266,7 @@ def _calculate_cost_share(cost, apartment, contract, meter_consumptions, total_a
         'allocation_percent': cost.allocation_percent,
         'share': round(share, 2),
         'basis': basis,
-        'note': note,
+        'note': '; '.join([p for p in note_parts if p]),
         'tenant_consumption': tenant_consumption,
         'total_consumption': total_consumption,
         'unit': unit,

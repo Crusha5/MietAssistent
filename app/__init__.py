@@ -533,6 +533,16 @@ def initialize_database(app):
                     db.session.execute(text('ALTER TABLE operating_costs ADD COLUMN allocation_percent FLOAT DEFAULT 0.0'))
                     db.session.commit()
                     print("✅ allocation_percent added")
+                if 'spread_years' not in cost_columns:
+                    print("🔄 Adding spread_years to operating_costs...")
+                    db.session.execute(text('ALTER TABLE operating_costs ADD COLUMN spread_years INTEGER DEFAULT 1'))
+                    db.session.commit()
+                    print("✅ spread_years added")
+                if 'distribution_factor' not in cost_columns:
+                    print("🔄 Adding distribution_factor to operating_costs...")
+                    db.session.execute(text('ALTER TABLE operating_costs ADD COLUMN distribution_factor FLOAT DEFAULT 0.0'))
+                    db.session.commit()
+                    print("✅ distribution_factor added")
                 if 'vendor_invoice_number' not in cost_columns:
                     print("🔄 Adding vendor_invoice_number to operating_costs...")
                     db.session.execute(text('ALTER TABLE operating_costs ADD COLUMN vendor_invoice_number VARCHAR(120)'))

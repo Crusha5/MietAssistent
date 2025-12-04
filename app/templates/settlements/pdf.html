@@ -178,13 +178,13 @@
     <div class="section summary-box">
         <strong>Bankverbindung des Vermieters</strong><br>
         {% if landlord_data %}
-            {% set iban_val = landlord_data.iban if landlord_data.iban is not defined else landlord_data.get('iban') %}
+            {% set iban_val = landlord_data.iban %}
             {% if iban_val %}
-                {% set holder_val = landlord_data.account_holder if landlord_data.account_holder is not defined else landlord_data.get('account_holder') %}
-                {% set bic_val = landlord_data.bic if landlord_data.bic is not defined else landlord_data.get('bic') %}
-                {% set bank_val = landlord_data.bank_name if landlord_data.bank_name is not defined else landlord_data.get('bank_name') %}
-                {% set name_val = holder_val or landlord_data.company_name or (landlord_data.get('company_name') if landlord_data.get is defined else None) or landlord_data.company or (landlord_data.get('company') if landlord_data.get is defined else None) or ((landlord_data.first_name ~ ' ' ~ landlord_data.last_name) if landlord_data.first_name is not defined else landlord_data.get('name')) %}
-                Kontoinhaber: {{ name_val }}<br>
+                {% set holder_val = landlord_data.account_holder %}
+                {% set bic_val = landlord_data.bic %}
+                {% set bank_val = landlord_data.bank_name %}
+                {% set name_val = holder_val or landlord_data.company_name or landlord_data.company or landlord_data.name or (landlord_data.first_name ~ ' ' ~ landlord_data.last_name) %}
+                Kontoinhaber: {{ name_val or '(nicht hinterlegt)' }}<br>
                 IBAN: {{ iban_val }}<br>
                 {% if bic_val %}BIC: {{ bic_val }}<br>{% endif %}
                 {% if bank_val %}Bank: {{ bank_val }}{% endif %}
