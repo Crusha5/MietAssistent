@@ -544,6 +544,11 @@
                                 <a class="nav-link {% if request.path.startswith('/settings') %}active{% endif %}" href="/settings">
                                     <i class="bi bi-gear"></i> Einstellungen
                                 </a>
+                                {% if session.get('role') == 'admin' %}
+                                <a class="nav-link {% if request.path.startswith('/settings/backup') %}active{% endif %}" href="/settings/backup">
+                                    <i class="bi bi-cloud-arrow-down"></i> Backup & Wiederherstellung
+                                </a>
+                                {% endif %}
                                 <a class="nav-link {% if request.path == '/rss' %}active{% endif %}" href="/rss">
                                     <i class="bi bi-rss"></i> News Feeds
                                 </a>
