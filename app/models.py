@@ -383,6 +383,7 @@ class OperatingCost(db.Model):
     cost_category = db.relationship('CostCategory', backref='operating_costs')
     distributions = db.relationship('CostDistribution', backref='operating_cost', lazy=True, cascade='all, delete-orphan')
     apartment = db.relationship('Apartment', backref=db.backref('operating_costs', lazy=True))
+    meter = db.relationship('Meter', backref=db.backref('operating_costs', lazy=True))
 
 class CostCategory(db.Model):
     __tablename__ = 'cost_categories'
@@ -433,6 +434,7 @@ class Settlement(db.Model):
     consumption_details = db.Column(db.JSON)
     total_area = db.Column(db.Float)
     apartment_area = db.Column(db.Float)
+    contract_snapshot = db.Column(db.JSON)
     created_by = db.Column(db.String(36), db.ForeignKey('users.id'))
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -464,6 +466,7 @@ class Settlement(db.Model):
             'total_area': self.total_area,
             'apartment_area': self.apartment_area,
             'contract_id': self.contract_id,
+            'contract_snapshot': self.contract_snapshot,
         }
 
 class Document(db.Model):

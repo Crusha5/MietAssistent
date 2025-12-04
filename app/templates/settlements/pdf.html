@@ -3,8 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <title>Nebenkostenabrechnung</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/settlement_pdf.css') }}">
 </head>
 <body>
+    {% set contract_data = contract if contract else settlement.contract_snapshot %}
     <div class="header">
         <div>
             <h1>Nebenkostenabrechnung</h1>
@@ -47,11 +49,18 @@
 
     <div class="section summary-box">
         <h3>Vertragsdaten</h3>
-        {% if contract %}
+        {% if contract_data %}
+        {% set start_val = contract_data.start_date if contract else contract_data['start_date'] %}
+        {% set end_val = contract_data.end_date if contract else contract_data['end_date'] %}
         <p>
-            Vertrag Nr. {{ contract.contract_number }}<br>
-            Laufzeit: {{ contract.start_date.strftime('%d.%m.%Y') }}{% if contract.end_date %} – {{ contract.end_date.strftime('%d.%m.%Y') }}{% endif %}<br>
-            Vorauszahlung (Betriebskosten/Heizung): {{ '%.2f'|format((contract.operating_cost_advance or 0) + (contract.heating_advance or 0)) }} € / Monat
+            Vertrag Nr. {{ contract_data.contract_number or contract_data['contract_number'] }}<br>
+            Laufzeit:
+            {% if start_val %}
+                {{ start_val.strftime('%d.%m.%Y') if start_val.__class__.__name__ == 'date' else start_val }}
+            {% endif %}
+            {% if end_val %} – {{ end_val.strftime('%d.%m.%Y') if end_val.__class__.__name__ == 'date' else end_val }}{% endif %}<br>
+            Kaltmiete: {{ '%.2f'|format((contract_data.cold_rent if contract else contract_data['cold_rent']) or 0) }} € / Monat<br>
+            Vorauszahlung Betriebskosten/Heizung: {{ '%.2f'|format(((contract_data.operating_cost_advance if contract else contract_data['operating_cost_advance']) or 0) + ((contract_data.heating_advance if contract else contract_data['heating_advance']) or 0)) }} € / Monat
         </p>
         {% else %}
         <p>Keine Vertragsdaten gefunden.</p>
@@ -81,6 +90,7 @@
         <table class="table">
             <thead>
                 <tr>
+                    <th>Beleg</th>
                     <th>Kostenart</th>
                     <th>Umlageschlüssel</th>
                     <th>Gesamtkosten</th>
@@ -91,6 +101,11 @@
             <tbody>
                 {% for item in settlement.cost_breakdown or [] %}
                 <tr>
+                    <td>
+                        {% if item.invoice_number %}<div>Rechnung: {{ item.invoice_number }}</div>{% endif %}
+                        {% if item.billing_period %}<div>Zeitraum: {{ item.billing_period }}</div>{% endif %}
+                        {% if item.apartment_specific %}<div class="badge">Wohnung</div>{% else %}<div class="badge">Gebäude</div>{% endif %}
+                    </td>
                     <td>{{ item.category }}</td>
                     <td>{{ item.basis or item.method }}</td>
                     <td style="text-align:right">{{ '%.2f'|format(item.amount_total or 0) }} €</td>
@@ -98,7 +113,7 @@
                     <td>{{ item.note }}</td>
                 </tr>
                 {% else %}
-                <tr><td colspan="5">Keine umlagefähigen Kosten erfasst.</td></tr>
+                <tr><td colspan="6">Keine umlagefähigen Kosten erfasst.</td></tr>
                 {% endfor %}
             </tbody>
         </table>

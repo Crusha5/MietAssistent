@@ -30,8 +30,11 @@
                             {% endif %}
                         </p>
                         <p><strong>Vertrag:</strong>
+                            {% set snapshot = settlement.contract_snapshot or {} %}
                             {% if settlement.contract %}
                                 Nr. {{ settlement.contract.contract_number }} ({{ settlement.contract.start_date.strftime('%d.%m.%Y') }}{% if settlement.contract.end_date %} - {{ settlement.contract.end_date.strftime('%d.%m.%Y') }}{% endif %})
+                            {% elif snapshot %}
+                                Nr. {{ snapshot.contract_number }}{% if snapshot.start_date %} (ab {{ snapshot.start_date }}){% endif %}
                             {% else %}
                                 –
                             {% endif %}
@@ -42,18 +45,31 @@
                         <h6>Kostenübersicht</h6>
                         <p><strong>Gesamtkostenanteil:</strong> {{ "%.2f"|format(settlement.total_costs or 0) }} €</p>
                         <p><strong>Vorauszahlungen:</strong> {{ "%.2f"|format(settlement.advance_payments or 0) }} €</p>
-                        {% if settlement.contract %}
-                        <p class="mb-1"><small class="text-muted">monatliche Vorauszahlung lt. Vertrag: {{ "%.2f"|format((settlement.contract.operating_cost_advance or 0) + (settlement.contract.heating_advance or 0)) }} €</small></p>
+                        {% if settlement.contract or snapshot %}
+                        {% set c = settlement.contract if settlement.contract else snapshot %}
+                        <p class="mb-1"><small class="text-muted">monatliche Vorauszahlung lt. Vertrag: {{ "%.2f"|format(((c.operating_cost_advance if settlement.contract else c.get('operating_cost_advance')) or 0) + ((c.heating_advance if settlement.contract else c.get('heating_advance')) or 0)) }} €</small></p>
                         {% endif %}
                         <p class="fw-bold"><strong>Saldo:</strong> {{ "%.2f"|format(settlement.balance or 0) }} €</p>
                     </div>
                 </div>
+                {% if settlement.contract or snapshot %}
+                <div class="row">
+                    <div class="col-md-12">
+                        <h6>Vertragsdetails</h6>
+                        <p class="text-muted mb-1">
+                            Kaltmiete: {{ "%.2f"|format((settlement.contract.cold_rent if settlement.contract else snapshot.get('cold_rent')) or 0) }} € / Monat ·
+                            Vorauszahlung BK/HZ: {{ "%.2f"|format(((settlement.contract.operating_cost_advance if settlement.contract else snapshot.get('operating_cost_advance') or 0) + (settlement.contract.heating_advance if settlement.contract else snapshot.get('heating_advance') or 0))) }} € / Monat
+                        </p>
+                    </div>
+                </div>
+                {% endif %}
                 <hr>
                 <h6>Kostenarten</h6>
                 <div class="table-responsive">
                     <table class="table table-sm">
                         <thead>
                             <tr>
+                                <th>Beleg</th>
                                 <th>Kostenart</th>
                                 <th>Umlageschlüssel</th>
                                 <th>Gesamtkosten</th>
@@ -64,6 +80,11 @@
                         <tbody>
                             {% for item in settlement.cost_breakdown or [] %}
                             <tr>
+                                <td>
+                                    {% if item.invoice_number %}<div>Rechnung: {{ item.invoice_number }}</div>{% endif %}
+                                    {% if item.billing_period %}<div>Zeitraum: {{ item.billing_period }}</div>{% endif %}
+                                    {% if item.apartment_specific %}<span class="badge bg-secondary">Wohnung</span>{% else %}<span class="badge bg-info text-dark">Gebäude</span>{% endif %}
+                                </td>
                                 <td>{{ item.category }}</td>
                                 <td>{{ item.basis or item.method }}</td>
                                 <td>{{ "%.2f"|format(item.amount_total or 0) }} €</td>
@@ -71,7 +92,7 @@
                                 <td>{{ item.note }}</td>
                             </tr>
                             {% else %}
-                            <tr><td colspan="5" class="text-muted">Keine Kosten erfasst.</td></tr>
+                            <tr><td colspan="6" class="text-muted">Keine Kosten erfasst.</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>

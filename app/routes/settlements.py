@@ -151,6 +151,11 @@ def _calculate_cost_share(cost, apartment, meter_consumptions, total_area, apart
             note = 'Standardverteilung nicht möglich (keine Fläche)'
 
     return {
+        'cost_id': cost.id,
+        'cost_description': cost.description,
+        'billing_period': f"{cost.billing_period_start} – {cost.billing_period_end}" if cost.billing_period_start or cost.billing_period_end else '',
+        'invoice_number': cost.invoice_number or cost.vendor_invoice_number,
+        'apartment_specific': bool(cost.apartment_id),
         'category': category_name,
         'method': method,
         'amount_total': round(amount, 2),
@@ -216,6 +221,22 @@ def _calculate_settlement(apartment_id, period_start, period_end):
     total_share = sum(item['share'] for item in breakdown)
     balance = round(total_share - advances, 2)
 
+    contract_snapshot = {
+        'id': contract.id,
+        'contract_number': contract.contract_number,
+        'start_date': contract.start_date.isoformat() if contract.start_date else None,
+        'end_date': contract.end_date.isoformat() if contract.end_date else None,
+        'cold_rent': contract.cold_rent,
+        'operating_cost_advance': contract.operating_cost_advance,
+        'heating_advance': contract.heating_advance,
+        'floor_space': contract.floor_space or apartment.area_sqm,
+        'apartment_number': apartment.apartment_number,
+        'building_name': apartment.building.name if apartment.building else None,
+        'building_address': f"{apartment.building.street} {apartment.building.street_number}, {apartment.building.zip_code} {apartment.building.city}" if apartment.building else None,
+        'tenant_name': f"{tenant.first_name} {tenant.last_name}",
+        'landlord_name': f"{contract.landlord.first_name} {contract.landlord.last_name}" if contract.landlord else None,
+    }
+
     settlement = Settlement(
         id=str(uuid.uuid4()),
         apartment_id=apartment_id,
@@ -248,6 +269,7 @@ def _calculate_settlement(apartment_id, period_start, period_end):
         ],
         total_area=total_area,
         apartment_area=apartment_area,
+        contract_snapshot=contract_snapshot,
     )
 
     return settlement, apartment, tenant, contract
