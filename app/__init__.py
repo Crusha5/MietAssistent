@@ -543,11 +543,22 @@ def initialize_database(app):
             # Settlement-Felder absichern (falls alte Datenbankversion)
             try:
                 settlement_columns = [col['name'] for col in inspector.get_columns('settlements')]
-                if 'tenant_id' not in settlement_columns:
-                    print("🔄 Adding tenant_id to settlements...")
-                    db.session.execute(text('ALTER TABLE settlements ADD COLUMN tenant_id VARCHAR(36)'))
-                    db.session.commit()
-                    print("✅ tenant_id added")
+                required_settlement_columns = [
+                    ("tenant_id", "VARCHAR(36)", None),
+                    ("total_amount", "FLOAT", "0"),
+                    ("total_area", "FLOAT", None),
+                    ("apartment_area", "FLOAT", None),
+                    ("cost_breakdown", "TEXT", None),
+                    ("consumption_details", "TEXT", None),
+                ]
+
+                for col_name, col_type, default_val in required_settlement_columns:
+                    if col_name not in settlement_columns:
+                        default_clause = f" DEFAULT {default_val}" if default_val is not None else ""
+                        print(f"🔄 Adding {col_name} to settlements...")
+                        db.session.execute(text(f'ALTER TABLE settlements ADD COLUMN {col_name} {col_type}{default_clause}'))
+                        db.session.commit()
+                        print(f"✅ {col_name} added")
             except Exception as mig_exc:
                 print(f"⚠️ Could not migrate settlements columns: {mig_exc}")
 
