@@ -46,6 +46,19 @@
     </div>
 
     <div class="section summary-box">
+        <h3>Vertragsdaten</h3>
+        {% if contract %}
+        <p>
+            Vertrag Nr. {{ contract.contract_number }}<br>
+            Laufzeit: {{ contract.start_date.strftime('%d.%m.%Y') }}{% if contract.end_date %} – {{ contract.end_date.strftime('%d.%m.%Y') }}{% endif %}<br>
+            Vorauszahlung (Betriebskosten/Heizung): {{ '%.2f'|format((contract.operating_cost_advance or 0) + (contract.heating_advance or 0)) }} € / Monat
+        </p>
+        {% else %}
+        <p>Keine Vertragsdaten gefunden.</p>
+        {% endif %}
+    </div>
+
+    <div class="section summary-box">
         <h3>Zusammenfassung</h3>
         <table class="table">
             <tr>

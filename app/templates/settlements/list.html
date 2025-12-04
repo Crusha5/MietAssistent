@@ -22,6 +22,7 @@
                         <th>Zeitraum</th>
                         <th>Wohnung</th>
                         <th>Mieter</th>
+                        <th>Vertrag</th>
                         <th>Gesamtbetrag</th>
                         <th>Erstellt am</th>
                         <th>Aktionen</th>
@@ -41,6 +42,13 @@
                         <td>
                             {% if settlement.tenant %}
                                 {{ settlement.tenant.first_name }} {{ settlement.tenant.last_name }}
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if settlement.contract %}
+                                {{ settlement.contract.contract_number }}
+                            {% else %}
+                                –
                             {% endif %}
                         </td>
                         <td>{{ "%.2f"|format(settlement.balance or 0) }} €</td>

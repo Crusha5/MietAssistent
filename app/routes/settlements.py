@@ -181,8 +181,10 @@ def _calculate_settlement(apartment_id, period_start, period_end):
 
     costs = OperatingCost.query.filter(
         OperatingCost.building_id == apartment.building_id,
+        or_(OperatingCost.apartment_id == None, OperatingCost.apartment_id == apartment.id),
         or_(OperatingCost.billing_period_start == None, OperatingCost.billing_period_start <= period_end),
         or_(OperatingCost.billing_period_end == None, OperatingCost.billing_period_end >= period_start),
+        or_(OperatingCost.is_archived == False, OperatingCost.is_archived == None),
     ).all()
 
     # Zählerverbräuche vorbereiten
@@ -218,6 +220,7 @@ def _calculate_settlement(apartment_id, period_start, period_end):
         id=str(uuid.uuid4()),
         apartment_id=apartment_id,
         tenant_id=tenant.id,
+        contract_id=contract.id,
         settlement_year=period_end.year,
         period_start=period_start,
         period_end=period_end,
@@ -252,6 +255,8 @@ def _calculate_settlement(apartment_id, period_start, period_end):
 
 def _generate_settlement_pdf(settlement, apartment, tenant, contract):
     """Erzeugt und speichert das PDF der Nebenkostenabrechnung."""
+    if not contract:
+        contract = settlement.contract
     building = apartment.building if apartment else None
     landlord = None
     if contract and contract.landlord:
@@ -335,9 +340,11 @@ def settlement_detail(settlement_id):
 def download_settlement_pdf(settlement_id):
     settlement = Settlement.query.get_or_404(settlement_id)
     apartment = settlement.apartment
-    contract = _determine_active_contract(
-        apartment.id, settlement.period_start, settlement.period_end
-    ) if apartment else None
+    contract = settlement.contract
+    if not contract and apartment:
+        contract = _determine_active_contract(
+            apartment.id, settlement.period_start, settlement.period_end
+        )
     tenant = settlement.tenant
 
     if not settlement.pdf_path:
@@ -393,9 +400,11 @@ def get_settlement_api(settlement_id):
 def get_settlement_pdf_api(settlement_id):
     settlement = Settlement.query.get_or_404(settlement_id)
     apartment = settlement.apartment
-    contract = _determine_active_contract(
-        apartment.id, settlement.period_start, settlement.period_end
-    ) if apartment else None
+    contract = settlement.contract
+    if not contract and apartment:
+        contract = _determine_active_contract(
+            apartment.id, settlement.period_start, settlement.period_end
+        )
     tenant = settlement.tenant
 
     if not settlement.pdf_path:

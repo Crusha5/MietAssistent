@@ -52,6 +52,15 @@
                 </select>
             </div>
             <div class="col-md-3">
+                <label class="form-label">Wohnung</label>
+                <select id="filterApartment" class="form-select">
+                    <option value="">Alle</option>
+                    {% for a in apartments %}
+                    <option value="{{ a.id }}" data-building="{{ a.building_id }}">{{ a.get_full_identifier() }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
                 <label class="form-label">Kategorie</label>
                 <select id="filterCategory" class="form-select">
                     <option value="">Alle</option>
@@ -79,13 +88,14 @@
                         <th>Betrag (brutto)</th>
                         <th>Kategorie</th>
                         <th>Gebäude</th>
+                        <th>Wohnung</th>
                         <th>Status</th>
                         <th class="text-end">Aktionen</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for cost in costs %}
-                    <tr data-building="{{ cost.building_id }}" data-category="{{ cost.cost_category_id }}" data-status="{{ 'archived' if cost.is_archived else 'active' }}" data-text="{{ (cost.description or '') }} {{ (cost.invoice_number or '') }} {{ cost.vendor_invoice_number or '' }} {{ cost.system_invoice_number or '' }}">
+                    <tr data-building="{{ cost.building_id }}" data-category="{{ cost.cost_category_id }}" data-apartment="{{ cost.apartment_id or '' }}" data-status="{{ 'archived' if cost.is_archived else 'active' }}" data-text="{{ (cost.description or '') }} {{ (cost.invoice_number or '') }} {{ cost.vendor_invoice_number or '' }} {{ cost.system_invoice_number or '' }}">
                         <td class="fw-semibold">{{ cost.description or '–' }}</td>
                         <td>
                             {{ cost.billing_period_start.strftime('%d.%m.%Y') if cost.billing_period_start else '–' }}
@@ -101,6 +111,7 @@
                         <td>{{ "%.2f"|format(cost.amount_gross or cost.amount_net or 0) }} €</td>
                         <td>{{ cost.cost_category.name if cost.cost_category else '–' }}</td>
                         <td>{{ cost.building.name if cost.building else '–' }}</td>
+                        <td>{{ cost.apartment.get_full_identifier() if cost.apartment else '–' }}</td>
                         <td>
                             {% if cost.is_archived %}
                                 <span class="badge text-bg-secondary">Archiviert</span>
@@ -114,6 +125,7 @@
                                     data-id="{{ cost.id }}"
                                     data-description="{{ cost.description or '' }}"
                                     data-building="{{ cost.building_id }}"
+                                    data-apartment="{{ cost.apartment_id or '' }}"
                                     data-category="{{ cost.cost_category_id }}"
                                     data-distribution="{{ cost.distribution_method }}"
                                     data-net="{{ cost.amount_net }}"
@@ -250,6 +262,16 @@
                                 <option value="{{ b.id }}">{{ b.name }}</option>
                                 {% endfor %}
                             </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Wohnung (optional)</label>
+                            <select name="apartment_id" id="costApartment" class="form-select">
+                                <option value="">Keiner Wohnung zugeordnet</option>
+                                {% for a in apartments %}
+                                <option value="{{ a.id }}" data-building="{{ a.building_id }}">{{ a.get_full_identifier() }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">Bei Auswahl wird die Kostenposition direkt dem Mietvertrag der Wohnung zugeordnet.</div>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Kategorie</label>
@@ -441,14 +463,17 @@
 
         const searchInput = document.getElementById('costSearch');
         const filterBuilding = document.getElementById('filterBuilding');
+        const filterApartment = document.getElementById('filterApartment');
         const filterCategory = document.getElementById('filterCategory');
         const filterStatus = document.getElementById('filterStatus');
         const tableRows = document.querySelectorAll('#costTable tbody tr');
+        const costApartmentSelect = document.getElementById('costApartment');
 
         function applyFilters() {
             const searchText = (searchInput.value || '').toLowerCase();
             const building = filterBuilding.value;
             const category = filterCategory.value;
+            const apartment = filterApartment.value;
             const status = filterStatus.value;
 
             tableRows.forEach(row => {
@@ -456,17 +481,65 @@
                 const matchesStatus = status === 'all' || status === rowStatus;
                 const matchesBuilding = !building || row.dataset.building === building;
                 const matchesCategory = !category || row.dataset.category === category;
+                const matchesApartment = !apartment || row.dataset.apartment === apartment;
                 const text = (row.dataset.text || '').toLowerCase();
                 const matchesSearch = !searchText || text.includes(searchText);
-                row.style.display = matchesStatus && matchesBuilding && matchesCategory && matchesSearch ? '' : 'none';
+                row.style.display = matchesStatus && matchesBuilding && matchesCategory && matchesApartment && matchesSearch ? '' : 'none';
             });
         }
 
         searchInput?.addEventListener('input', applyFilters);
         filterBuilding?.addEventListener('change', applyFilters);
         filterCategory?.addEventListener('change', applyFilters);
+        filterApartment?.addEventListener('change', applyFilters);
         filterStatus?.addEventListener('change', applyFilters);
         applyFilters();
+
+        function syncApartmentOptions(buildingId, targetSelect) {
+            if (!targetSelect) return;
+            Array.from(targetSelect.options).forEach(opt => {
+                const optBuilding = opt.getAttribute('data-building');
+                if (!optBuilding || !buildingId) {
+                    opt.hidden = false;
+                    return;
+                }
+                opt.hidden = optBuilding !== buildingId;
+            });
+            if (buildingId) {
+                const visible = Array.from(targetSelect.options).find(opt => !opt.hidden && opt.value === targetSelect.value);
+                if (!visible) {
+                    targetSelect.value = '';
+                }
+            }
+        }
+
+        costBuilding?.addEventListener('change', () => {
+            syncApartmentOptions(costBuilding.value, costApartmentSelect);
+        });
+
+        filterBuilding?.addEventListener('change', () => {
+            const building = filterBuilding.value;
+            Array.from(filterApartment.options).forEach(opt => {
+                const optBuilding = opt.getAttribute('data-building');
+                opt.hidden = building && optBuilding && optBuilding !== building;
+            });
+            if (building) {
+                const visible = Array.from(filterApartment.options).find(opt => !opt.hidden && opt.value === filterApartment.value);
+                if (!visible) {
+                    filterApartment.value = '';
+                }
+            }
+            applyFilters();
+        });
+
+        costModal?.addEventListener('show.bs.modal', event => {
+            const button = event.relatedTarget;
+            const building = button?.getAttribute('data-building') || (fields.building.options[0]?.value || '');
+            fields.building.value = building;
+            syncApartmentOptions(building, costApartmentSelect);
+            const apartment = button?.getAttribute('data-apartment') || '';
+            costApartmentSelect.value = apartment;
+        });
     });
 </script>
 {% endblock %}

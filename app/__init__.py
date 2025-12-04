@@ -537,6 +537,11 @@ def initialize_database(app):
                     db.session.execute(text('ALTER TABLE operating_costs ADD COLUMN vendor_invoice_number VARCHAR(120)'))
                     db.session.commit()
                     print("✅ vendor_invoice_number added")
+                if 'apartment_id' not in cost_columns:
+                    print("🔄 Adding apartment_id to operating_costs...")
+                    db.session.execute(text('ALTER TABLE operating_costs ADD COLUMN apartment_id VARCHAR(36)'))
+                    db.session.commit()
+                    print("✅ apartment_id added")
             except Exception as mig_exc:
                 print(f"⚠️ Could not migrate operating_costs columns: {mig_exc}")
 
@@ -550,6 +555,7 @@ def initialize_database(app):
                     ("apartment_area", "FLOAT", None),
                     ("cost_breakdown", "TEXT", None),
                     ("consumption_details", "TEXT", None),
+                    ("contract_id", "VARCHAR(36)", None),
                 ]
 
                 for col_name, col_type, default_val in required_settlement_columns:

@@ -352,9 +352,10 @@ class MeterReading(db.Model):
 
 class OperatingCost(db.Model):
     __tablename__ = 'operating_costs'
-    
+
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     building_id = db.Column(db.String(36), db.ForeignKey('buildings.id'), nullable=False)
+    apartment_id = db.Column(db.String(36), db.ForeignKey('apartments.id'))
     meter_id = db.Column(db.String(36), db.ForeignKey('meters.id'))
     cost_category_id = db.Column(db.String(36), db.ForeignKey('cost_categories.id'))
     
@@ -381,6 +382,7 @@ class OperatingCost(db.Model):
     # Relationships
     cost_category = db.relationship('CostCategory', backref='operating_costs')
     distributions = db.relationship('CostDistribution', backref='operating_cost', lazy=True, cascade='all, delete-orphan')
+    apartment = db.relationship('Apartment', backref=db.backref('operating_costs', lazy=True))
 
 class CostCategory(db.Model):
     __tablename__ = 'cost_categories'
@@ -409,10 +411,11 @@ class CostDistribution(db.Model):
 
 class Settlement(db.Model):
     __tablename__ = 'settlements'
-    
+
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     apartment_id = db.Column(db.String(36), db.ForeignKey('apartments.id'), nullable=False)
     tenant_id = db.Column(db.String(36), db.ForeignKey('tenants.id'), nullable=False)
+    contract_id = db.Column(db.String(36), db.ForeignKey('contracts.id'))
     
     settlement_year = db.Column(db.Integer, nullable=False)
     period_start = db.Column(db.Date, nullable=False)
@@ -439,6 +442,7 @@ class Settlement(db.Model):
     user = db.relationship('User', backref='settlements')
     apartment = db.relationship('Apartment', back_populates='settlements')
     tenant = db.relationship('Tenant', back_populates='settlements')
+    contract = db.relationship('Contract', backref='settlements')
 
     def to_dict(self):
         return {
@@ -459,6 +463,7 @@ class Settlement(db.Model):
             'consumption_details': self.consumption_details,
             'total_area': self.total_area,
             'apartment_area': self.apartment_area,
+            'contract_id': self.contract_id,
         }
 
 class Document(db.Model):

@@ -29,12 +29,22 @@
                                 {{ settlement.tenant.first_name }} {{ settlement.tenant.last_name }}
                             {% endif %}
                         </p>
+                        <p><strong>Vertrag:</strong>
+                            {% if settlement.contract %}
+                                Nr. {{ settlement.contract.contract_number }} ({{ settlement.contract.start_date.strftime('%d.%m.%Y') }}{% if settlement.contract.end_date %} - {{ settlement.contract.end_date.strftime('%d.%m.%Y') }}{% endif %})
+                            {% else %}
+                                –
+                            {% endif %}
+                        </p>
                         <p><strong>Wohnfläche:</strong> {{ "%.2f"|format(settlement.apartment_area or 0) }} m²</p>
                     </div>
                     <div class="col-md-6">
                         <h6>Kostenübersicht</h6>
                         <p><strong>Gesamtkostenanteil:</strong> {{ "%.2f"|format(settlement.total_costs or 0) }} €</p>
                         <p><strong>Vorauszahlungen:</strong> {{ "%.2f"|format(settlement.advance_payments or 0) }} €</p>
+                        {% if settlement.contract %}
+                        <p class="mb-1"><small class="text-muted">monatliche Vorauszahlung lt. Vertrag: {{ "%.2f"|format((settlement.contract.operating_cost_advance or 0) + (settlement.contract.heating_advance or 0)) }} €</small></p>
+                        {% endif %}
                         <p class="fw-bold"><strong>Saldo:</strong> {{ "%.2f"|format(settlement.balance or 0) }} €</p>
                     </div>
                 </div>
