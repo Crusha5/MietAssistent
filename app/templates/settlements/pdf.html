@@ -52,13 +52,14 @@
         </div>
 
         <div class="letter-body">
-            <p class="subject"><strong>Betreff: Nebenkostenabrechnung {{ settlement.period_start.strftime('%d.%m.%Y') }} bis {{ settlement.period_end.strftime('%d.%m.%Y') }}</strong></p>
+            <p class="subject"><strong>Nebenkostenabrechnung {{ settlement.period_start.strftime('%d.%m.%Y') }} bis {{ settlement.period_end.strftime('%d.%m.%Y') }}</strong></p>
             <p>Guten Tag{% if tenant %} {{ tenant.first_name }} {{ tenant.last_name }}{% endif %},</p>
             <p>anbei erhalten Sie die Nebenkostenabrechnung für Ihre Wohnung im oben genannten Zeitraum. Wir haben die Kosten transparent aufbereitet und die Vorauszahlungen berücksichtigt.</p>
             <p>Bitte prüfen Sie die Aufstellung in Ruhe. Bei Rückfragen stehen wir Ihnen gerne zur Verfügung.</p>
+            <p>Mit freundlichen Grüßen</p>
         </div>
     </div>
-    <div class="header">
+    <div class="header page-break-before">
         <div>
             <h1>Nebenkostenabrechnung</h1>
             <div>Abrechnungszeitraum: {{ settlement.period_start.strftime('%d.%m.%Y') }} - {{ settlement.period_end.strftime('%d.%m.%Y') }}</div>

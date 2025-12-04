@@ -99,13 +99,21 @@ h1, h2, h3, h4 {
     font-size: 11px;
 }
 
-.cost-table th:nth-child(1), .cost-table td:nth-child(1) { width: 16%; }
+.cost-table {
+    font-size: 11px;
+}
+
+.cost-table th, .cost-table td {
+    padding: 5px 6px;
+}
+
+.cost-table th:nth-child(1), .cost-table td:nth-child(1) { width: 14%; }
 .cost-table th:nth-child(2), .cost-table td:nth-child(2) { width: 14%; }
-.cost-table th:nth-child(3), .cost-table td:nth-child(3) { width: 14%; }
-.cost-table th:nth-child(4), .cost-table td:nth-child(4) { width: 16%; }
+.cost-table th:nth-child(3), .cost-table td:nth-child(3) { width: 12%; }
+.cost-table th:nth-child(4), .cost-table td:nth-child(4) { width: 14%; }
 .cost-table th:nth-child(5), .cost-table td:nth-child(5) { width: 12%; }
 .cost-table th:nth-child(6), .cost-table td:nth-child(6) { width: 12%; }
-.cost-table th:nth-child(7), .cost-table td:nth-child(7) { width: 16%; }
+.cost-table th:nth-child(7), .cost-table td:nth-child(7) { width: 22%; }
 
 .letter-block {
     padding-top: 10mm;
@@ -122,7 +130,7 @@ h1, h2, h3, h4 {
 .address-window {
     margin-top: 16px;
     padding: 10px 12px;
-    border: 1px solid #d7dde3;
+    border: none;
     width: 75mm;
     min-height: 38mm;
     font-size: 12px;
@@ -151,4 +159,9 @@ h1, h2, h3, h4 {
 
 .letter-body .subject {
     margin-bottom: 12px;
+}
+
+.page-break-before {
+    page-break-before: always;
+    margin-top: 0;
 }
