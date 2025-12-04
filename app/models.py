@@ -314,7 +314,13 @@ class Meter(db.Model):
     # Relationships - NUR EINE parent_meter Beziehung
     parent_meter = db.relationship('Meter', remote_side=[id], backref=db.backref('sub_meters', lazy=True))
     readings = db.relationship('MeterReading', backref='meter', lazy=True, cascade='all, delete-orphan')
-    operating_costs = db.relationship('OperatingCost', backref='meter', lazy=True, cascade='all, delete-orphan')
+    # Bidirektionale Verknüpfung zu Betriebskosten ohne doppelte Backref-Namen
+    operating_costs = db.relationship(
+        'OperatingCost',
+        back_populates='meter',
+        lazy=True,
+        cascade='all, delete-orphan'
+    )
 
 class MeterReading(db.Model):
     __tablename__ = 'meter_readings'
@@ -383,7 +389,7 @@ class OperatingCost(db.Model):
     cost_category = db.relationship('CostCategory', backref='operating_costs')
     distributions = db.relationship('CostDistribution', backref='operating_cost', lazy=True, cascade='all, delete-orphan')
     apartment = db.relationship('Apartment', backref=db.backref('operating_costs', lazy=True))
-    meter = db.relationship('Meter', backref=db.backref('operating_costs', lazy=True))
+    meter = db.relationship('Meter', back_populates='operating_costs')
 
 class CostCategory(db.Model):
     __tablename__ = 'cost_categories'
