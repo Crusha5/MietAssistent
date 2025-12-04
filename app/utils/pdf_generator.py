@@ -30,18 +30,36 @@ def _get_base_path() -> str:
 
 
 def _get_stylesheets():
-    """Builds the stylesheet list for WeasyPrint with a stable path."""
+    """Builds the stylesheet list for WeasyPrint with a stable path.
+
+    Neben der bestehenden contract_pdf.css wird – falls vorhanden – auch eine
+    settlement_pdf.css eingebunden, damit Nebenkostenabrechnungen ein eigenes
+    Layout erhalten können.
+    """
     try:
         base_path = current_app.root_path
     except Exception:
         base_path = os.getcwd()
-    css_path = os.path.join(base_path, 'static', 'css', 'contract_pdf.css')
-    if not os.path.exists(css_path):
+
+    css_dir = os.path.join(base_path, 'static', 'css')
+    css_files = []
+
+    # Bewährtes Vertragslayout zuerst
+    contract_css = os.path.join(css_dir, 'contract_pdf.css')
+    if os.path.exists(contract_css):
+        css_files.append(contract_css)
+    else:
         try:
-            current_app.logger.warning("contract_pdf.css not found at %s", css_path)
+            current_app.logger.warning("contract_pdf.css not found at %s", contract_css)
         except Exception:
             pass
-    return [CSS(filename=css_path)]
+
+    # Optionales Layout für Nebenkostenabrechnungen
+    settlement_css = os.path.join(css_dir, 'settlement_pdf.css')
+    if os.path.exists(settlement_css):
+        css_files.append(settlement_css)
+
+    return [CSS(filename=path) for path in css_files]
 
 
 def _require_weasyprint():

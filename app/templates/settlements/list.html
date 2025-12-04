@@ -35,7 +35,7 @@
                         </td>
                         <td>
                             {% if settlement.apartment %}
-                                {{ settlement.apartment.number }} - {{ settlement.apartment.street }}
+                                {{ settlement.apartment.get_full_identifier() }}
                             {% endif %}
                         </td>
                         <td>
@@ -43,7 +43,7 @@
                                 {{ settlement.tenant.first_name }} {{ settlement.tenant.last_name }}
                             {% endif %}
                         </td>
-                        <td>{{ "%.2f"|format(settlement.total_amount) }} €</td>
+                        <td>{{ "%.2f"|format(settlement.balance or 0) }} €</td>
                         <td>{{ settlement.created_at.strftime('%d.%m.%Y') }}</td>
                         <td>
                             <div class="btn-group btn-group-sm">

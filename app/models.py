@@ -420,11 +420,16 @@ class Settlement(db.Model):
     total_costs = db.Column(db.Float)
     advance_payments = db.Column(db.Float)
     balance = db.Column(db.Float)
+    total_amount = db.Column(db.Float)
     status = db.Column(db.String(20), default='draft')  # draft, calculated, approved, sent, paid, disputed
     pdf_path = db.Column(db.String(255))
     sent_date = db.Column(db.Date)
     due_date = db.Column(db.Date)
     notes = db.Column(db.Text)
+    cost_breakdown = db.Column(db.JSON)
+    consumption_details = db.Column(db.JSON)
+    total_area = db.Column(db.Float)
+    apartment_area = db.Column(db.Float)
     created_by = db.Column(db.String(36), db.ForeignKey('users.id'))
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -434,6 +439,27 @@ class Settlement(db.Model):
     user = db.relationship('User', backref='settlements')
     apartment = db.relationship('Apartment', back_populates='settlements')
     tenant = db.relationship('Tenant', back_populates='settlements')
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'apartment_id': self.apartment_id,
+            'tenant_id': self.tenant_id,
+            'settlement_year': self.settlement_year,
+            'period_start': self.period_start.isoformat() if self.period_start else None,
+            'period_end': self.period_end.isoformat() if self.period_end else None,
+            'total_costs': self.total_costs,
+            'advance_payments': self.advance_payments,
+            'balance': self.balance,
+            'total_amount': self.total_amount,
+            'status': self.status,
+            'pdf_path': self.pdf_path,
+            'notes': self.notes,
+            'cost_breakdown': self.cost_breakdown,
+            'consumption_details': self.consumption_details,
+            'total_area': self.total_area,
+            'apartment_area': self.apartment_area,
+        }
 
 class Document(db.Model):
     __tablename__ = 'documents'
@@ -637,11 +663,17 @@ class Contract(db.Model):
     status = db.Column(db.String(20), default='draft')
     start_date = db.Column(db.Date, nullable=False)
     end_date = db.Column(db.Date)
+    contract_start = db.Column(db.Date)
+    contract_end = db.Column(db.Date)
     move_out_date = db.Column(db.Date)
     is_locked = db.Column(db.Boolean, default=False)
     notice_period = db.Column(db.Integer, default=3)
     rent_net = db.Column(db.Float, nullable=False)
     rent_additional = db.Column(db.Float, default=0.0)
+    cold_rent = db.Column(db.Float, default=0.0)
+    operating_cost_advance = db.Column(db.Float, default=0.0)
+    heating_advance = db.Column(db.Float, default=0.0)
+    floor_space = db.Column(db.Float)
     deposit = db.Column(db.Float)
 
     created_by = db.Column(db.String(36), db.ForeignKey('users.id'))
@@ -697,6 +729,10 @@ class Contract(db.Model):
     revisions = db.relationship('ContractRevision', backref='revision_contract', lazy=True)
     inventory_items = db.relationship('InventoryItem', backref='inventory_contract', lazy=True, cascade='all, delete-orphan')
     blocks = db.relationship('ContractBlock', backref='block_contract', lazy=True, cascade='all, delete-orphan')
+
+    def get_monthly_operating_prepayment(self) -> float:
+        """Hilfsfunktion für Nebenkostenabrechnungen."""
+        return float(self.operating_cost_advance or 0) + float(self.heating_advance or 0)
     
     
 # In models.py - Neue Models

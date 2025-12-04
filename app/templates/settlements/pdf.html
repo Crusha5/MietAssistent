@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>Nebenkostenabrechnung</title>
+</head>
+<body>
+    <div class="header">
+        <div>
+            <h1>Nebenkostenabrechnung</h1>
+            <div>Abrechnungszeitraum: {{ settlement.period_start.strftime('%d.%m.%Y') }} - {{ settlement.period_end.strftime('%d.%m.%Y') }}</div>
+            <div>Erstellt am: {{ generated_at.strftime('%d.%m.%Y') if generated_at else '' }}</div>
+        </div>
+        <div>
+            <strong>Vermieter</strong><br>
+            {% if landlord %}
+                {% if landlord.company_name %}{{ landlord.company_name }}<br>{% endif %}
+                {% if landlord.first_name or landlord.last_name %}{{ landlord.first_name }} {{ landlord.last_name }}<br>{% endif %}
+                {{ landlord.street }} {{ landlord.street_number }}<br>
+                {{ landlord.zip_code }} {{ landlord.city }}<br>
+                {% if landlord.phone %}Tel.: {{ landlord.phone }}<br>{% endif %}
+                {% if landlord.email %}E-Mail: {{ landlord.email }}{% endif %}
+            {% else %}
+                Vermieterdaten nicht hinterlegt
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="section flex-row">
+        <div class="flex-col summary-box">
+            <strong>Mieter</strong><br>
+            {{ tenant.first_name }} {{ tenant.last_name }}<br>
+            {% if tenant.email %}{{ tenant.email }}<br>{% endif %}
+            {% if tenant.phone %}Tel.: {{ tenant.phone }}<br>{% endif %}
+        </div>
+        <div class="flex-col summary-box">
+            <strong>Objekt</strong><br>
+            {% if building %}
+                {{ building.name }}<br>
+                {{ building.street }} {{ building.street_number }}<br>
+                {{ building.zip_code }} {{ building.city }}<br>
+            {% endif %}
+            Wohnung: {{ apartment.apartment_number if apartment else '' }}<br>
+            Wohnfläche: {{ '%.2f'|format(settlement.apartment_area or 0) }} m²
+        </div>
+    </div>
+
+    <div class="section summary-box">
+        <h3>Zusammenfassung</h3>
+        <table class="table">
+            <tr>
+                <th>Gesamtkostenanteil Mieter</th>
+                <td style="text-align:right">{{ '%.2f'|format(settlement.total_costs or 0) }} €</td>
+            </tr>
+            <tr>
+                <th>Geleistete Vorauszahlungen</th>
+                <td style="text-align:right">- {{ '%.2f'|format(settlement.advance_payments or 0) }} €</td>
+            </tr>
+            <tr class="totals">
+                <th>Saldo (Nachzahlung + / Guthaben -)</th>
+                <td style="text-align:right">{{ '%.2f'|format(settlement.balance or 0) }} €</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="section">
+        <h3>Kostenaufstellung</h3>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Kostenart</th>
+                    <th>Umlageschlüssel</th>
+                    <th>Gesamtkosten</th>
+                    <th>Anteil Mieter</th>
+                    <th>Bemerkung</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in settlement.cost_breakdown or [] %}
+                <tr>
+                    <td>{{ item.category }}</td>
+                    <td>{{ item.basis or item.method }}</td>
+                    <td style="text-align:right">{{ '%.2f'|format(item.amount_total or 0) }} €</td>
+                    <td style="text-align:right">{{ '%.2f'|format(item.share or 0) }} €</td>
+                    <td>{{ item.note }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5">Keine umlagefähigen Kosten erfasst.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <h3>Verbrauchsnachweise</h3>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Zähler</th>
+                    <th>Einheit</th>
+                    <th>Wohnung</th>
+                    <th>Stand Start</th>
+                    <th>Stand Ende</th>
+                    <th>Verbrauch</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for meter in settlement.consumption_details or [] %}
+                <tr>
+                    <td>{{ meter.meter_number }} ({{ meter.meter_type }})</td>
+                    <td>{{ meter.unit }}</td>
+                    <td>{{ meter.apartment_number or '-' }}</td>
+                    <td>{{ meter.start_value if meter.start_value is not none else '-' }} {% if meter.start_date %}({{ meter.start_date }}){% endif %}</td>
+                    <td>{{ meter.end_value if meter.end_value is not none else '-' }} {% if meter.end_date %}({{ meter.end_date }}){% endif %}</td>
+                    <td>{{ meter.consumption if meter.consumption is not none else '-' }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6">Keine Zählerstände verfügbar.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section notice">
+        Gemäß § 556 Abs. 3 BGB kann der Mieter innerhalb von 12 Monaten nach Zugang der Abrechnung Einwendungen erheben.
+        Bitte überweisen Sie einen Nachzahlungsbetrag innerhalb von 14 Tagen auf das unten stehende Konto oder teilen Sie uns eine Bankverbindung für ein Guthaben mit.
+    </div>
+
+    <div class="section summary-box">
+        <strong>Bankverbindung des Vermieters</strong><br>
+        {% if landlord and landlord.iban %}
+            Kontoinhaber: {{ landlord.account_holder or landlord.company_name or landlord.first_name ~ ' ' ~ landlord.last_name }}<br>
+            IBAN: {{ landlord.iban }}<br>
+            {% if landlord.bic %}BIC: {{ landlord.bic }}<br>{% endif %}
+            {% if landlord.bank_name %}Bank: {{ landlord.bank_name }}{% endif %}
+        {% else %}
+            Keine Bankdaten hinterlegt.
+        {% endif %}
+    </div>
+
+    <div class="signature">
+        <div class="line">Ort, Datum</div>
+        <div class="line">Unterschrift Vermieter</div>
+    </div>
+</body>
+</html>
