@@ -53,10 +53,13 @@
 
         <div class="letter-body">
             <p class="subject"><strong>Nebenkostenabrechnung {{ settlement.period_start.strftime('%d.%m.%Y') }} bis {{ settlement.period_end.strftime('%d.%m.%Y') }}</strong></p>
-            <p>Guten Tag{% if tenant %} {{ tenant.first_name }} {{ tenant.last_name }}{% endif %},</p>
-            <p>anbei erhalten Sie die Nebenkostenabrechnung für Ihre Wohnung im oben genannten Zeitraum. Wir haben die Kosten transparent aufbereitet und die Vorauszahlungen berücksichtigt.</p>
-            <p>Bitte prüfen Sie die Aufstellung in Ruhe. Bei Rückfragen stehen wir Ihnen gerne zur Verfügung.</p>
-            <p>Mit freundlichen Grüßen</p>
+            <p class="paragraph-gap spacer-row"></p>
+            <p class="paragraph-gap">Guten Tag{% if tenant %} {{ tenant.first_name }} {{ tenant.last_name }}{% endif %},</p>
+            <p class="paragraph-gap">anbei erhalten Sie die Nebenkostenabrechnung für Ihre Wohnung im oben genannten Zeitraum. Wir haben die Kosten transparent aufbereitet und die Vorauszahlungen berücksichtigt.</p>
+            <p class="paragraph-gap spacer-row"></p>
+            <p class="paragraph-gap">Bitte prüfen Sie die Aufstellung in Ruhe. Bei Rückfragen stehen wir Ihnen gerne zur Verfügung.</p>
+            <p class="paragraph-gap spacer-row"></p>
+            <p class="paragraph-gap">Mit freundlichen Grüßen</p>
         </div>
     </div>
     <div class="header page-break-before">
@@ -110,17 +113,22 @@
     <div class="section summary-box">
         <h3>Vertragsdaten</h3>
         {% if contract_data %}
-        {% set start_val = contract_data.start_date if contract else contract_data['start_date'] %}
-        {% set end_val = contract_data.end_date if contract else contract_data['end_date'] %}
+        {% set start_val = contract_data.start_date if contract else contract_data.get('start_date') %}
+        {% set end_val = contract_data.end_date if contract else contract_data.get('end_date') %}
+        {% set start_text = start_val.strftime('%d.%m.%Y') if start_val and start_val.__class__.__name__ == 'date' else start_val %}
+        {% set end_text = end_val.strftime('%d.%m.%Y') if end_val and end_val.__class__.__name__ == 'date' else end_val %}
+        {% set cold_rent_val = (contract_data.cold_rent if contract else contract_data.get('cold_rent')) or (contract_data.rent_net if contract else contract_data.get('rent_net')) %}
+        {% set op_advance_val = (contract_data.operating_cost_advance if contract else contract_data.get('operating_cost_advance')) or 0 %}
+        {% set heat_advance_val = (contract_data.heating_advance if contract else contract_data.get('heating_advance')) or 0 %}
         <p>
-            Vertrag Nr. {{ contract_data.contract_number or contract_data['contract_number'] }}<br>
+            Vertrag Nr. {{ contract_data.contract_number if contract else contract_data.get('contract_number') }}<br>
             Laufzeit:
-            {% if start_val %}
-                {{ start_val.strftime('%d.%m.%Y') if start_val.__class__.__name__ == 'date' else start_val }}
+            {% if start_text %}
+                {{ start_text }}
             {% endif %}
-            {% if end_val %} – {{ end_val.strftime('%d.%m.%Y') if end_val.__class__.__name__ == 'date' else end_val }}{% endif %}<br>
-            Kaltmiete: {{ '%.2f'|format((contract_data.cold_rent if contract else contract_data['cold_rent']) or 0) }} € / Monat<br>
-            Vorauszahlung Betriebskosten/Heizung: {{ '%.2f'|format(((contract_data.operating_cost_advance if contract else contract_data['operating_cost_advance']) or 0) + ((contract_data.heating_advance if contract else contract_data['heating_advance']) or 0)) }} € / Monat
+            – {{ end_text if end_text else 'n/a' }}<br>
+            Kaltmiete: {{ '%.2f'|format(cold_rent_val or 0) }} € / Monat<br>
+            Vorauszahlung Betriebskosten/Heizung: {{ '%.2f'|format(op_advance_val + heat_advance_val) }} € / Monat
         </p>
         {% else %}
         <p>Keine Vertragsdaten gefunden.</p>

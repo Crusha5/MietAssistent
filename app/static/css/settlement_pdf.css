@@ -34,6 +34,7 @@ h1, h2, h3, h4 {
 
 .table {
     width: 100%;
+    max-width: 100%;
     border-collapse: collapse;
     margin-top: 6px;
     table-layout: fixed;
@@ -100,20 +101,22 @@ h1, h2, h3, h4 {
 }
 
 .cost-table {
-    font-size: 11px;
+    font-size: 10px;
+    width: 98%;
+    margin: 0 auto;
 }
 
 .cost-table th, .cost-table td {
-    padding: 5px 6px;
+    padding: 4px 5px;
 }
 
-.cost-table th:nth-child(1), .cost-table td:nth-child(1) { width: 14%; }
-.cost-table th:nth-child(2), .cost-table td:nth-child(2) { width: 14%; }
-.cost-table th:nth-child(3), .cost-table td:nth-child(3) { width: 12%; }
-.cost-table th:nth-child(4), .cost-table td:nth-child(4) { width: 14%; }
+.cost-table th:nth-child(1), .cost-table td:nth-child(1) { width: 12%; }
+.cost-table th:nth-child(2), .cost-table td:nth-child(2) { width: 12%; }
+.cost-table th:nth-child(3), .cost-table td:nth-child(3) { width: 11%; }
+.cost-table th:nth-child(4), .cost-table td:nth-child(4) { width: 12%; }
 .cost-table th:nth-child(5), .cost-table td:nth-child(5) { width: 12%; }
 .cost-table th:nth-child(6), .cost-table td:nth-child(6) { width: 12%; }
-.cost-table th:nth-child(7), .cost-table td:nth-child(7) { width: 22%; }
+.cost-table th:nth-child(7), .cost-table td:nth-child(7) { width: 29%; }
 
 .letter-block {
     padding-top: 10mm;
@@ -159,6 +162,14 @@ h1, h2, h3, h4 {
 
 .letter-body .subject {
     margin-bottom: 12px;
+}
+
+.letter-body .paragraph-gap {
+    margin-bottom: 12px;
+}
+
+.letter-body .spacer-row {
+    min-height: 8px;
 }
 
 .page-break-before {
