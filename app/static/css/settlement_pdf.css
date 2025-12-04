@@ -38,6 +38,8 @@ h1, h2, h3, h4 {
     border-collapse: collapse;
     margin-top: 6px;
     table-layout: fixed;
+    page-break-inside: avoid;
+    break-inside: avoid;
 }
 
 .table th, .table td {
@@ -115,10 +117,10 @@ h1, h2, h3, h4 {
 
 .cost-table th:nth-child(1), .cost-table td:nth-child(1) { width: 18%; }
 .cost-table th:nth-child(2), .cost-table td:nth-child(2) { width: 18%; }
-.cost-table th:nth-child(3), .cost-table td:nth-child(3) { width: 16%; }
-.cost-table th:nth-child(4), .cost-table td:nth-child(4) { width: 10%; }
-.cost-table th:nth-child(5), .cost-table td:nth-child(5) { width: 14%; }
-.cost-table th:nth-child(6), .cost-table td:nth-child(6) { width: 24%; }
+.cost-table th:nth-child(3), .cost-table td:nth-child(3) { width: 17%; }
+.cost-table th:nth-child(4), .cost-table td:nth-child(4) { width: 8%; }
+.cost-table th:nth-child(5), .cost-table td:nth-child(5) { width: 15%; }
+.cost-table th:nth-child(6), .cost-table td:nth-child(6) { width: 20%; }
 
 .letter-block {
     padding-top: 10mm;
