@@ -285,7 +285,8 @@ def register_blueprints(app):
     # Settlements Routes (Web routes only)
     try:
         from app.routes.settlements import settlements_bp
-        app.register_blueprint(settlements_bp, url_prefix='/settlements')
+        # Routendefinitionen enthalten bereits den Pfad /settlements..., daher kein zusätzliches Prefix
+        app.register_blueprint(settlements_bp)
         print("✅ Settlement routes registered")
     except ImportError as e:
         print(f"❌ Failed to import settlement routes: {e}")
