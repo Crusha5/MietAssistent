@@ -1,5 +1,9 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, current_app
 from datetime import datetime
+import os
+import tempfile
+import uuid
+from threading import Thread, Lock
 
 from app.extensions import db
 from app.models import (
@@ -17,9 +21,35 @@ from io import BytesIO
 import pandas as pd
 from flask import send_file
 from app.utils.pdf_generator import generate_pdf_bytes
+from app.utils.backup_manager import (
+    create_backup_zip,
+    import_backup_zip,
+    safe_docker_restart,
+    validate_backup_zip,
+)
 from flask import render_template_string
 
 settings_bp = Blueprint('settings_web', __name__, url_prefix='/settings')
+
+backup_jobs = {}
+backup_lock = Lock()
+
+
+def _require_admin(user):
+    return user and user.role == 'admin'
+
+
+def _update_job(job_id, **kwargs):
+    with backup_lock:
+        if job_id not in backup_jobs:
+            return
+        backup_jobs[job_id].update(kwargs)
+
+
+def _start_background_task(target):
+    worker = Thread(target=target, daemon=True)
+    worker.start()
+    return worker
 
 
 @settings_bp.route('/', methods=['GET', 'POST'])
@@ -193,3 +223,167 @@ def export_revisions():
     output.write(df.to_csv(index=False, sep=';').encode('utf-8-sig'))
     output.seek(0)
     return send_file(output, as_attachment=True, download_name=f"{filename}.csv", mimetype='text/csv')
+
+
+@settings_bp.route('/backup')
+@login_required
+def backup_overview():
+    ensure_user_landlord_flag()
+    user = User.query.get(session.get('user_id'))
+    if not _require_admin(user):
+        flash('Nur Administratoren dürfen Backups verwalten.', 'danger')
+        return redirect(url_for('settings_web.settings_home'))
+
+    return render_template('settings/backup.html', user=user)
+
+
+@settings_bp.route('/backup/export', methods=['POST'])
+@login_required
+def start_backup_export():
+    user = User.query.get(session.get('user_id'))
+    if not _require_admin(user):
+        return jsonify({'error': 'Nicht autorisiert'}), 403
+
+    job_id = str(uuid.uuid4())
+    with backup_lock:
+        backup_jobs[job_id] = {
+            'type': 'export',
+            'status': 'running',
+            'progress': 0,
+            'file_path': None,
+            'error': None,
+            'message': 'Backup wird erstellt...'
+        }
+
+    app_ctx = current_app._get_current_object()
+
+    def runner():
+        with app_ctx.app_context():
+            try:
+                file_path = create_backup_zip(lambda pct: _update_job(job_id, progress=pct))
+                _update_job(job_id, progress=100, status='completed', file_path=file_path, message='Backup erfolgreich erstellt')
+                current_app.logger.info('Backup-Export abgeschlossen: %s', file_path)
+            except Exception as exc:
+                current_app.logger.exception('Fehler beim Backup-Export: %s', exc)
+                _update_job(job_id, status='error', error=str(exc))
+
+    _start_background_task(runner)
+    return jsonify({'job_id': job_id})
+
+
+@settings_bp.route('/backup/export/status')
+@login_required
+def backup_export_status():
+    user = User.query.get(session.get('user_id'))
+    if not _require_admin(user):
+        return jsonify({'error': 'Nicht autorisiert'}), 403
+
+    job_id = request.args.get('job_id')
+    job = backup_jobs.get(job_id)
+    if not job:
+        return jsonify({'error': 'Unbekannter Job'}), 404
+    return jsonify(job)
+
+
+@settings_bp.route('/backup/export/download/<job_id>')
+@login_required
+def backup_export_download(job_id):
+    user = User.query.get(session.get('user_id'))
+    if not _require_admin(user):
+        flash('Nicht autorisiert.', 'danger')
+        return redirect(url_for('settings_web.backup_overview'))
+
+    job = backup_jobs.get(job_id)
+    if not job or job.get('status') != 'completed' or not job.get('file_path'):
+        flash('Backup steht nicht zum Download bereit.', 'warning')
+        return redirect(url_for('settings_web.backup_overview'))
+
+    if not os.path.exists(job['file_path']):
+        flash('Backup-Datei nicht gefunden.', 'danger')
+        return redirect(url_for('settings_web.backup_overview'))
+
+    filename = f"backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
+    return send_file(job['file_path'], as_attachment=True, download_name=filename, mimetype='application/zip')
+
+
+@settings_bp.route('/backup/import', methods=['POST'])
+@login_required
+def start_backup_import():
+    user = User.query.get(session.get('user_id'))
+    if not _require_admin(user):
+        return jsonify({'error': 'Nicht autorisiert'}), 403
+
+    upload = request.files.get('file')
+    if not upload:
+        return jsonify({'error': 'Keine Datei hochgeladen'}), 400
+
+    tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.zip')
+    upload.save(tmp_file.name)
+
+    valid, message = validate_backup_zip(tmp_file.name)
+    if not valid:
+        os.remove(tmp_file.name)
+        return jsonify({'error': message}), 400
+
+    job_id = str(uuid.uuid4())
+    with backup_lock:
+        backup_jobs[job_id] = {
+            'type': 'import',
+            'status': 'running',
+            'progress': 0,
+            'error': None,
+            'message': 'Backup wird importiert...',
+            'restart_required': False
+        }
+
+    app_ctx = current_app._get_current_object()
+
+    def runner():
+        with app_ctx.app_context():
+            try:
+                emergency_backup = import_backup_zip(tmp_file.name, lambda pct: _update_job(job_id, progress=pct))
+                _update_job(
+                    job_id,
+                    progress=100,
+                    status='completed',
+                    message='Backup erfolgreich importiert',
+                    restart_required=True,
+                    emergency_backup=emergency_backup,
+                )
+                current_app.logger.info('Backup-Import abgeschlossen: %s', tmp_file.name)
+            except Exception as exc:
+                current_app.logger.exception('Fehler beim Backup-Import: %s', exc)
+                _update_job(job_id, status='error', error=str(exc))
+            finally:
+                try:
+                    os.remove(tmp_file.name)
+                except OSError:
+                    pass
+
+    _start_background_task(runner)
+    return jsonify({'job_id': job_id})
+
+
+@settings_bp.route('/backup/import/status')
+@login_required
+def backup_import_status():
+    user = User.query.get(session.get('user_id'))
+    if not _require_admin(user):
+        return jsonify({'error': 'Nicht autorisiert'}), 403
+
+    job_id = request.args.get('job_id')
+    job = backup_jobs.get(job_id)
+    if not job:
+        return jsonify({'error': 'Unbekannter Job'}), 404
+    return jsonify(job)
+
+
+@settings_bp.route('/backup/restart', methods=['POST'])
+@login_required
+def trigger_backup_restart():
+    user = User.query.get(session.get('user_id'))
+    if not _require_admin(user):
+        return jsonify({'error': 'Nicht autorisiert'}), 403
+
+    safe_docker_restart()
+    return jsonify({'status': 'restart_scheduled'})
