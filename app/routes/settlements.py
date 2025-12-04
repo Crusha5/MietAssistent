@@ -257,7 +257,7 @@ def _calculate_cost_share(cost, apartment, contract, meter_consumptions, total_a
         share = share_base * (tenant_percent / 100.0)
         note_parts.append(f"Mieteranteil {tenant_percent:.1f}%")
 
-    max_share = max(0.0, amount_total)
+    max_share = max(0.0, gross_amount)
     if share > max_share:
         share = max_share
     if share < 0:
