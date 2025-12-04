@@ -565,21 +565,31 @@ def _ensure_contract_protocol_columns():
     inspector = inspect(db.engine)
     try:
         contract_columns = [col['name'] for col in inspector.get_columns('contracts')]
-        if 'move_out_date' not in contract_columns:
-            print("🔄 Adding move_out_date to contracts...")
-            db.session.execute(text('ALTER TABLE contracts ADD COLUMN move_out_date DATE'))
-            db.session.commit()
-            print("✅ move_out_date added")
-        if 'is_locked' not in contract_columns:
-            print("🔄 Adding is_locked to contracts...")
-            db.session.execute(text('ALTER TABLE contracts ADD COLUMN is_locked BOOLEAN DEFAULT 0'))
-            db.session.commit()
-            print("✅ is_locked added")
-        if 'final_document' not in contract_columns:
-            print("🔄 Adding final_document to contracts...")
-            db.session.execute(text('ALTER TABLE contracts ADD COLUMN final_document VARCHAR(255)'))
-            db.session.commit()
-            print("✅ final_document added")
+        required_contract_columns = [
+            ("move_out_date", "DATE", None),
+            ("is_locked", "BOOLEAN", "0"),
+            ("final_document", "VARCHAR(255)", None),
+            ("contract_start", "DATE", None),
+            ("contract_end", "DATE", None),
+            ("cold_rent", "FLOAT", "0"),
+            ("operating_cost_advance", "FLOAT", "0"),
+            ("heating_advance", "FLOAT", "0"),
+            ("floor_space", "FLOAT", None),
+            ("landlord_signed", "BOOLEAN", "0"),
+            ("landlord_signature_date", "DATE", None),
+            ("tenant_signed", "BOOLEAN", "0"),
+            ("tenant_signature_date", "DATE", None),
+            ("pdf_path", "VARCHAR(255)", None),
+            ("is_archived", "BOOLEAN", "0"),
+        ]
+
+        for col_name, col_type, default_val in required_contract_columns:
+            if col_name not in contract_columns:
+                default_clause = f" DEFAULT {default_val}" if default_val is not None else ""
+                print(f"🔄 Adding {col_name} to contracts...")
+                db.session.execute(text(f'ALTER TABLE contracts ADD COLUMN {col_name} {col_type}{default_clause}'))
+                db.session.commit()
+                print(f"✅ {col_name} added")
 
         protocol_columns = [col['name'] for col in inspector.get_columns('protocols')]
         if 'is_closed' not in protocol_columns:
