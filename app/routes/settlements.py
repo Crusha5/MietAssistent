@@ -1,5 +1,5 @@
 import os
-from datetime import datetime
+from datetime import datetime, date
 
 from flask import Blueprint, request, jsonify, render_template, redirect, url_for, flash, current_app, send_file
 from flask_jwt_extended import jwt_required
@@ -29,6 +29,24 @@ def _safe_months_between(start_date, end_date):
         return 1
     diff = relativedelta(end_date, start_date)
     return max(1, diff.years * 12 + diff.months + 1)
+
+
+def _default_period_for_contract(contract):
+    """Schlägt den abrechnungsrelevanten Jahreszeitraum gemäß Vertrag vor."""
+    today = date.today()
+    year_start = date(today.year - 1 if today.month < 7 else today.year, 1, 1)
+    year_end = date(year_start.year, 12, 31)
+
+    if not contract:
+        return year_start, year_end
+
+    start = contract.start_date or contract.contract_start or year_start
+    end = contract.end_date or contract.contract_end or year_end
+
+    # Auf den Jahreszeitraum beschränken, aber Auszugs-/Enddatum respektieren
+    start = max(start, year_start)
+    end = min(end, year_end)
+    return start, end
 
 
 def _get_consumption(meter, start_date, end_date):
@@ -233,6 +251,22 @@ def _calculate_settlement(apartment_id, period_start, period_end):
     total_share = sum(item['share'] for item in breakdown)
     balance = round(total_share - advances, 2)
 
+    landlord_addr = None
+    if contract and contract.landlord:
+        landlord_addr = {
+            'name': f"{contract.landlord.first_name} {contract.landlord.last_name}".strip(),
+            'company': contract.landlord.company_name,
+            'street': contract.landlord.street,
+            'street_number': contract.landlord.street_number,
+            'zip_code': contract.landlord.zip_code,
+            'city': contract.landlord.city,
+            'email': contract.landlord.email,
+            'phone': contract.landlord.phone,
+            'iban': contract.landlord.iban,
+            'bic': contract.landlord.bic,
+            'bank_name': contract.landlord.bank_name,
+        }
+
     contract_snapshot = {
         'id': contract.id,
         'contract_number': contract.contract_number,
@@ -241,12 +275,13 @@ def _calculate_settlement(apartment_id, period_start, period_end):
         'cold_rent': contract.cold_rent,
         'operating_cost_advance': contract.operating_cost_advance,
         'heating_advance': contract.heating_advance,
+        'monthly_advance': contract.get_monthly_operating_prepayment(),
         'floor_space': contract.floor_space or apartment.area_sqm,
         'apartment_number': apartment.apartment_number,
         'building_name': apartment.building.name if apartment.building else None,
         'building_address': f"{apartment.building.street} {apartment.building.street_number}, {apartment.building.zip_code} {apartment.building.city}" if apartment.building else None,
         'tenant_name': f"{tenant.first_name} {tenant.last_name}",
-        'landlord_name': f"{contract.landlord.first_name} {contract.landlord.last_name}" if contract.landlord else None,
+        'landlord': landlord_addr,
     }
 
     settlement = Settlement(
@@ -327,7 +362,13 @@ settlements_bp = Blueprint('settlements', __name__)
 @settlements_bp.route('/settlements')
 @login_required
 def settlements_list():
-    settlements = Settlement.query.order_by(Settlement.period_end.desc()).all()
+    settlements = (
+        Settlement.query.filter(
+            (Settlement.is_archived == False) | (Settlement.is_archived.is_(None))
+        )
+        .order_by(Settlement.period_end.desc())
+        .all()
+    )
     return render_template('settlements/list.html', settlements=settlements)
 
 
@@ -335,6 +376,35 @@ def settlements_list():
 @login_required
 def calculate_settlement():
     apartments = Apartment.query.all()
+    selected_apartment_id = request.args.get('apartment_id') or (apartments[0].id if apartments else None)
+    selected_apartment = Apartment.query.get(selected_apartment_id) if selected_apartment_id else None
+    active_contract = None
+    default_start = None
+    default_end = None
+    preview = None
+
+    building_area = 0
+    requested_start = request.args.get('period_start')
+    requested_end = request.args.get('period_end')
+
+    if selected_apartment:
+        active_contract = _determine_active_contract(selected_apartment.id, date.today(), date.today())
+        default_start, default_end = _default_period_for_contract(active_contract)
+        building_area = _collect_building_area(selected_apartment)
+
+        # Falls der Nutzer den Zeitraum vorgibt, diese Werte verwenden
+        if requested_start and requested_end:
+            try:
+                default_start = datetime.strptime(requested_start, '%Y-%m-%d').date()
+                default_end = datetime.strptime(requested_end, '%Y-%m-%d').date()
+            except ValueError:
+                flash('Datumsformat ungültig, Vorschlag aus Vertrag verwendet.', 'warning')
+
+        try:
+            preview, _, _, _ = _calculate_settlement(selected_apartment.id, default_start, default_end)
+        except Exception as preview_exc:
+            preview = None
+            flash(f'Keine Vorschau möglich: {preview_exc}', 'warning')
 
     if request.method == 'POST':
         try:
@@ -361,7 +431,16 @@ def calculate_settlement():
             db.session.rollback()
             flash(f'Fehler beim Erstellen der Abrechnung: {str(e)}', 'danger')
 
-    return render_template('settlements/calculate.html', apartments=apartments)
+    return render_template(
+        'settlements/calculate.html',
+        apartments=apartments,
+        selected_apartment=selected_apartment,
+        contract=active_contract,
+        preview=preview,
+        default_start=default_start,
+        default_end=default_end,
+        building_area=building_area,
+    )
 
 @settlements_bp.route('/settlements/<settlement_id>')
 @login_required
@@ -419,6 +498,19 @@ def settlement_edit(settlement_id):
             flash(f'Fehler beim Aktualisieren der Abrechnung: {str(e)}', 'danger')
 
     return render_template('settlements/edit.html', settlement=settlement, apartments=apartments)
+
+
+@settlements_bp.route('/settlements/<settlement_id>/archive', methods=['POST'])
+@login_required
+def settlement_archive(settlement_id):
+    settlement = Settlement.query.get_or_404(settlement_id)
+    action = request.form.get('action', 'archive')
+    settlement.is_archived = action != 'restore'
+    if action == 'archive':
+        settlement.status = settlement.status or 'draft'
+    db.session.commit()
+    flash('Abrechnung archiviert.' if settlement.is_archived else 'Abrechnung reaktiviert.', 'success')
+    return redirect(url_for('settlements.settlement_detail', settlement_id=settlement.id))
 
 @settlements_bp.route('/settlements/<settlement_id>/pdf')
 @login_required

@@ -442,7 +442,8 @@ class Settlement(db.Model):
     apartment_area = db.Column(db.Float)
     contract_snapshot = db.Column(db.JSON)
     created_by = db.Column(db.String(36), db.ForeignKey('users.id'))
-    
+    is_archived = db.Column(db.Boolean, default=False)
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -473,6 +474,7 @@ class Settlement(db.Model):
             'apartment_area': self.apartment_area,
             'contract_id': self.contract_id,
             'contract_snapshot': self.contract_snapshot,
+            'is_archived': self.is_archived,
         }
 
 class Document(db.Model):

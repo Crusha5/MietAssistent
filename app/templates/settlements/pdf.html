@@ -7,6 +7,11 @@
 </head>
 <body>
     {% set contract_data = contract if contract else settlement.contract_snapshot %}
+    {% if contract %}
+        {% set landlord_data = landlord or contract.landlord %}
+    {% else %}
+        {% set landlord_data = landlord or (contract_data and contract_data.get('landlord')) %}
+    {% endif %}
     <div class="header">
         <div>
             <h1>Nebenkostenabrechnung</h1>
@@ -15,13 +20,13 @@
         </div>
         <div>
             <strong>Vermieter</strong><br>
-            {% if landlord %}
-                {% if landlord.company_name %}{{ landlord.company_name }}<br>{% endif %}
-                {% if landlord.first_name or landlord.last_name %}{{ landlord.first_name }} {{ landlord.last_name }}<br>{% endif %}
-                {{ landlord.street }} {{ landlord.street_number }}<br>
-                {{ landlord.zip_code }} {{ landlord.city }}<br>
-                {% if landlord.phone %}Tel.: {{ landlord.phone }}<br>{% endif %}
-                {% if landlord.email %}E-Mail: {{ landlord.email }}{% endif %}
+            {% if landlord_data %}
+                {% if landlord_data.company_name or landlord_data.company %}{{ landlord_data.company_name or landlord_data.company }}<br>{% endif %}
+                {% if landlord_data.first_name or landlord_data.last_name or landlord_data.name %}{{ landlord_data.first_name or '' }} {{ landlord_data.last_name or '' }}{{ landlord_data.name or '' }}<br>{% endif %}
+                {{ landlord_data.street or '' }} {{ landlord_data.street_number or '' }}<br>
+                {{ landlord_data.zip_code or '' }} {{ landlord_data.city or '' }}<br>
+                {% if landlord_data.phone %}Tel.: {{ landlord_data.phone }}<br>{% endif %}
+                {% if landlord_data.email %}E-Mail: {{ landlord_data.email }}{% endif %}
             {% else %}
                 Vermieterdaten nicht hinterlegt
             {% endif %}
@@ -41,6 +46,8 @@
                 {{ building.name }}<br>
                 {{ building.street }} {{ building.street_number }}<br>
                 {{ building.zip_code }} {{ building.city }}<br>
+            {% elif contract_data and contract_data.building_address %}
+                {{ contract_data.building_address }}<br>
             {% endif %}
             Wohnung: {{ apartment.apartment_number if apartment else '' }}<br>
             Wohnfläche: {{ '%.2f'|format(settlement.apartment_area or 0) }} m²
@@ -156,11 +163,20 @@
 
     <div class="section summary-box">
         <strong>Bankverbindung des Vermieters</strong><br>
-        {% if landlord and landlord.iban %}
-            Kontoinhaber: {{ landlord.account_holder or landlord.company_name or landlord.first_name ~ ' ' ~ landlord.last_name }}<br>
-            IBAN: {{ landlord.iban }}<br>
-            {% if landlord.bic %}BIC: {{ landlord.bic }}<br>{% endif %}
-            {% if landlord.bank_name %}Bank: {{ landlord.bank_name }}{% endif %}
+        {% if landlord_data %}
+            {% set iban_val = landlord_data.iban if landlord_data.iban is not defined else landlord_data.get('iban') %}
+            {% if iban_val %}
+                {% set holder_val = landlord_data.account_holder if landlord_data.account_holder is not defined else landlord_data.get('account_holder') %}
+                {% set bic_val = landlord_data.bic if landlord_data.bic is not defined else landlord_data.get('bic') %}
+                {% set bank_val = landlord_data.bank_name if landlord_data.bank_name is not defined else landlord_data.get('bank_name') %}
+                {% set name_val = holder_val or landlord_data.company_name or (landlord_data.get('company_name') if landlord_data.get is defined else None) or landlord_data.company or (landlord_data.get('company') if landlord_data.get is defined else None) or ((landlord_data.first_name ~ ' ' ~ landlord_data.last_name) if landlord_data.first_name is not defined else landlord_data.get('name')) %}
+                Kontoinhaber: {{ name_val }}<br>
+                IBAN: {{ iban_val }}<br>
+                {% if bic_val %}BIC: {{ bic_val }}<br>{% endif %}
+                {% if bank_val %}Bank: {{ bank_val }}{% endif %}
+            {% else %}
+                Keine Bankdaten hinterlegt.
+            {% endif %}
         {% else %}
             Keine Bankdaten hinterlegt.
         {% endif %}

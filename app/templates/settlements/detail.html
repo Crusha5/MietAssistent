@@ -40,6 +40,10 @@
                             {% endif %}
                         </p>
                         <p><strong>Wohnfläche:</strong> {{ "%.2f"|format(settlement.apartment_area or 0) }} m²</p>
+                        {% if settlement.apartment and settlement.apartment.building %}
+                        <p class="mb-0"><strong>Gebäude:</strong> {{ settlement.apartment.building.name }}</p>
+                        <small class="text-muted">{{ settlement.apartment.building.street }} {{ settlement.apartment.building.street_number }}, {{ settlement.apartment.building.zip_code }} {{ settlement.apartment.building.city }}</small>
+                        {% endif %}
                     </div>
                     <div class="col-md-6">
                         <h6>Kostenübersicht</h6>
@@ -48,6 +52,7 @@
                         {% if settlement.contract or snapshot %}
                         {% set c = settlement.contract if settlement.contract else snapshot %}
                         <p class="mb-1"><small class="text-muted">monatliche Vorauszahlung lt. Vertrag: {{ "%.2f"|format(((c.operating_cost_advance if settlement.contract else c.get('operating_cost_advance')) or 0) + ((c.heating_advance if settlement.contract else c.get('heating_advance')) or 0)) }} €</small></p>
+                        <p class="mb-1"><small class="text-muted">Kaltmiete: {{ "%.2f"|format((c.cold_rent if settlement.contract else c.get('cold_rent')) or 0) }} € / Monat</small></p>
                         {% endif %}
                         <p class="fw-bold"><strong>Saldo:</strong> {{ "%.2f"|format(settlement.balance or 0) }} €</p>
                     </div>
@@ -58,8 +63,14 @@
                         <h6>Vertragsdetails</h6>
                         <p class="text-muted mb-1">
                             Kaltmiete: {{ "%.2f"|format((settlement.contract.cold_rent if settlement.contract else snapshot.get('cold_rent')) or 0) }} € / Monat ·
-                            Vorauszahlung BK/HZ: {{ "%.2f"|format(((settlement.contract.operating_cost_advance if settlement.contract else snapshot.get('operating_cost_advance') or 0) + (settlement.contract.heating_advance if settlement.contract else snapshot.get('heating_advance') or 0))) }} € / Monat
+                            Vorauszahlung BK/HZ: {{ "%.2f"|format(((settlement.contract.operating_cost_advance if settlement.contract else snapshot.get('operating_cost_advance') or 0) + (settlement.contract.heating_advance if settlement.contract else snapshot.get('heating_advance') or 0))) }} € / Monat ·
+                            Wohnfläche Abrechnung: {{ "%.2f"|format(settlement.apartment_area or 0) }} m²
                         </p>
+                        {% if snapshot.landlord %}
+                        <small class="text-muted">Vermieter: {{ snapshot.landlord.company or snapshot.landlord.name }} · {{ snapshot.landlord.street }} {{ snapshot.landlord.street_number }}, {{ snapshot.landlord.zip_code }} {{ snapshot.landlord.city }}</small>
+                        {% elif settlement.contract and settlement.contract.landlord %}
+                        <small class="text-muted">Vermieter: {{ settlement.contract.landlord.company_name or settlement.contract.landlord.first_name ~ ' ' ~ settlement.contract.landlord.last_name }}</small>
+                        {% endif %}
                     </div>
                 </div>
                 {% endif %}
@@ -113,6 +124,19 @@
                     <a href="/settlements/{{ settlement.id }}/pdf" class="btn btn-outline-primary">
                         <i class="bi bi-file-pdf me-1"></i> PDF herunterladen
                     </a>
+                    <form method="POST" action="/settlements/{{ settlement.id }}/archive">
+                        {% if settlement.is_archived %}
+                        <input type="hidden" name="action" value="restore">
+                        <button type="submit" class="btn btn-outline-secondary w-100">
+                            <i class="bi bi-arrow-counterclockwise me-1"></i> Archivierung aufheben
+                        </button>
+                        {% else %}
+                        <input type="hidden" name="action" value="archive">
+                        <button type="submit" class="btn btn-outline-danger w-100">
+                            <i class="bi bi-archive me-1"></i> Archivieren
+                        </button>
+                        {% endif %}
+                    </form>
                 </div>
             </div>
         </div>

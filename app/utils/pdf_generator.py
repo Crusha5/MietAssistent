@@ -24,9 +24,9 @@ def _clean_bullet_markers(html_text: str) -> str:
 
 def _get_base_path() -> str:
     try:
-        return "/"
+        return current_app.root_path if current_app else os.getcwd()
     except Exception:
-        return "/"
+        return os.getcwd()
 
 
 def _get_stylesheets():

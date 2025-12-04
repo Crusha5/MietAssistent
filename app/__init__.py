@@ -558,6 +558,7 @@ def initialize_database(app):
                     ("consumption_details", "TEXT", None),
                     ("contract_id", "VARCHAR(36)", None),
                     ("contract_snapshot", "TEXT", None),
+                    ("is_archived", "BOOLEAN", "0"),
                 ]
 
                 for col_name, col_type, default_val in required_settlement_columns:
