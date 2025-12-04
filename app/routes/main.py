@@ -813,48 +813,67 @@ def calculate_settlement_page():
             apartment_id = request.form['apartment_id']
             period_start = datetime.strptime(request.form['period_start'], '%Y-%m-%d').date()
             period_end = datetime.strptime(request.form['period_end'], '%Y-%m-%d').date()
-            
+
             apartment = Apartment.query.get(apartment_id)
             tenant = Tenant.query.filter_by(apartment_id=apartment_id, move_out_date=None).first()
-            
+
             if not tenant:
                 flash('Kein aktiver Mieter für diese Wohnung gefunden', 'danger')
                 return redirect(request.url)
-            
-            # Vereinfachte Berechnung
-            total_rent = tenant.rent * 12  # Jahresmiete
-            additional_costs = apartment.additional_costs * 12  # Jahresnebenkosten
-            
-            # Hier würden echte Verbrauchswerte berechnet werden
-            heating_costs = 0
-            water_costs = 0
-            electricity_costs = 0
-            
-            total_amount = additional_costs + heating_costs + water_costs + electricity_costs
-            
+
+            contract = (
+                Contract.query
+                .filter(
+                    Contract.apartment_id == apartment_id,
+                    Contract.tenant_id == tenant.id,
+                    (Contract.is_archived.is_(False)) | (Contract.is_archived.is_(None)),
+                )
+                .order_by(Contract.start_date.desc())
+                .first()
+            )
+
+            if not contract:
+                flash('Kein aktiver Vertrag für diese Wohnung/Mieter-Kombination gefunden.', 'danger')
+                return redirect(request.url)
+
+            # Monate im Abrechnungszeitraum bestimmen (mindestens 1)
+            months = max(1, (period_end.year - period_start.year) * 12 + (period_end.month - period_start.month) + 1)
+
+            monthly_prepayment = contract.get_monthly_operating_prepayment()
+            total_prepayments = round(monthly_prepayment * months, 2)
+
+            # Platzhalter-Berechnung: reale Kosten müssen separat erfasst werden.
+            total_costs = 0.0
+            balance = round(total_costs - total_prepayments, 2)
+
             settlement = Settlement(
+                settlement_year=period_end.year,
                 period_start=period_start,
                 period_end=period_end,
-                total_rent=total_rent,
-                additional_costs=additional_costs,
-                heating_costs=heating_costs,
-                water_costs=water_costs,
-                electricity_costs=electricity_costs,
-                total_amount=total_amount,
+                total_costs=total_costs,
+                advance_payments=total_prepayments,
+                balance=balance,
+                total_amount=balance,
+                total_area=apartment.building.total_area_sqm if apartment and apartment.building else None,
+                apartment_area=contract.floor_space or apartment.area_sqm,
                 apartment_id=apartment_id,
-                tenant_id=tenant.id
+                tenant_id=tenant.id,
+                status='draft',
+                created_by=current_user.id,
+                cost_breakdown={},
+                consumption_details={},
             )
-            
+
             db.session.add(settlement)
             db.session.commit()
-            
+
             flash('Abrechnung erfolgreich erstellt!', 'success')
             return redirect(url_for('main.settlement_detail_page', settlement_id=settlement.id))
-            
+
         except Exception as e:
             db.session.rollback()
             flash(f'Fehler beim Erstellen der Abrechnung: {str(e)}', 'danger')
-    
+
     apartments = Apartment.query.all()
     return render_template('settlements/calculate.html', apartments=apartments)
 
