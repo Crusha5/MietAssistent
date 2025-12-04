@@ -63,11 +63,11 @@
                 <tbody>
                     {% for contract in contracts %}
                     <tr>
-                        <td>
+                        <th scope="row">
                             <strong>{{ contract.contract_number }}</strong>
                             <br>
                             <small class="text-muted">{{ contract.contract_type }}</small>
-                        </td>
+                        </th>
                         <td>{{ contract.tenant.first_name }} {{ contract.tenant.last_name }}</td>
                         <td>
                             {{ contract.apartment.building.name }} -
@@ -84,13 +84,13 @@
                         </td>
                         <td>
                             <div class="btn-group btn-group-sm">
-                                <a href="{{ url_for('contracts.contract_detail', contract_id=contract.id) }}" 
-                                   class="btn btn-outline-primary">
+                                <a href="{{ url_for('contracts.contract_detail', contract_id=contract.id) }}"
+                                   class="btn btn-outline-primary" aria-label="Vertrag {{ contract.contract_number }} ansehen">
                                     <i class="bi bi-eye"></i>
                                 </a>
                                 {% if contract.pdf_path %}
-                                <a href="{{ url_for('contracts.download_contract', contract_id=contract.id) }}" 
-                                   class="btn btn-outline-success">
+                                <a href="{{ url_for('contracts.download_contract', contract_id=contract.id) }}"
+                                   class="btn btn-outline-success" aria-label="Vertrag {{ contract.contract_number }} herunterladen">
                                     <i class="bi bi-download"></i>
                                 </a>
                                 {% endif %}

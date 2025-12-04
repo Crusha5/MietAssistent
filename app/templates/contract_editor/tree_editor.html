@@ -206,7 +206,7 @@
                                                 {{ tpl.name }}
                                             </div>
                                         </div>
-                                        <button class="btn btn-sm btn-outline-primary add-from-template">
+                                        <button class="btn btn-sm btn-outline-primary add-from-template" aria-label="Vorlage {{ tpl.title }} hinzufügen">
                                             <i class="bi bi-plus-lg"></i>
                                         </button>
                                     </div>
@@ -237,7 +237,7 @@
                 </div>
             </div>
             <div class="card-body tree-column">
-                <div id="paragraphTreeRoot"></div>
+                <div id="paragraphTreeRoot" role="tree"></div>
                 <div id="emptyHint" class="text-center text-muted small mt-3" style="display:none;">
                     <i class="bi bi-file-text display-6 d-block mb-2"></i>
                     Noch keine Paragraphen angelegt.<br>
@@ -255,7 +255,7 @@
                     <i class="bi bi-eye me-2"></i>Live-Vorschau
                 </h5>
                 <div class="d-flex align-items-center gap-2">
-                    <button class="btn btn-outline-secondary btn-sm" id="btnPreviewFullscreen" title="Vorschau vergrößern">
+                    <button class="btn btn-outline-secondary btn-sm" id="btnPreviewFullscreen" title="Vorschau vergrößern" aria-label="Vorschau im Vollbild öffnen">
                         <i class="bi bi-arrows-fullscreen"></i>
                     </button>
                     <span class="badge bg-secondary small">Nur Vorschau</span>
@@ -272,11 +272,11 @@
     </div>
 </div>
 
-<div class="modal fade" id="previewFullscreen" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="previewFullscreen" tabindex="-1" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="previewFullscreenTitle">
     <div class="modal-dialog modal-fullscreen">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title"><i class="bi bi-eye me-2"></i>Live-Vorschau</h5>
+                <h5 class="modal-title" id="previewFullscreenTitle"><i class="bi bi-eye me-2"></i>Live-Vorschau</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
             </div>
             <div class="modal-body">
@@ -287,11 +287,11 @@
 </div>
 
 <!-- Modal: Paragraph/Subparagraph bearbeiten -->
-<div class="modal fade" id="nodeEditorModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="nodeEditorModal" tabindex="-1" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="nodeEditorTitle">
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">
+                <h5 class="modal-title" id="nodeEditorTitle">
                     Paragraph bearbeiten
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
@@ -468,6 +468,8 @@ function createParagraphNodeElement(node, index) {
     container.className = 'paragraph-node';
     container.dataset.nodeId = node.id;
     container.dataset.level = '1';
+    container.setAttribute('role', 'treeitem');
+    container.tabIndex = 0;
 
     const header = document.createElement('div');
     header.className = 'node-header';
@@ -498,12 +500,14 @@ function createParagraphNodeElement(node, index) {
     btnAddSub.className = 'btn btn-outline-secondary';
     btnAddSub.innerHTML = '<i class="bi bi-plus-lg"></i>';
     btnAddSub.title = 'Unterparagraph hinzufügen';
+    btnAddSub.setAttribute('aria-label', 'Unterparagraph hinzufügen');
     btnAddSub.addEventListener('click', () => addSubparagraph(node.id));
     btnGroup.appendChild(btnAddSub);
 
     const btnEdit = document.createElement('button');
     btnEdit.className = 'btn btn-outline-primary';
     btnEdit.innerHTML = '<i class="bi bi-pencil"></i>';
+    btnEdit.setAttribute('aria-label', 'Paragraph bearbeiten');
     btnEdit.addEventListener('click', () => openNodeEditor(node.id, 1));
     btnGroup.appendChild(btnEdit);
 
@@ -512,6 +516,7 @@ function createParagraphNodeElement(node, index) {
     btnDelete.innerHTML = '<i class="bi bi-trash"></i>';
     btnDelete.disabled = !!node.mandatory;
     btnDelete.title = node.mandatory ? 'Pflichtparagraph kann nicht gelöscht werden' : 'Paragraph löschen';
+    btnDelete.setAttribute('aria-label', node.mandatory ? 'Pflichtparagraph kann nicht gelöscht werden' : 'Paragraph löschen');
     btnDelete.addEventListener('click', () => deleteNode(node.id, 1));
     btnGroup.appendChild(btnDelete);
 
@@ -523,10 +528,32 @@ function createParagraphNodeElement(node, index) {
     subList.className = 'subparagraph-list';
     subList.dataset.parentId = node.id;
     subList.dataset.level = '2';
+    subList.setAttribute('role', 'group');
 
     (node.children || []).forEach((child, idx) => {
         const childEl = createSubparagraphNodeElement(child, idx, 2);
         subList.appendChild(childEl);
+    });
+
+    const toggleExpand = () => {
+        if (!subList.childElementCount) return;
+        const shouldExpand = subList.hidden;
+        subList.hidden = !shouldExpand;
+        container.setAttribute('aria-expanded', shouldExpand ? 'true' : 'false');
+    };
+
+    container.setAttribute('aria-expanded', subList.childElementCount ? 'true' : 'false');
+
+    header.addEventListener('click', (event) => {
+        if (event.target.closest('button')) return;
+        toggleExpand();
+    });
+
+    container.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            toggleExpand();
+        }
     });
 
     container.appendChild(subList);
@@ -549,6 +576,8 @@ function createSubparagraphNodeElement(node, index, level = 2) {
     el.className = 'subparagraph-node';
     el.dataset.nodeId = node.id;
     el.dataset.level = `${level}`;
+    el.setAttribute('role', 'treeitem');
+    el.tabIndex = 0;
 
     const header = document.createElement('div');
     header.className = 'd-flex justify-content-between align-items-center';
@@ -574,12 +603,14 @@ function createSubparagraphNodeElement(node, index, level = 2) {
     btnAddChild.className = 'btn btn-outline-secondary';
     btnAddChild.innerHTML = '<i class="bi bi-plus"></i>';
     btnAddChild.title = 'Unterpunkt hinzufügen';
+    btnAddChild.setAttribute('aria-label', 'Unterpunkt hinzufügen');
     btnAddChild.addEventListener('click', () => addSubparagraph(node.id, level + 1));
     btnGroup.appendChild(btnAddChild);
 
     const btnEdit = document.createElement('button');
     btnEdit.className = 'btn btn-outline-primary';
     btnEdit.innerHTML = '<i class="bi bi-pencil"></i>';
+    btnEdit.setAttribute('aria-label', 'Unterpunkt bearbeiten');
     btnEdit.addEventListener('click', () => openNodeEditor(node.id, level));
     btnGroup.appendChild(btnEdit);
 
@@ -588,6 +619,7 @@ function createSubparagraphNodeElement(node, index, level = 2) {
     btnDelete.innerHTML = '<i class="bi bi-trash"></i>';
     btnDelete.disabled = !!node.mandatory;
     btnDelete.title = node.mandatory ? 'Pflichtparagraph kann nicht gelöscht werden' : 'Unterparagraph löschen';
+    btnDelete.setAttribute('aria-label', node.mandatory ? 'Pflichtparagraph kann nicht gelöscht werden' : 'Unterparagraph löschen');
     btnDelete.addEventListener('click', () => deleteNode(node.id, 2));
     btnGroup.appendChild(btnDelete);
 
@@ -600,12 +632,23 @@ function createSubparagraphNodeElement(node, index, level = 2) {
         nestedList.className = 'subparagraph-list';
         nestedList.dataset.parentId = node.id;
         nestedList.dataset.level = `${level + 1}`;
+        nestedList.setAttribute('role', 'group');
 
         node.children.forEach((child, idx) => {
             nestedList.appendChild(createSubparagraphNodeElement(child, idx, level + 1));
         });
 
         el.appendChild(nestedList);
+
+        el.setAttribute('aria-expanded', 'true');
+
+        el.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                nestedList.hidden = !nestedList.hidden;
+                el.setAttribute('aria-expanded', nestedList.hidden ? 'false' : 'true');
+            }
+        });
 
         new Sortable(nestedList, {
             handle: '.drag-handle',
