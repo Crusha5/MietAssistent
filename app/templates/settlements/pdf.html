@@ -12,6 +12,52 @@
     {% else %}
         {% set landlord_data = landlord or (contract_data and contract_data.get('landlord')) %}
     {% endif %}
+
+    {% set landlord_company = (landlord_data.company_name or landlord_data.company) if landlord_data else '' %}
+    {% set landlord_personal = ((landlord_data.first_name or '') ~ ' ' ~ (landlord_data.last_name or '')).strip() if landlord_data else '' %}
+    {% set landlord_display_name = (landlord_data.name or landlord_personal) if landlord_data else '' %}
+
+    <div class="letter-block">
+        <div class="sender-info">
+            {% if landlord_company %}{{ landlord_company }}<br>{% endif %}
+            {% if landlord_display_name and landlord_display_name != landlord_company %}{{ landlord_display_name }}<br>{% endif %}
+            {% if landlord_data %}
+                {{ landlord_data.street or '' }} {{ landlord_data.street_number or '' }}<br>
+                {{ landlord_data.zip_code or '' }} {{ landlord_data.city or '' }}<br>
+                {% if landlord_data.phone %}Tel.: {{ landlord_data.phone }}<br>{% endif %}
+                {% if landlord_data.email %}E-Mail: {{ landlord_data.email }}{% endif %}
+            {% endif %}
+        </div>
+
+        <div class="address-window">
+            {% if landlord_company %}<div class="sender-line">{{ landlord_company }}</div>{% endif %}
+            {% if landlord_display_name and landlord_display_name != landlord_company %}<div class="sender-line">{{ landlord_display_name }}</div>{% endif %}
+            <div class="recipient">
+                {% if tenant %}
+                    {{ tenant.first_name }} {{ tenant.last_name }}<br>
+                {% elif contract_data and contract_data.tenant_name %}
+                    {{ contract_data.tenant_name }}<br>
+                {% endif %}
+                {% if building %}
+                    {{ building.street }} {{ building.street_number }}<br>
+                    {{ building.zip_code }} {{ building.city }}
+                {% elif contract_data and contract_data.building_address %}
+                    {{ contract_data.building_address }}
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="letter-meta">
+            <div>{{ building.city if building else (landlord_data.city if landlord_data else '') }}, {{ generated_at.strftime('%d.%m.%Y') if generated_at else '' }}</div>
+        </div>
+
+        <div class="letter-body">
+            <p class="subject"><strong>Betreff: Nebenkostenabrechnung {{ settlement.period_start.strftime('%d.%m.%Y') }} bis {{ settlement.period_end.strftime('%d.%m.%Y') }}</strong></p>
+            <p>Guten Tag{% if tenant %} {{ tenant.first_name }} {{ tenant.last_name }}{% endif %},</p>
+            <p>anbei erhalten Sie die Nebenkostenabrechnung für Ihre Wohnung im oben genannten Zeitraum. Wir haben die Kosten transparent aufbereitet und die Vorauszahlungen berücksichtigt.</p>
+            <p>Bitte prüfen Sie die Aufstellung in Ruhe. Bei Rückfragen stehen wir Ihnen gerne zur Verfügung.</p>
+        </div>
+    </div>
     <div class="header">
         <div>
             <h1>Nebenkostenabrechnung</h1>
@@ -21,8 +67,8 @@
         <div>
             <strong>Vermieter</strong><br>
             {% if landlord_data %}
-                {% if landlord_data.company_name or landlord_data.company %}{{ landlord_data.company_name or landlord_data.company }}<br>{% endif %}
-                {% if landlord_data.first_name or landlord_data.last_name or landlord_data.name %}{{ landlord_data.first_name or '' }} {{ landlord_data.last_name or '' }}{{ landlord_data.name or '' }}<br>{% endif %}
+                {% if landlord_company %}{{ landlord_company }}<br>{% endif %}
+                {% if landlord_display_name and landlord_display_name != landlord_company %}{{ landlord_display_name }}<br>{% endif %}
                 {{ landlord_data.street or '' }} {{ landlord_data.street_number or '' }}<br>
                 {{ landlord_data.zip_code or '' }} {{ landlord_data.city or '' }}<br>
                 {% if landlord_data.phone %}Tel.: {{ landlord_data.phone }}<br>{% endif %}
@@ -100,7 +146,7 @@
 
     <div class="section">
         <h3>Kostenaufstellung</h3>
-        <table class="table">
+        <table class="table cost-table">
             <thead>
                 <tr>
                     <th>Beleg</th>
@@ -172,7 +218,7 @@
 
     <div class="section notice">
         Gemäß § 556 Abs. 3 BGB kann der Mieter innerhalb von 12 Monaten nach Zugang der Abrechnung Einwendungen erheben.
-        Bitte überweisen Sie einen Nachzahlungsbetrag innerhalb von 14 Tagen auf das unten stehende Konto oder teilen Sie uns eine Bankverbindung für ein Guthaben mit.
+        Bitte überweisen Sie einen Nachzahlungsbetrag innerhalb von 14 Tagen auf das unten stehende Konto.
     </div>
 
     <div class="section summary-box">
