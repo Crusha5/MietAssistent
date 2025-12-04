@@ -285,7 +285,8 @@ def register_blueprints(app):
     # Settlements Routes (Web routes only)
     try:
         from app.routes.settlements import settlements_bp
-        app.register_blueprint(settlements_bp, url_prefix='/settlements')
+        # Routendefinitionen enthalten bereits den Pfad /settlements..., daher kein zusätzliches Prefix
+        app.register_blueprint(settlements_bp)
         print("✅ Settlement routes registered")
     except ImportError as e:
         print(f"❌ Failed to import settlement routes: {e}")
@@ -532,22 +533,51 @@ def initialize_database(app):
                     db.session.execute(text('ALTER TABLE operating_costs ADD COLUMN allocation_percent FLOAT DEFAULT 0.0'))
                     db.session.commit()
                     print("✅ allocation_percent added")
+                if 'spread_years' not in cost_columns:
+                    print("🔄 Adding spread_years to operating_costs...")
+                    db.session.execute(text('ALTER TABLE operating_costs ADD COLUMN spread_years INTEGER DEFAULT 1'))
+                    db.session.commit()
+                    print("✅ spread_years added")
+                if 'distribution_factor' not in cost_columns:
+                    print("🔄 Adding distribution_factor to operating_costs...")
+                    db.session.execute(text('ALTER TABLE operating_costs ADD COLUMN distribution_factor FLOAT DEFAULT 0.0'))
+                    db.session.commit()
+                    print("✅ distribution_factor added")
                 if 'vendor_invoice_number' not in cost_columns:
                     print("🔄 Adding vendor_invoice_number to operating_costs...")
                     db.session.execute(text('ALTER TABLE operating_costs ADD COLUMN vendor_invoice_number VARCHAR(120)'))
                     db.session.commit()
                     print("✅ vendor_invoice_number added")
+                if 'apartment_id' not in cost_columns:
+                    print("🔄 Adding apartment_id to operating_costs...")
+                    db.session.execute(text('ALTER TABLE operating_costs ADD COLUMN apartment_id VARCHAR(36)'))
+                    db.session.commit()
+                    print("✅ apartment_id added")
             except Exception as mig_exc:
                 print(f"⚠️ Could not migrate operating_costs columns: {mig_exc}")
 
             # Settlement-Felder absichern (falls alte Datenbankversion)
             try:
                 settlement_columns = [col['name'] for col in inspector.get_columns('settlements')]
-                if 'tenant_id' not in settlement_columns:
-                    print("🔄 Adding tenant_id to settlements...")
-                    db.session.execute(text('ALTER TABLE settlements ADD COLUMN tenant_id VARCHAR(36)'))
-                    db.session.commit()
-                    print("✅ tenant_id added")
+                required_settlement_columns = [
+                    ("tenant_id", "VARCHAR(36)", None),
+                    ("total_amount", "FLOAT", "0"),
+                    ("total_area", "FLOAT", None),
+                    ("apartment_area", "FLOAT", None),
+                    ("cost_breakdown", "TEXT", None),
+                    ("consumption_details", "TEXT", None),
+                    ("contract_id", "VARCHAR(36)", None),
+                    ("contract_snapshot", "TEXT", None),
+                    ("is_archived", "BOOLEAN", "0"),
+                ]
+
+                for col_name, col_type, default_val in required_settlement_columns:
+                    if col_name not in settlement_columns:
+                        default_clause = f" DEFAULT {default_val}" if default_val is not None else ""
+                        print(f"🔄 Adding {col_name} to settlements...")
+                        db.session.execute(text(f'ALTER TABLE settlements ADD COLUMN {col_name} {col_type}{default_clause}'))
+                        db.session.commit()
+                        print(f"✅ {col_name} added")
             except Exception as mig_exc:
                 print(f"⚠️ Could not migrate settlements columns: {mig_exc}")
 
@@ -565,21 +595,31 @@ def _ensure_contract_protocol_columns():
     inspector = inspect(db.engine)
     try:
         contract_columns = [col['name'] for col in inspector.get_columns('contracts')]
-        if 'move_out_date' not in contract_columns:
-            print("🔄 Adding move_out_date to contracts...")
-            db.session.execute(text('ALTER TABLE contracts ADD COLUMN move_out_date DATE'))
-            db.session.commit()
-            print("✅ move_out_date added")
-        if 'is_locked' not in contract_columns:
-            print("🔄 Adding is_locked to contracts...")
-            db.session.execute(text('ALTER TABLE contracts ADD COLUMN is_locked BOOLEAN DEFAULT 0'))
-            db.session.commit()
-            print("✅ is_locked added")
-        if 'final_document' not in contract_columns:
-            print("🔄 Adding final_document to contracts...")
-            db.session.execute(text('ALTER TABLE contracts ADD COLUMN final_document VARCHAR(255)'))
-            db.session.commit()
-            print("✅ final_document added")
+        required_contract_columns = [
+            ("move_out_date", "DATE", None),
+            ("is_locked", "BOOLEAN", "0"),
+            ("final_document", "VARCHAR(255)", None),
+            ("contract_start", "DATE", None),
+            ("contract_end", "DATE", None),
+            ("cold_rent", "FLOAT", "0"),
+            ("operating_cost_advance", "FLOAT", "0"),
+            ("heating_advance", "FLOAT", "0"),
+            ("floor_space", "FLOAT", None),
+            ("landlord_signed", "BOOLEAN", "0"),
+            ("landlord_signature_date", "DATE", None),
+            ("tenant_signed", "BOOLEAN", "0"),
+            ("tenant_signature_date", "DATE", None),
+            ("pdf_path", "VARCHAR(255)", None),
+            ("is_archived", "BOOLEAN", "0"),
+        ]
+
+        for col_name, col_type, default_val in required_contract_columns:
+            if col_name not in contract_columns:
+                default_clause = f" DEFAULT {default_val}" if default_val is not None else ""
+                print(f"🔄 Adding {col_name} to contracts...")
+                db.session.execute(text(f'ALTER TABLE contracts ADD COLUMN {col_name} {col_type}{default_clause}'))
+                db.session.commit()
+                print(f"✅ {col_name} added")
 
         protocol_columns = [col['name'] for col in inspector.get_columns('protocols')]
         if 'is_closed' not in protocol_columns:

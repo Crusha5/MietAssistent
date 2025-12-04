@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block title %}Abrechnung bearbeiten - Rental Management{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="bi bi-pencil-square me-2"></i>Abrechnung bearbeiten
+                </h5>
+                <a href="/settlements/{{ settlement.id }}" class="btn btn-light btn-sm text-primary">
+                    <i class="bi bi-arrow-left"></i> Zurück
+                </a>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="/settlements/{{ settlement.id }}/edit">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="apartment_id" class="form-label">Wohnung *</label>
+                            <select class="form-select" id="apartment_id" name="apartment_id" required>
+                                {% for apartment in apartments %}
+                                <option value="{{ apartment.id }}" {% if apartment.id == settlement.apartment_id %}selected{% endif %}>
+                                    {{ apartment.get_full_identifier() }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="period_start" class="form-label">Abrechnungszeitraum Start *</label>
+                            <input type="date" class="form-control" id="period_start" name="period_start" value="{{ settlement.period_start.strftime('%Y-%m-%d') }}" required>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="period_end" class="form-label">Abrechnungszeitraum Ende *</label>
+                            <input type="date" class="form-control" id="period_end" name="period_end" value="{{ settlement.period_end.strftime('%Y-%m-%d') }}" required>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="status" class="form-label">Status</label>
+                            <select class="form-select" id="status" name="status">
+                                {% set statuses = ['draft','calculated','approved','sent','paid','disputed'] %}
+                                {% for s in statuses %}
+                                <option value="{{ s }}" {% if settlement.status == s %}selected{% endif %}>{{ s }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-12">
+                            <label for="notes" class="form-label">Notizen</label>
+                            <textarea class="form-control" id="notes" name="notes" rows="3" placeholder="Interne Hinweise...">{{ settlement.notes or '' }}</textarea>
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save me-1"></i>Abrechnung speichern & neu berechnen
+                        </button>
+                        <a href="/settlements/{{ settlement.id }}" class="btn btn-outline-secondary">Abbrechen</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -22,6 +22,7 @@
                         <th>Zeitraum</th>
                         <th>Wohnung</th>
                         <th>Mieter</th>
+                        <th>Vertrag</th>
                         <th>Gesamtbetrag</th>
                         <th>Erstellt am</th>
                         <th>Aktionen</th>
@@ -35,7 +36,7 @@
                         </td>
                         <td>
                             {% if settlement.apartment %}
-                                {{ settlement.apartment.number }} - {{ settlement.apartment.street }}
+                                {{ settlement.apartment.get_full_identifier() }}
                             {% endif %}
                         </td>
                         <td>
@@ -43,12 +44,22 @@
                                 {{ settlement.tenant.first_name }} {{ settlement.tenant.last_name }}
                             {% endif %}
                         </td>
-                        <td>{{ "%.2f"|format(settlement.total_amount) }} €</td>
+                        <td>
+                            {% if settlement.contract %}
+                                {{ settlement.contract.contract_number }}
+                            {% else %}
+                                –
+                            {% endif %}
+                        </td>
+                        <td>{{ "%.2f"|format(settlement.balance or 0) }} €</td>
                         <td>{{ settlement.created_at.strftime('%d.%m.%Y') }}</td>
                         <td>
                             <div class="btn-group btn-group-sm">
                                 <a href="/settlements/{{ settlement.id }}" class="btn btn-outline-primary">
                                     <i class="bi bi-eye"></i>
+                                </a>
+                                <a href="/settlements/{{ settlement.id }}/edit" class="btn btn-outline-secondary">
+                                    <i class="bi bi-pencil"></i>
                                 </a>
                                 <a href="/settlements/{{ settlement.id }}/pdf" class="btn btn-outline-secondary">
                                     <i class="bi bi-file-pdf"></i>

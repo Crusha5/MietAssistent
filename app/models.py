@@ -314,7 +314,13 @@ class Meter(db.Model):
     # Relationships - NUR EINE parent_meter Beziehung
     parent_meter = db.relationship('Meter', remote_side=[id], backref=db.backref('sub_meters', lazy=True))
     readings = db.relationship('MeterReading', backref='meter', lazy=True, cascade='all, delete-orphan')
-    operating_costs = db.relationship('OperatingCost', backref='meter', lazy=True, cascade='all, delete-orphan')
+    # Bidirektionale Verknüpfung zu Betriebskosten ohne doppelte Backref-Namen
+    operating_costs = db.relationship(
+        'OperatingCost',
+        back_populates='meter',
+        lazy=True,
+        cascade='all, delete-orphan'
+    )
 
 class MeterReading(db.Model):
     __tablename__ = 'meter_readings'
@@ -352,9 +358,10 @@ class MeterReading(db.Model):
 
 class OperatingCost(db.Model):
     __tablename__ = 'operating_costs'
-    
+
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     building_id = db.Column(db.String(36), db.ForeignKey('buildings.id'), nullable=False)
+    apartment_id = db.Column(db.String(36), db.ForeignKey('apartments.id'))
     meter_id = db.Column(db.String(36), db.ForeignKey('meters.id'))
     cost_category_id = db.Column(db.String(36), db.ForeignKey('cost_categories.id'))
     
@@ -372,6 +379,9 @@ class OperatingCost(db.Model):
     distribution_method = db.Column(db.String(20))  # by_meter, by_area, by_units, by_usage, manual
     is_distributed = db.Column(db.Boolean, default=False)
     allocation_percent = db.Column(db.Float, default=0.0)
+    # Anteilige Verteilung über mehrere Jahre sowie optionaler Auf-/Abschlag
+    spread_years = db.Column(db.Integer, default=1)
+    distribution_factor = db.Column(db.Float, default=0.0)
     until_consumed = db.Column(db.Boolean, default=False)
     is_archived = db.Column(db.Boolean, default=False)
     
@@ -381,6 +391,8 @@ class OperatingCost(db.Model):
     # Relationships
     cost_category = db.relationship('CostCategory', backref='operating_costs')
     distributions = db.relationship('CostDistribution', backref='operating_cost', lazy=True, cascade='all, delete-orphan')
+    apartment = db.relationship('Apartment', backref=db.backref('operating_costs', lazy=True))
+    meter = db.relationship('Meter', back_populates='operating_costs')
 
 class CostCategory(db.Model):
     __tablename__ = 'cost_categories'
@@ -409,10 +421,11 @@ class CostDistribution(db.Model):
 
 class Settlement(db.Model):
     __tablename__ = 'settlements'
-    
+
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     apartment_id = db.Column(db.String(36), db.ForeignKey('apartments.id'), nullable=False)
     tenant_id = db.Column(db.String(36), db.ForeignKey('tenants.id'), nullable=False)
+    contract_id = db.Column(db.String(36), db.ForeignKey('contracts.id'))
     
     settlement_year = db.Column(db.Integer, nullable=False)
     period_start = db.Column(db.Date, nullable=False)
@@ -420,13 +433,20 @@ class Settlement(db.Model):
     total_costs = db.Column(db.Float)
     advance_payments = db.Column(db.Float)
     balance = db.Column(db.Float)
+    total_amount = db.Column(db.Float)
     status = db.Column(db.String(20), default='draft')  # draft, calculated, approved, sent, paid, disputed
     pdf_path = db.Column(db.String(255))
     sent_date = db.Column(db.Date)
     due_date = db.Column(db.Date)
     notes = db.Column(db.Text)
+    cost_breakdown = db.Column(db.JSON)
+    consumption_details = db.Column(db.JSON)
+    total_area = db.Column(db.Float)
+    apartment_area = db.Column(db.Float)
+    contract_snapshot = db.Column(db.JSON)
     created_by = db.Column(db.String(36), db.ForeignKey('users.id'))
-    
+    is_archived = db.Column(db.Boolean, default=False)
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -434,6 +454,31 @@ class Settlement(db.Model):
     user = db.relationship('User', backref='settlements')
     apartment = db.relationship('Apartment', back_populates='settlements')
     tenant = db.relationship('Tenant', back_populates='settlements')
+    contract = db.relationship('Contract', backref='settlements')
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'apartment_id': self.apartment_id,
+            'tenant_id': self.tenant_id,
+            'settlement_year': self.settlement_year,
+            'period_start': self.period_start.isoformat() if self.period_start else None,
+            'period_end': self.period_end.isoformat() if self.period_end else None,
+            'total_costs': self.total_costs,
+            'advance_payments': self.advance_payments,
+            'balance': self.balance,
+            'total_amount': self.total_amount,
+            'status': self.status,
+            'pdf_path': self.pdf_path,
+            'notes': self.notes,
+            'cost_breakdown': self.cost_breakdown,
+            'consumption_details': self.consumption_details,
+            'total_area': self.total_area,
+            'apartment_area': self.apartment_area,
+            'contract_id': self.contract_id,
+            'contract_snapshot': self.contract_snapshot,
+            'is_archived': self.is_archived,
+        }
 
 class Document(db.Model):
     __tablename__ = 'documents'
@@ -637,11 +682,17 @@ class Contract(db.Model):
     status = db.Column(db.String(20), default='draft')
     start_date = db.Column(db.Date, nullable=False)
     end_date = db.Column(db.Date)
+    contract_start = db.Column(db.Date)
+    contract_end = db.Column(db.Date)
     move_out_date = db.Column(db.Date)
     is_locked = db.Column(db.Boolean, default=False)
     notice_period = db.Column(db.Integer, default=3)
     rent_net = db.Column(db.Float, nullable=False)
     rent_additional = db.Column(db.Float, default=0.0)
+    cold_rent = db.Column(db.Float, default=0.0)
+    operating_cost_advance = db.Column(db.Float, default=0.0)
+    heating_advance = db.Column(db.Float, default=0.0)
+    floor_space = db.Column(db.Float)
     deposit = db.Column(db.Float)
 
     created_by = db.Column(db.String(36), db.ForeignKey('users.id'))
@@ -697,6 +748,10 @@ class Contract(db.Model):
     revisions = db.relationship('ContractRevision', backref='revision_contract', lazy=True)
     inventory_items = db.relationship('InventoryItem', backref='inventory_contract', lazy=True, cascade='all, delete-orphan')
     blocks = db.relationship('ContractBlock', backref='block_contract', lazy=True, cascade='all, delete-orphan')
+
+    def get_monthly_operating_prepayment(self) -> float:
+        """Hilfsfunktion für Nebenkostenabrechnungen."""
+        return float(self.operating_cost_advance or 0) + float(self.heating_advance or 0)
     
     
 # In models.py - Neue Models

@@ -10,7 +10,7 @@
                 <h5 class="card-title mb-0">
                     <i class="bi bi-calculator me-2"></i>Abrechnung {{ settlement.id }}
                 </h5>
-                <a href="/settlements" class="btn btn-light btn-sm">
+                <a href="/settlements" class="btn btn-light btn-sm text-primary">
                     <i class="bi bi-arrow-left"></i> Zurück
                 </a>
             </div>
@@ -19,32 +19,132 @@
                     <div class="col-md-6">
                         <h6>Allgemeine Informationen</h6>
                         <p><strong>Zeitraum:</strong> {{ settlement.period_start.strftime('%d.%m.%Y') }} - {{ settlement.period_end.strftime('%d.%m.%Y') }}</p>
-                        <p><strong>Wohnung:</strong> 
+                        <p><strong>Wohnung:</strong>
                             {% if settlement.apartment %}
-                                {{ settlement.apartment.number }} - {{ settlement.apartment.street }}
+                                {{ settlement.apartment.get_full_identifier() }}
                             {% endif %}
                         </p>
-                        <p><strong>Mieter:</strong> 
+                        <p><strong>Mieter:</strong>
                             {% if settlement.tenant %}
                                 {{ settlement.tenant.first_name }} {{ settlement.tenant.last_name }}
                             {% endif %}
                         </p>
+                        <p><strong>Vertrag:</strong>
+                            {% set snapshot = settlement.contract_snapshot or {} %}
+                            {% if settlement.contract %}
+                                Nr. {{ settlement.contract.contract_number }} ({{ settlement.contract.start_date.strftime('%d.%m.%Y') }}{% if settlement.contract.end_date %} - {{ settlement.contract.end_date.strftime('%d.%m.%Y') }}{% endif %})
+                            {% elif snapshot %}
+                                Nr. {{ snapshot.contract_number }}{% if snapshot.start_date %} (ab {{ snapshot.start_date }}){% endif %}
+                            {% else %}
+                                –
+                            {% endif %}
+                        </p>
+                        <p><strong>Wohnfläche:</strong> {{ "%.2f"|format(settlement.apartment_area or 0) }} m²</p>
+                        {% if settlement.apartment and settlement.apartment.building %}
+                        <p class="mb-0"><strong>Gebäude:</strong> {{ settlement.apartment.building.name }}</p>
+                        <small class="text-muted">{{ settlement.apartment.building.street }} {{ settlement.apartment.building.street_number }}, {{ settlement.apartment.building.zip_code }} {{ settlement.apartment.building.city }}</small>
+                        {% endif %}
                     </div>
                     <div class="col-md-6">
                         <h6>Kostenübersicht</h6>
-                        <p><strong>Grundmiete (Jahr):</strong> {{ "%.2f"|format(settlement.total_rent) }} €</p>
-                        <p><strong>Nebenkosten (Jahr):</strong> {{ "%.2f"|format(settlement.additional_costs) }} €</p>
-                        {% if settlement.heating_costs %}
-                        <p><strong>Heizkosten:</strong> {{ "%.2f"|format(settlement.heating_costs) }} €</p>
+                        <p><strong>Gesamtkostenanteil:</strong> {{ "%.2f"|format(settlement.total_costs or 0) }} €</p>
+                        <p><strong>Vorauszahlungen:</strong> {{ "%.2f"|format(settlement.advance_payments or 0) }} €</p>
+                        {% if settlement.contract or snapshot %}
+                        {% set c = settlement.contract if settlement.contract else snapshot %}
+                        <p class="mb-1"><small class="text-muted">monatliche Vorauszahlung lt. Vertrag: {{ "%.2f"|format(((c.operating_cost_advance if settlement.contract else c.get('operating_cost_advance')) or 0) + ((c.heating_advance if settlement.contract else c.get('heating_advance')) or 0)) }} €</small></p>
+                        <p class="mb-1"><small class="text-muted">Kaltmiete: {{ "%.2f"|format((c.cold_rent if settlement.contract else c.get('cold_rent')) or 0) }} € / Monat</small></p>
                         {% endif %}
-                        {% if settlement.water_costs %}
-                        <p><strong>Wasserkosten:</strong> {{ "%.2f"|format(settlement.water_costs) }} €</p>
-                        {% endif %}
-                        {% if settlement.electricity_costs %}
-                        <p><strong>Stromkosten:</strong> {{ "%.2f"|format(settlement.electricity_costs) }} €</p>
-                        {% endif %}
-                        <p><strong>Gesamtbetrag:</strong> <span class="fw-bold">{{ "%.2f"|format(settlement.total_amount) }} €</span></p>
+                        <p class="fw-bold"><strong>Saldo:</strong> {{ "%.2f"|format(settlement.balance or 0) }} €</p>
                     </div>
+                </div>
+                {% if settlement.contract or snapshot %}
+                <div class="row">
+                    <div class="col-md-12">
+                        <h6>Vertragsdetails</h6>
+                        <p class="text-muted mb-1">
+                            Kaltmiete: {{ "%.2f"|format((settlement.contract.cold_rent if settlement.contract else snapshot.get('cold_rent')) or 0) }} € / Monat ·
+                            Vorauszahlung BK/HZ: {{ "%.2f"|format(((settlement.contract.operating_cost_advance if settlement.contract else snapshot.get('operating_cost_advance') or 0) + (settlement.contract.heating_advance if settlement.contract else snapshot.get('heating_advance') or 0))) }} € / Monat ·
+                            Wohnfläche Abrechnung: {{ "%.2f"|format(settlement.apartment_area or 0) }} m²
+                        </p>
+                        {% if snapshot.landlord %}
+                        <small class="text-muted">Vermieter: {{ snapshot.landlord.company or snapshot.landlord.name }} · {{ snapshot.landlord.street }} {{ snapshot.landlord.street_number }}, {{ snapshot.landlord.zip_code }} {{ snapshot.landlord.city }}</small>
+                        {% elif settlement.contract and settlement.contract.landlord %}
+                        <small class="text-muted">Vermieter: {{ settlement.contract.landlord.company_name or settlement.contract.landlord.first_name ~ ' ' ~ settlement.contract.landlord.last_name }}</small>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+                <hr>
+                <h6>Kostenarten</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Beleg</th>
+                                <th>Kostenart</th>
+                                <th>Umlageschlüssel</th>
+                                <th>Verbrauch</th>
+                                <th>Gesamtkosten</th>
+                                <th>Anteil Mieter</th>
+                                <th>Hinweis</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in settlement.cost_breakdown or [] %}
+                            <tr>
+                                <td>
+                                    {% if item.invoice_number %}<div>Rechnung: {{ item.invoice_number }}</div>{% endif %}
+                                    {% if item.billing_period %}<div>Zeitraum: {{ item.billing_period }}</div>{% endif %}
+                                    {% if item.apartment_specific %}<span class="badge bg-secondary">Wohnung</span>{% else %}<span class="badge bg-info text-dark">Gebäude</span>{% endif %}
+                                </td>
+                                <td>{{ item.category }}</td>
+                                <td>{{ item.basis or item.method }}</td>
+                                <td>
+                                    {% if item.tenant_consumption is not none and item.total_consumption is not none %}
+                                        {{ "%.2f"|format(item.tenant_consumption or 0) }} / {{ "%.2f"|format(item.total_consumption or 0) }} {{ item.unit or '' }}
+                                    {% else %}
+                                        –
+                                    {% endif %}
+                                </td>
+                                <td>{{ "%.2f"|format(item.amount_total or 0) }} €</td>
+                                <td>{{ "%.2f"|format(item.share or 0) }} €</td>
+                                <td>{{ item.note }}</td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="7" class="text-muted">Keine Kosten erfasst.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <hr>
+                <h6>Verbrauchszähler</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Zähler</th>
+                                <th>Einheit</th>
+                                <th>Wohnung</th>
+                                <th>Stand Anfang</th>
+                                <th>Stand Ende</th>
+                                <th>Verbrauch</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for meter in settlement.consumption_details or [] %}
+                            <tr>
+                                <td>{{ meter.meter_number }} {% if meter.meter_type %}({{ meter.meter_type }}){% endif %}</td>
+                                <td>{{ meter.unit or '' }}</td>
+                                <td>{{ meter.apartment_number or '-' }}</td>
+                                <td>{{ meter.start_value if meter.start_value is not none else '-' }} {% if meter.start_date %}<small class="text-muted">({{ meter.start_date }})</small>{% endif %}</td>
+                                <td>{{ meter.end_value if meter.end_value is not none else '-' }} {% if meter.end_date %}<small class="text-muted">({{ meter.end_date }})</small>{% endif %}</td>
+                                <td>{{ meter.consumption if meter.consumption is not none else '-' }}</td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="6" class="text-muted">Keine Zählerstände im Zeitraum gefunden.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -56,9 +156,25 @@
             </div>
             <div class="card-body">
                 <div class="d-grid gap-2">
+                    <a href="/settlements/{{ settlement.id }}/edit" class="btn btn-primary">
+                        <i class="bi bi-pencil-square me-1"></i> Abrechnung bearbeiten
+                    </a>
                     <a href="/settlements/{{ settlement.id }}/pdf" class="btn btn-outline-primary">
                         <i class="bi bi-file-pdf me-1"></i> PDF herunterladen
                     </a>
+                    <form method="POST" action="/settlements/{{ settlement.id }}/archive">
+                        {% if settlement.is_archived %}
+                        <input type="hidden" name="action" value="restore">
+                        <button type="submit" class="btn btn-outline-secondary w-100">
+                            <i class="bi bi-arrow-counterclockwise me-1"></i> Archivierung aufheben
+                        </button>
+                        {% else %}
+                        <input type="hidden" name="action" value="archive">
+                        <button type="submit" class="btn btn-outline-danger w-100">
+                            <i class="bi bi-archive me-1"></i> Archivieren
+                        </button>
+                        {% endif %}
+                    </form>
                 </div>
             </div>
         </div>

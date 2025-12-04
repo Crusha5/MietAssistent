@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, redirect, url_for, session, request, flash, jsonify
-from app.models import User, Apartment, Tenant, Building, Meter, MeterType, MeterReading, Document, Settlement, Contract, Protocol, OperatingCost, Income, DueDate, MaintenanceTask, Notification
+from app.models import User, Apartment, Tenant, Building, Meter, MeterType, MeterReading, Document, Contract, Protocol, OperatingCost, Income, DueDate, MaintenanceTask, Notification
 from datetime import datetime, timedelta, date
 import uuid
 from app.extensions import db
@@ -798,76 +798,3 @@ def delete_document_page(document_id):
     
     return redirect(url_for('main.documents_page'))
 
-# Settlements Routes
-@main_bp.route('/settlements')
-@login_required
-def settlements_page():
-    settlements = Settlement.query.order_by(Settlement.period_end.desc()).all()
-    return render_template('settlements/list.html', settlements=settlements)
-
-@main_bp.route('/settlements/calculate', methods=['GET', 'POST'])
-@login_required
-def calculate_settlement_page():
-    if request.method == 'POST':
-        try:
-            apartment_id = request.form['apartment_id']
-            period_start = datetime.strptime(request.form['period_start'], '%Y-%m-%d').date()
-            period_end = datetime.strptime(request.form['period_end'], '%Y-%m-%d').date()
-            
-            apartment = Apartment.query.get(apartment_id)
-            tenant = Tenant.query.filter_by(apartment_id=apartment_id, move_out_date=None).first()
-            
-            if not tenant:
-                flash('Kein aktiver Mieter für diese Wohnung gefunden', 'danger')
-                return redirect(request.url)
-            
-            # Vereinfachte Berechnung
-            total_rent = tenant.rent * 12  # Jahresmiete
-            additional_costs = apartment.additional_costs * 12  # Jahresnebenkosten
-            
-            # Hier würden echte Verbrauchswerte berechnet werden
-            heating_costs = 0
-            water_costs = 0
-            electricity_costs = 0
-            
-            total_amount = additional_costs + heating_costs + water_costs + electricity_costs
-            
-            settlement = Settlement(
-                period_start=period_start,
-                period_end=period_end,
-                total_rent=total_rent,
-                additional_costs=additional_costs,
-                heating_costs=heating_costs,
-                water_costs=water_costs,
-                electricity_costs=electricity_costs,
-                total_amount=total_amount,
-                apartment_id=apartment_id,
-                tenant_id=tenant.id
-            )
-            
-            db.session.add(settlement)
-            db.session.commit()
-            
-            flash('Abrechnung erfolgreich erstellt!', 'success')
-            return redirect(url_for('main.settlement_detail_page', settlement_id=settlement.id))
-            
-        except Exception as e:
-            db.session.rollback()
-            flash(f'Fehler beim Erstellen der Abrechnung: {str(e)}', 'danger')
-    
-    apartments = Apartment.query.all()
-    return render_template('settlements/calculate.html', apartments=apartments)
-
-@main_bp.route('/settlements/<settlement_id>')
-@login_required
-def settlement_detail_page(settlement_id):
-    settlement = Settlement.query.get_or_404(settlement_id)
-    return render_template('settlements/detail.html', settlement=settlement)
-
-@main_bp.route('/settlements/<settlement_id>/pdf')
-@login_required
-def download_settlement_pdf_page(settlement_id):
-    settlement = Settlement.query.get_or_404(settlement_id)
-    # Hier würde die PDF-Generierung implementiert werden
-    flash('PDF-Generierung wird in Kürze verfügbar sein', 'info')
-    return redirect(url_for('main.settlement_detail_page', settlement_id=settlement_id))

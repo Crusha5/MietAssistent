@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from app.routes.main import login_required
 from app.extensions import db
 from sqlalchemy import inspect, text
-from app.models import OperatingCost, CostCategory, Building
+from app.models import OperatingCost, CostCategory, Building, Apartment
 import uuid
 from datetime import datetime
 import os
@@ -23,6 +23,9 @@ def _ensure_cost_columns(inspector):
     if 'vendor_invoice_number' not in columns:
         with db.engine.begin() as conn:
             conn.execute(text("ALTER TABLE operating_costs ADD COLUMN vendor_invoice_number VARCHAR(120)"))
+    if 'apartment_id' not in columns:
+        with db.engine.begin() as conn:
+            conn.execute(text("ALTER TABLE operating_costs ADD COLUMN apartment_id VARCHAR(36)"))
 
 
 def _parse_cost_form(form, existing_cost=None, document_path=None):
@@ -46,6 +49,7 @@ def _parse_cost_form(form, existing_cost=None, document_path=None):
 
     target = existing_cost or OperatingCost(id=str(uuid.uuid4()))
     target.building_id = form.get('building_id')
+    target.apartment_id = form.get('apartment_id') or None
     target.cost_category_id = form.get('cost_category_id')
     target.description = form.get('description')
     target.amount_net = net_val
@@ -90,6 +94,7 @@ def costs_home():
     buildings = []
     categories = []
     costs = []
+    apartments = []
 
     try:
         if inspector.has_table('buildings'):
@@ -99,6 +104,8 @@ def costs_home():
         if inspector.has_table('operating_costs'):
             _ensure_cost_columns(inspector)
             costs = OperatingCost.query.order_by(OperatingCost.billing_period_start.desc()).all()
+        if inspector.has_table('apartments'):
+            apartments = Apartment.query.order_by(Apartment.apartment_number).all()
     except Exception as exc:
         current_app.logger.error('Kostenübersicht konnte nicht geladen werden: %s', exc, exc_info=True)
         flash('Kostenübersicht konnte nicht geladen werden. Bitte versuchen Sie es erneut.', 'danger')
@@ -121,6 +128,7 @@ def costs_home():
         'costs/list.html',
         costs=costs,
         buildings=buildings,
+        apartments=apartments,
         categories=categories,
         default_system_number=default_number
     )

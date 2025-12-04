@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>Nebenkostenabrechnung</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/settlement_pdf.css') }}">
+</head>
+<body>
+    {% set contract_data = contract if contract else settlement.contract_snapshot %}
+    {% if contract %}
+        {% set landlord_data = landlord or contract.landlord %}
+    {% else %}
+        {% set landlord_data = landlord or (contract_data and contract_data.get('landlord')) %}
+    {% endif %}
+    <div class="header">
+        <div>
+            <h1>Nebenkostenabrechnung</h1>
+            <div>Abrechnungszeitraum: {{ settlement.period_start.strftime('%d.%m.%Y') }} - {{ settlement.period_end.strftime('%d.%m.%Y') }}</div>
+            <div>Erstellt am: {{ generated_at.strftime('%d.%m.%Y') if generated_at else '' }}</div>
+        </div>
+        <div>
+            <strong>Vermieter</strong><br>
+            {% if landlord_data %}
+                {% if landlord_data.company_name or landlord_data.company %}{{ landlord_data.company_name or landlord_data.company }}<br>{% endif %}
+                {% if landlord_data.first_name or landlord_data.last_name or landlord_data.name %}{{ landlord_data.first_name or '' }} {{ landlord_data.last_name or '' }}{{ landlord_data.name or '' }}<br>{% endif %}
+                {{ landlord_data.street or '' }} {{ landlord_data.street_number or '' }}<br>
+                {{ landlord_data.zip_code or '' }} {{ landlord_data.city or '' }}<br>
+                {% if landlord_data.phone %}Tel.: {{ landlord_data.phone }}<br>{% endif %}
+                {% if landlord_data.email %}E-Mail: {{ landlord_data.email }}{% endif %}
+            {% else %}
+                Vermieterdaten nicht hinterlegt
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="section flex-row">
+        <div class="flex-col summary-box">
+            <strong>Mieter</strong><br>
+            {% if tenant %}
+                {{ tenant.first_name }} {{ tenant.last_name }}<br>
+                {% if tenant.email %}{{ tenant.email }}<br>{% endif %}
+                {% if tenant.phone %}Tel.: {{ tenant.phone }}<br>{% endif %}
+            {% elif contract_data and contract_data.tenant_name %}
+                {{ contract_data.tenant_name }}
+            {% else %}
+                (nicht hinterlegt)
+            {% endif %}
+        </div>
+        <div class="flex-col summary-box">
+            <strong>Objekt</strong><br>
+            {% if building %}
+                {{ building.name }}<br>
+                {{ building.street }} {{ building.street_number }}<br>
+                {{ building.zip_code }} {{ building.city }}<br>
+            {% elif contract_data and contract_data.building_address %}
+                {{ contract_data.building_address }}<br>
+            {% endif %}
+            Wohnung: {{ apartment.apartment_number if apartment else '' }}<br>
+            Wohnfläche: {{ '%.2f'|format(settlement.apartment_area or 0) }} m²
+        </div>
+    </div>
+
+    <div class="section summary-box">
+        <h3>Vertragsdaten</h3>
+        {% if contract_data %}
+        {% set start_val = contract_data.start_date if contract else contract_data['start_date'] %}
+        {% set end_val = contract_data.end_date if contract else contract_data['end_date'] %}
+        <p>
+            Vertrag Nr. {{ contract_data.contract_number or contract_data['contract_number'] }}<br>
+            Laufzeit:
+            {% if start_val %}
+                {{ start_val.strftime('%d.%m.%Y') if start_val.__class__.__name__ == 'date' else start_val }}
+            {% endif %}
+            {% if end_val %} – {{ end_val.strftime('%d.%m.%Y') if end_val.__class__.__name__ == 'date' else end_val }}{% endif %}<br>
+            Kaltmiete: {{ '%.2f'|format((contract_data.cold_rent if contract else contract_data['cold_rent']) or 0) }} € / Monat<br>
+            Vorauszahlung Betriebskosten/Heizung: {{ '%.2f'|format(((contract_data.operating_cost_advance if contract else contract_data['operating_cost_advance']) or 0) + ((contract_data.heating_advance if contract else contract_data['heating_advance']) or 0)) }} € / Monat
+        </p>
+        {% else %}
+        <p>Keine Vertragsdaten gefunden.</p>
+        {% endif %}
+    </div>
+
+    <div class="section summary-box">
+        <h3>Zusammenfassung</h3>
+        <table class="table">
+            <tr>
+                <th>Gesamtkostenanteil Mieter</th>
+                <td style="text-align:right">{{ '%.2f'|format(settlement.total_costs or 0) }} €</td>
+            </tr>
+            <tr>
+                <th>Geleistete Vorauszahlungen</th>
+                <td style="text-align:right">- {{ '%.2f'|format(settlement.advance_payments or 0) }} €</td>
+            </tr>
+            <tr class="totals">
+                <th>Saldo (Nachzahlung + / Guthaben -)</th>
+                <td style="text-align:right">{{ '%.2f'|format(settlement.balance or 0) }} €</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="section">
+        <h3>Kostenaufstellung</h3>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Beleg</th>
+                    <th>Kostenart</th>
+                    <th>Umlageschlüssel</th>
+                    <th>Verbrauch</th>
+                    <th>Gesamtkosten</th>
+                    <th>Anteil Mieter</th>
+                    <th>Bemerkung</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in settlement.cost_breakdown or [] %}
+                <tr>
+                    <td>
+                        {% if item.invoice_number %}<div>Rechnung: {{ item.invoice_number }}</div>{% endif %}
+                        {% if item.billing_period %}<div>Zeitraum: {{ item.billing_period }}</div>{% endif %}
+                        {% if item.apartment_specific %}<div class="badge">Wohnung</div>{% else %}<div class="badge">Gebäude</div>{% endif %}
+                    </td>
+                    <td>{{ item.category }}</td>
+                    <td>{{ item.basis or item.method }}</td>
+                    <td>
+                        {% if item.tenant_consumption is not none and item.total_consumption is not none %}
+                            {{ '%.2f'|format(item.tenant_consumption or 0) }} / {{ '%.2f'|format(item.total_consumption or 0) }} {{ item.unit or '' }}
+                        {% else %}
+                            –
+                        {% endif %}
+                    </td>
+                    <td style="text-align:right">{{ '%.2f'|format(item.amount_total or 0) }} €</td>
+                    <td style="text-align:right">{{ '%.2f'|format(item.share or 0) }} €</td>
+                    <td>{{ item.note }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7">Keine umlagefähigen Kosten erfasst.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <h3>Verbrauchsnachweise</h3>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Zähler</th>
+                    <th>Einheit</th>
+                    <th>Wohnung</th>
+                    <th>Stand Start</th>
+                    <th>Stand Ende</th>
+                    <th>Verbrauch</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for meter in settlement.consumption_details or [] %}
+                <tr>
+                    <td>{{ meter.meter_number }} ({{ meter.meter_type }})</td>
+                    <td>{{ meter.unit }}</td>
+                    <td>{{ meter.apartment_number or '-' }}</td>
+                    <td>{{ meter.start_value if meter.start_value is not none else '-' }} {% if meter.start_date %}({{ meter.start_date }}){% endif %}</td>
+                    <td>{{ meter.end_value if meter.end_value is not none else '-' }} {% if meter.end_date %}({{ meter.end_date }}){% endif %}</td>
+                    <td>{{ meter.consumption if meter.consumption is not none else '-' }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6">Keine Zählerstände verfügbar.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section notice">
+        Gemäß § 556 Abs. 3 BGB kann der Mieter innerhalb von 12 Monaten nach Zugang der Abrechnung Einwendungen erheben.
+        Bitte überweisen Sie einen Nachzahlungsbetrag innerhalb von 14 Tagen auf das unten stehende Konto oder teilen Sie uns eine Bankverbindung für ein Guthaben mit.
+    </div>
+
+    <div class="section summary-box">
+        <strong>Bankverbindung des Vermieters</strong><br>
+        {% if landlord_data %}
+            {% set iban_val = landlord_data.iban %}
+            {% if iban_val %}
+                {% set holder_val = landlord_data.account_holder %}
+                {% set bic_val = landlord_data.bic %}
+                {% set bank_val = landlord_data.bank_name %}
+                {% set name_val = holder_val or landlord_data.company_name or landlord_data.company or landlord_data.name or (landlord_data.first_name ~ ' ' ~ landlord_data.last_name) %}
+                Kontoinhaber: {{ name_val or '(nicht hinterlegt)' }}<br>
+                IBAN: {{ iban_val }}<br>
+                {% if bic_val %}BIC: {{ bic_val }}<br>{% endif %}
+                {% if bank_val %}Bank: {{ bank_val }}{% endif %}
+            {% else %}
+                Keine Bankdaten hinterlegt.
+            {% endif %}
+        {% else %}
+            Keine Bankdaten hinterlegt.
+        {% endif %}
+    </div>
+
+    <div class="signature">
+        <div class="line">Ort, Datum</div>
+        <div class="line">Unterschrift Vermieter</div>
+    </div>
+</body>
+</html>
