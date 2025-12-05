@@ -48,6 +48,8 @@ def create_meter():
                     return render_template('meters/create.html', meter_types=meter_types)
 
                 # ✅ KORREKTUR: Entferne initial_reading - das gibt es nicht im Meter Model
+                price_per_unit = request.form.get('price_per_unit')
+                price_per_unit = float(price_per_unit) if price_per_unit not in (None, '',) else None
                 meter = Meter(
                     id=str(uuid.uuid4()),
                     meter_number=request.form['meter_number'].strip(),
@@ -63,7 +65,8 @@ def create_meter():
                     is_virtual_meter=bool(request.form.get('is_virtual_meter')),
                     multiplier=float(request.form.get('multiplier', 1.0)),
                     location_description=request.form.get('location_description', '').strip(),
-                    notes=request.form.get('notes', '').strip()
+                    notes=request.form.get('notes', '').strip(),
+                    price_per_unit=price_per_unit,
                 )
                 
                 db.session.add(meter)
@@ -201,7 +204,9 @@ def edit_meter(meter_id):
             meter.meter_type_id = request.form['meter_type_id']
             meter.manufacturer = request.form.get('manufacturer', '').strip()
             meter.model = request.form.get('model', '').strip()
-            
+            price_per_unit = request.form.get('price_per_unit')
+            meter.price_per_unit = float(price_per_unit) if price_per_unit not in (None, '',) else None
+
             if request.form.get('installation_date'):
                 meter.installation_date = datetime.strptime(request.form['installation_date'], '%Y-%m-%d').date()
             
@@ -271,6 +276,9 @@ def add_submeter(meter_id):
     if request.method == 'POST':
         try:
             # ✅ KORREKTUR: Entferne initial_reading
+            price_per_unit = request.form.get('price_per_unit')
+            price_per_unit = float(price_per_unit) if price_per_unit not in (None, '',) else None
+
             submeter = Meter(
                 id=str(uuid.uuid4()),
                 meter_number=request.form['meter_number'].strip(),
@@ -286,7 +294,8 @@ def add_submeter(meter_id):
                 is_virtual_meter=bool(request.form.get('is_virtual_meter')),
                 multiplier=float(request.form.get('multiplier', 1.0)),
                 location_description=request.form.get('location_description', '').strip(),
-                notes=request.form.get('notes', '').strip()
+                notes=request.form.get('notes', '').strip(),
+                price_per_unit=price_per_unit,
             )
             
             db.session.add(submeter)
@@ -337,6 +346,8 @@ def edit_submeter(meter_id):
             meter.model = request.form.get('model', '').strip()
             meter.location_description = request.form.get('location_description', '').strip()
             meter.notes = request.form.get('notes', '').strip()
+            price_per_unit = request.form.get('price_per_unit')
+            meter.price_per_unit = float(price_per_unit) if price_per_unit not in (None, '',) else None
             
             # Installationsdatum
             if request.form.get('installation_date'):
@@ -449,7 +460,8 @@ def get_meters_api():
         'is_virtual_meter': meter.is_virtual_meter,
         'multiplier': float(meter.multiplier) if meter.multiplier else 1.0,
         'installation_date': meter.installation_date.isoformat() if meter.installation_date else None,
-        'location_description': meter.location_description
+        'location_description': meter.location_description,
+        'price_per_unit': meter.price_per_unit
     } for meter in meters])
 
 @meters_bp.route('/api/meters', methods=['POST'])
@@ -461,6 +473,9 @@ def create_meter_api():
     try:
         parent_meter_id = data.get('parent_meter_id')
         is_main_meter = parent_meter_id is None
+
+        price_per_unit = data.get('price_per_unit')
+        price_per_unit = float(price_per_unit) if price_per_unit not in (None, '',) else None
 
         meter = Meter(
             id=str(uuid.uuid4()),
@@ -477,7 +492,8 @@ def create_meter_api():
             is_virtual_meter=data.get('is_virtual_meter', False),
             multiplier=data.get('multiplier', 1.0),
             location_description=data.get('location_description', ''),
-            notes=data.get('notes', '')
+            notes=data.get('notes', ''),
+            price_per_unit=price_per_unit,
         )
         
         db.session.add(meter)
@@ -514,6 +530,7 @@ def get_meter_api(meter_id):
         'is_virtual_meter': meter.is_virtual_meter,
         'multiplier': float(meter.multiplier) if meter.multiplier else 1.0,
         'location_description': meter.location_description,
+        'price_per_unit': meter.price_per_unit,
         'notes': meter.notes,
         'created_at': meter.created_at.isoformat(),
         'updated_at': meter.updated_at.isoformat()

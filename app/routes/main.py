@@ -1,10 +1,11 @@
 from flask import Blueprint, render_template, redirect, url_for, session, request, flash, jsonify
-from app.models import User, Apartment, Tenant, Building, Meter, MeterType, MeterReading, Document, Contract, Protocol, OperatingCost, Income, DueDate, MaintenanceTask, Notification
+from app.models import User, Apartment, Tenant, Building, Meter, MeterType, MeterReading, Document, Contract, Protocol, OperatingCost, Income, DueDate, MaintenanceTask, Notification, Settlement
 from datetime import datetime, timedelta, date
 import uuid
 from app.extensions import db
 from app.utils.project_profile import load_project_profile
 from app.utils.schema_helpers import ensure_archiving_columns, ensure_user_landlord_flag
+from app.utils.income_helpers import allocate_income_components
 from sqlalchemy import inspect, text
 
 main_bp = Blueprint('main', __name__)
@@ -134,6 +135,54 @@ def _build_dashboard_context(user=None):
 
         if reminders_dirty:
             db.session.commit()
+
+        remind_interval_hours = 24 * 14
+        today = date.today()
+        previous_year = today.year - 1
+        previous_year_end = date(previous_year, 12, 31)
+
+        if today > previous_year_end:
+            for apartment in apartments:
+                previous_settlement_exists = Settlement.query.filter(
+                    Settlement.apartment_id == apartment.id,
+                    Settlement.settlement_year == previous_year,
+                    (Settlement.is_archived.is_(False)) | (Settlement.is_archived.is_(None)),
+                ).first()
+
+                if previous_settlement_exists:
+                    continue
+
+                _push_notification(
+                    user.id,
+                    f"Nebenkostenabrechnung {previous_year} fehlt",
+                    f"Für {apartment.get_full_identifier()} wurde noch keine Abrechnung erstellt. Bitte den Anteil Mieter prüfen und eine Abrechnung anlegen.",
+                    link=url_for('settlements.calculate_settlement', apartment_id=apartment.id),
+                    category='settlement',
+                    dedup_hours=remind_interval_hours,
+                )
+
+        for tenant in tenants:
+            if not tenant.move_out_date or tenant.move_out_date >= today:
+                continue
+
+            settlement_after_move_out = Settlement.query.filter(
+                Settlement.tenant_id == tenant.id,
+                Settlement.period_end >= tenant.move_out_date,
+                (Settlement.is_archived.is_(False)) | (Settlement.is_archived.is_(None)),
+            ).first()
+
+            if settlement_after_move_out:
+                continue
+
+            apt_label = tenant.apartment.get_full_identifier() if tenant.apartment else 'Wohnung'
+            _push_notification(
+                user.id,
+                f"Abrechnung nach Auszug von {tenant.first_name} {tenant.last_name} fehlt",
+                f"Für {apt_label} wurde nach dem Auszug am {tenant.move_out_date.strftime('%d.%m.%Y')} noch keine Nebenkostenabrechnung mit Anteil Mieter erstellt.",
+                link=url_for('settlements.calculate_settlement', apartment_id=tenant.apartment_id) if tenant.apartment_id else None,
+                category='settlement',
+                dedup_hours=remind_interval_hours,
+            )
 
         # Erinnerungen für Vertragsende und Auszug
         for contract in due_contracts:
@@ -354,17 +403,34 @@ def add_income_entry():
         db.create_all()
 
     try:
-        amount = float(request.form.get('amount', 0))
+        contract = Contract.query.get(request.form.get('contract_id'))
+        if not contract:
+            raise ValueError('Kein Vertrag gewählt.')
+
+        rent, service_charge, special, amount = allocate_income_components(
+            total_amount=request.form.get('amount'),
+            rent_portion=request.form.get('rent_portion'),
+            service_charge_portion=request.form.get('service_charge_portion'),
+            special_portion=request.form.get('special_portion'),
+            contract=contract,
+        )
+
         if amount <= 0:
             raise ValueError('Bitte einen Betrag größer 0 angeben.')
         income_date_raw = request.form.get('received_on')
         income_date = datetime.strptime(income_date_raw, '%Y-%m-%d').date() if income_date_raw else date.today()
         income = Income(
             id=str(uuid.uuid4()),
-            contract_id=request.form.get('contract_id'),
-            tenant_id=request.form.get('tenant_id') or None,
+            contract_id=contract.id,
+            tenant_id=request.form.get('tenant_id') or contract.tenant_id or None,
             income_type=request.form.get('income_type') or 'rent',
             amount=amount,
+            rent_portion=rent,
+            service_charge_portion=service_charge,
+            special_portion=special,
+            is_advance_payment=bool(request.form.get('is_advance_payment')),
+            reference=request.form.get('reference'),
+            source=request.form.get('source') or 'manuell',
             received_on=income_date,
             notes=request.form.get('notes')
         )
@@ -387,13 +453,27 @@ def update_income_entry(income_id):
 
     income = Income.query.get_or_404(income_id)
     try:
-        amount = float(request.form.get('amount', 0))
+        contract = Contract.query.get(request.form.get('contract_id')) or income.contract
+        rent, service_charge, special, amount = allocate_income_components(
+            total_amount=request.form.get('amount'),
+            rent_portion=request.form.get('rent_portion'),
+            service_charge_portion=request.form.get('service_charge_portion'),
+            special_portion=request.form.get('special_portion'),
+            contract=contract,
+        )
+
         income.amount = amount
+        income.rent_portion = rent
+        income.service_charge_portion = service_charge
+        income.special_portion = special
+        income.is_advance_payment = bool(request.form.get('is_advance_payment'))
+        income.reference = request.form.get('reference')
+        income.source = request.form.get('source') or income.source
         income.income_type = request.form.get('income_type') or income.income_type
         income.received_on = datetime.strptime(request.form.get('received_on'), '%Y-%m-%d').date()
         income.notes = request.form.get('notes')
-        income.contract_id = request.form.get('contract_id') or income.contract_id
-        income.tenant_id = request.form.get('tenant_id') or None
+        income.contract_id = contract.id if contract else income.contract_id
+        income.tenant_id = request.form.get('tenant_id') or (contract.tenant_id if contract else income.tenant_id)
         db.session.commit()
         flash('Einnahme aktualisiert.', 'success')
     except Exception as exc:

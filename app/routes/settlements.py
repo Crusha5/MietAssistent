@@ -253,9 +253,10 @@ def _calculate_cost_share(cost, apartment, contract, meter_consumptions, total_a
             note_parts.append('Standardverteilung nicht möglich (keine Fläche)')
 
     share = share_base
-    if tenant_percent:
-        share = share_base * (tenant_percent / 100.0)
-        note_parts.append(f"Mieteranteil {tenant_percent:.1f}%")
+    if tenant_percent is not None:
+        share = gross_amount * (tenant_percent / 100.0)
+        basis = basis or f"{tenant_percent:.1f}% von Gesamtkosten"
+        note_parts.append(f"Mieteranteil {tenant_percent:.1f}% der Gesamtkosten")
 
     max_share = max(0.0, gross_amount)
     if share > max_share:
@@ -328,6 +329,10 @@ def _calculate_settlement(apartment_id, period_start, period_end):
     meter_consumptions = {}
     for meter in meters:
         consumption, start_read, end_read = _get_consumption(meter, period_start, period_end)
+        price_per_unit = meter.price_per_unit if meter.price_per_unit not in (None, '') else None
+        tenant_share = None
+        if consumption is not None and price_per_unit is not None:
+            tenant_share = round(consumption * price_per_unit, 2)
         meter_consumptions[meter] = {
             'consumption': consumption,
             'start': start_read.reading_value if start_read else None,
@@ -335,6 +340,8 @@ def _calculate_settlement(apartment_id, period_start, period_end):
             'end': end_read.reading_value if end_read else None,
             'end_date': end_read.reading_date.isoformat() if end_read else None,
             'unit': meter.meter_type.unit if meter.meter_type else '',
+            'price_per_unit': price_per_unit,
+            'tenant_share': tenant_share,
         }
 
     breakdown = []
@@ -402,6 +409,8 @@ def _calculate_settlement(apartment_id, period_start, period_end):
                 'start_date': data['start_date'],
                 'end_value': data['end'],
                 'end_date': data['end_date'],
+                'price_per_unit': data.get('price_per_unit'),
+                'tenant_share': data.get('tenant_share'),
             }
             for meter, data in meter_consumptions.items()
         ],

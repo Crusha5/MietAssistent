@@ -241,7 +241,14 @@ def register_blueprints(app):
         print("✅ Main routes registered")
     except ImportError as e:
         print(f"❌ Failed to import main routes: {e}")
-    
+
+    try:
+        from app.routes.finances import finances_bp
+        app.register_blueprint(finances_bp)
+        print("✅ Finance routes registered")
+    except ImportError as e:
+        print(f"⚠️  Finance routes not available: {e}")
+
     # Apartments Routes (Web routes only)
     try:
         from app.routes.apartments import apartments_bp
@@ -464,6 +471,8 @@ def _register_runtime_migration_hook(app):
             return
         try:
             _ensure_contract_protocol_columns()
+            _ensure_meter_price_column()
+            _ensure_income_breakdown_columns()
         except Exception as exc:
             print(f"⚠️  Konnte Runtime-Migration nicht ausführen: {exc}")
         finally:
@@ -513,6 +522,8 @@ def initialize_database(app):
             if tenants_without_status:
                 db.session.commit()
                 print(f"✅ Updated status for {len(tenants_without_status)} existing tenants")
+
+            _ensure_income_breakdown_columns()
 
             # Prüfe ob tenant_audit_logs Tabelle existiert
             if 'tenant_audit_logs' not in inspector.get_table_names():
@@ -583,6 +594,7 @@ def initialize_database(app):
                 print(f"⚠️ Could not migrate settlements columns: {mig_exc}")
 
             _ensure_contract_protocol_columns()
+            _ensure_meter_price_column()
 
         except Exception as e:
             print(f"❌ Database initialization error: {e}")
@@ -635,3 +647,51 @@ def _ensure_contract_protocol_columns():
             print("✅ manual_pdf_path added")
     except Exception as mig_exc:
         print(f"⚠️ Could not migrate contract/protocol columns: {mig_exc}")
+
+
+def _ensure_meter_price_column():
+    """Stellt sicher, dass der Preis je Einheit für Zähler vorhanden ist (idempotent)."""
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(db.engine)
+    try:
+        meter_columns = [col['name'] for col in inspector.get_columns('meters')]
+        if 'price_per_unit' not in meter_columns:
+            print("🔄 Adding price_per_unit to meters...")
+            db.session.execute(text('ALTER TABLE meters ADD COLUMN price_per_unit FLOAT'))
+            db.session.commit()
+            print("✅ price_per_unit added")
+    except Exception as mig_exc:
+        print(f"⚠️ Could not migrate meters.price_per_unit: {mig_exc}")
+
+
+def _ensure_income_breakdown_columns():
+    """Fügt fehlende Felder für Einnahmeaufteilungen hinzu."""
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(db.engine)
+    if not inspector.has_table('incomes'):
+        return
+
+    income_columns = {col['name'] for col in inspector.get_columns('incomes')}
+    desired_columns = {
+        'rent_portion': 'FLOAT DEFAULT 0',
+        'service_charge_portion': 'FLOAT DEFAULT 0',
+        'special_portion': 'FLOAT DEFAULT 0',
+        'is_advance_payment': 'BOOLEAN DEFAULT 0',
+        'reference': 'VARCHAR(255)',
+        'source': 'VARCHAR(50)',
+        'import_metadata': 'TEXT'
+    }
+
+    missing = {name: ddl for name, ddl in desired_columns.items() if name not in income_columns}
+    if not missing:
+        return
+
+    try:
+        with db.engine.begin() as conn:
+            for name, ddl in missing.items():
+                conn.execute(text(f"ALTER TABLE incomes ADD COLUMN {name} {ddl}"))
+        print(f"✅ Einnahmespalten ergänzt: {', '.join(missing.keys())}")
+    except Exception as mig_exc:
+        print(f"⚠️ Konnte Einnahmespalten nicht ergänzen: {mig_exc}")
