@@ -464,6 +464,7 @@ def _register_runtime_migration_hook(app):
             return
         try:
             _ensure_contract_protocol_columns()
+            _ensure_meter_price_column()
         except Exception as exc:
             print(f"⚠️  Konnte Runtime-Migration nicht ausführen: {exc}")
         finally:
@@ -583,6 +584,7 @@ def initialize_database(app):
                 print(f"⚠️ Could not migrate settlements columns: {mig_exc}")
 
             _ensure_contract_protocol_columns()
+            _ensure_meter_price_column()
 
         except Exception as e:
             print(f"❌ Database initialization error: {e}")
@@ -635,3 +637,19 @@ def _ensure_contract_protocol_columns():
             print("✅ manual_pdf_path added")
     except Exception as mig_exc:
         print(f"⚠️ Could not migrate contract/protocol columns: {mig_exc}")
+
+
+def _ensure_meter_price_column():
+    """Stellt sicher, dass der Preis je Einheit für Zähler vorhanden ist (idempotent)."""
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(db.engine)
+    try:
+        meter_columns = [col['name'] for col in inspector.get_columns('meters')]
+        if 'price_per_unit' not in meter_columns:
+            print("🔄 Adding price_per_unit to meters...")
+            db.session.execute(text('ALTER TABLE meters ADD COLUMN price_per_unit FLOAT'))
+            db.session.commit()
+            print("✅ price_per_unit added")
+    except Exception as mig_exc:
+        print(f"⚠️ Could not migrate meters.price_per_unit: {mig_exc}")

@@ -143,20 +143,20 @@
                             {% for meter in settlement.consumption_details or [] %}
                             <tr>
                                 <td>{{ meter.meter_number }} {% if meter.meter_type %}({{ meter.meter_type }}){% endif %}</td>
-                                <td>{{ meter.unit or '' }}</td>
+                                <td>{{ meter.get('unit') or '' }}</td>
                                 <td>
-                                    {% if meter.price_per_unit is not none %}
-                                        {{ meter.price_per_unit }} €/{{ meter.unit or 'Einheit' }}
+                                    {% if meter.get('price_per_unit') is not none %}
+                                        {{ meter.get('price_per_unit') }} €/{{ meter.get('unit') or 'Einheit' }}
                                     {% else %}
                                         -
                                     {% endif %}
                                 </td>
-                                <td>{{ meter.start_value if meter.start_value is not none else '-' }} {% if meter.start_date %}<small class="text-muted">({{ meter.start_date }})</small>{% endif %}</td>
-                                <td>{{ meter.end_value if meter.end_value is not none else '-' }} {% if meter.end_date %}<small class="text-muted">({{ meter.end_date }})</small>{% endif %}</td>
-                                <td>{{ meter.consumption if meter.consumption is not none else '-' }}</td>
+                                <td>{{ meter.get('start_value') if meter.get('start_value') is not none else '-' }} {% if meter.get('start_date') %}<small class="text-muted">({{ meter.get('start_date') }})</small>{% endif %}</td>
+                                <td>{{ meter.get('end_value') if meter.get('end_value') is not none else '-' }} {% if meter.get('end_date') %}<small class="text-muted">({{ meter.get('end_date') }})</small>{% endif %}</td>
+                                <td>{{ meter.get('consumption') if meter.get('consumption') is not none else '-' }}</td>
                                 <td>
-                                    {% if meter.tenant_share is not none %}
-                                        {{ '%.2f'|format(meter.tenant_share) }} €
+                                    {% if meter.get('tenant_share') is not none %}
+                                        {{ '%.2f'|format(meter.get('tenant_share')) }} €
                                     {% else %}
                                         -
                                     {% endif %}

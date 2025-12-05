@@ -221,21 +221,21 @@
             <tbody>
                 {% for meter in settlement.consumption_details or [] %}
                 <tr>
-                    <td>{{ meter.meter_number }} ({{ meter.meter_type }})</td>
-                    <td>{{ meter.unit }}</td>
+                    <td>{{ meter.meter_number }}{% if meter.meter_type %} ({{ meter.meter_type }}){% endif %}</td>
+                    <td>{{ meter.get('unit') or '' }}</td>
                     <td>
-                        {% if meter.price_per_unit is not none %}
-                            {{ meter.price_per_unit }} €/{{ meter.unit or 'Einheit' }}
+                        {% if meter.get('price_per_unit') is not none %}
+                            {{ meter.get('price_per_unit') }} €/{{ meter.get('unit') or 'Einheit' }}
                         {% else %}
                             -
                         {% endif %}
                     </td>
-                    <td>{{ meter.start_value if meter.start_value is not none else '-' }} {% if meter.start_date %}({{ meter.start_date }}){% endif %}</td>
-                    <td>{{ meter.end_value if meter.end_value is not none else '-' }} {% if meter.end_date %}({{ meter.end_date }}){% endif %}</td>
-                    <td>{{ meter.consumption if meter.consumption is not none else '-' }}</td>
+                    <td>{{ meter.get('start_value') if meter.get('start_value') is not none else '-' }} {% if meter.get('start_date') %}({{ meter.get('start_date') }}){% endif %}</td>
+                    <td>{{ meter.get('end_value') if meter.get('end_value') is not none else '-' }} {% if meter.get('end_date') %}({{ meter.get('end_date') }}){% endif %}</td>
+                    <td>{{ meter.get('consumption') if meter.get('consumption') is not none else '-' }}</td>
                     <td>
-                        {% if meter.tenant_share is not none %}
-                            {{ '%.2f'|format(meter.tenant_share) }} €
+                        {% if meter.get('tenant_share') is not none %}
+                            {{ '%.2f'|format(meter.get('tenant_share')) }} €
                         {% else %}
                             -
                         {% endif %}
