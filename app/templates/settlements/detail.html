@@ -132,10 +132,11 @@
                             <tr>
                                 <th>Zähler</th>
                                 <th>Einheit</th>
-                                <th>Wohnung</th>
+                                <th>Preis/x</th>
                                 <th>Stand Anfang</th>
                                 <th>Stand Ende</th>
                                 <th>Verbrauch</th>
+                                <th>Anteil Mieter</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -143,13 +144,26 @@
                             <tr>
                                 <td>{{ meter.meter_number }} {% if meter.meter_type %}({{ meter.meter_type }}){% endif %}</td>
                                 <td>{{ meter.unit or '' }}</td>
-                                <td>{{ meter.apartment_number or '-' }}</td>
+                                <td>
+                                    {% if meter.price_per_unit is not none %}
+                                        {{ meter.price_per_unit }} €/{{ meter.unit or 'Einheit' }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
                                 <td>{{ meter.start_value if meter.start_value is not none else '-' }} {% if meter.start_date %}<small class="text-muted">({{ meter.start_date }})</small>{% endif %}</td>
                                 <td>{{ meter.end_value if meter.end_value is not none else '-' }} {% if meter.end_date %}<small class="text-muted">({{ meter.end_date }})</small>{% endif %}</td>
                                 <td>{{ meter.consumption if meter.consumption is not none else '-' }}</td>
+                                <td>
+                                    {% if meter.tenant_share is not none %}
+                                        {{ '%.2f'|format(meter.tenant_share) }} €
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
                             </tr>
                             {% else %}
-                            <tr><td colspan="6" class="text-muted">Keine Zählerstände im Zeitraum gefunden.</td></tr>
+                            <tr><td colspan="7" class="text-muted">Keine Zählerstände im Zeitraum gefunden.</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>
