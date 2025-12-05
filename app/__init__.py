@@ -569,6 +569,7 @@ def initialize_database(app):
                     ("contract_id", "VARCHAR(36)", None),
                     ("contract_snapshot", "TEXT", None),
                     ("is_archived", "BOOLEAN", "0"),
+                    ("tenant_notes", "TEXT", None),
                 ]
 
                 for col_name, col_type, default_val in required_settlement_columns:

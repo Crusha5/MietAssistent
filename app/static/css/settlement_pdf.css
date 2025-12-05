@@ -28,20 +28,30 @@ h1, h2, h3, h4 {
     margin: 0;
 }
 
+.section h3 {
+    margin-bottom: 10px;
+}
+
 .section {
-    margin-bottom: 18px;
+    margin-bottom: 26px;
 }
 
 .table {
     width: 100%;
+    max-width: 100%;
     border-collapse: collapse;
-    margin-top: 6px;
+    margin-top: 10px;
+    table-layout: fixed;
+    page-break-inside: avoid;
+    break-inside: avoid;
 }
 
 .table th, .table td {
     border: 1px solid #d7dde3;
     padding: 6px 8px;
     text-align: left;
+    word-break: break-word;
+    overflow-wrap: anywhere;
 }
 
 .table th {
@@ -77,7 +87,7 @@ h1, h2, h3, h4 {
 }
 
 .signature {
-    margin-top: 40px;
+    margin-top: 160px;
     display: flex;
     justify-content: space-between;
 }
@@ -94,4 +104,83 @@ h1, h2, h3, h4 {
     border: 1px solid #ffeeba;
     padding: 10px;
     font-size: 11px;
+}
+
+.cost-table {
+    font-size: 8px;
+    width: 100%;
+    max-width: 100%;
+    margin: 8px 0 0 0;
+    table-layout: fixed;
+}
+
+.cost-table th, .cost-table td {
+    padding: 2px 3px;
+    line-height: 1.2;
+}
+
+.cost-table th:nth-child(1), .cost-table td:nth-child(1) { width: 20%; }
+.cost-table th:nth-child(2), .cost-table td:nth-child(2) { width: 18%; }
+.cost-table th:nth-child(3), .cost-table td:nth-child(3) { width: 17%; }
+.cost-table th:nth-child(4), .cost-table td:nth-child(4) { width: 9%; }
+.cost-table th:nth-child(5), .cost-table td:nth-child(5) { width: 14%; }
+.cost-table th:nth-child(6), .cost-table td:nth-child(6) { width: 17%; }
+
+.letter-block {
+    padding-top: 10mm;
+    margin-bottom: 24px;
+    page-break-inside: avoid;
+}
+
+.sender-info {
+    text-align: right;
+    font-size: 11px;
+    line-height: 1.4;
+}
+
+.address-window {
+    margin-top: 16px;
+    padding: 10px 12px;
+    border: none;
+    width: 75mm;
+    min-height: 38mm;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.address-window .sender-line {
+    font-size: 10px;
+    color: #555;
+}
+
+.letter-meta {
+    margin-top: 10px;
+    text-align: right;
+    font-size: 12px;
+}
+
+.letter-body {
+    margin-top: 16px;
+    line-height: 1.5;
+}
+
+.letter-body p {
+    margin: 0 0 8px 0;
+}
+
+.letter-body .subject {
+    margin-bottom: 12px;
+}
+
+.letter-body .paragraph-gap {
+    margin-bottom: 12px;
+}
+
+.letter-body .spacer-row {
+    min-height: 8px;
+}
+
+.page-break-before {
+    page-break-before: always;
+    margin-top: 0;
 }

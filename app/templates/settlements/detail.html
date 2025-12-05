@@ -74,6 +74,14 @@
                     </div>
                 </div>
                 {% endif %}
+                {% if settlement.tenant_notes %}
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <h6>Hinweise für den Mieter</h6>
+                        <p class="mb-0">{{ settlement.tenant_notes }}</p>
+                    </div>
+                </div>
+                {% endif %}
                 <hr>
                 <h6>Kostenarten</h6>
                 <div class="table-responsive">

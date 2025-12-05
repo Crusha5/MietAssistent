@@ -122,6 +122,10 @@
                     <input type="hidden" name="apartment_id" value="{{ selected_apartment.id }}">
                     <input type="hidden" name="period_start" value="{{ default_start.strftime('%Y-%m-%d') if default_start else '' }}">
                     <input type="hidden" name="period_end" value="{{ default_end.strftime('%Y-%m-%d') if default_end else '' }}">
+                    <div class="mb-3">
+                        <label for="tenant_notes" class="form-label">Hinweise für den Mieter (optional)</label>
+                        <textarea class="form-control" id="tenant_notes" name="tenant_notes" rows="3" placeholder="z. B. Empfehlung zur Anpassung der Vorauszahlungen"></textarea>
+                    </div>
                     <div class="d-flex justify-content-between align-items-center">
                         <div class="text-muted small">Abrechnung wird gespeichert, PDF erzeugt und dem Vertrag zugeordnet.</div>
                         <button type="submit" class="btn btn-primary">
