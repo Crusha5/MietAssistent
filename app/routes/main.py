@@ -5,6 +5,7 @@ import uuid
 from app.extensions import db
 from app.utils.project_profile import load_project_profile
 from app.utils.schema_helpers import ensure_archiving_columns, ensure_user_landlord_flag
+from app.utils.income_helpers import allocate_income_components
 from sqlalchemy import inspect, text
 
 main_bp = Blueprint('main', __name__)
@@ -402,17 +403,34 @@ def add_income_entry():
         db.create_all()
 
     try:
-        amount = float(request.form.get('amount', 0))
+        contract = Contract.query.get(request.form.get('contract_id'))
+        if not contract:
+            raise ValueError('Kein Vertrag gewählt.')
+
+        rent, service_charge, special, amount = allocate_income_components(
+            total_amount=request.form.get('amount'),
+            rent_portion=request.form.get('rent_portion'),
+            service_charge_portion=request.form.get('service_charge_portion'),
+            special_portion=request.form.get('special_portion'),
+            contract=contract,
+        )
+
         if amount <= 0:
             raise ValueError('Bitte einen Betrag größer 0 angeben.')
         income_date_raw = request.form.get('received_on')
         income_date = datetime.strptime(income_date_raw, '%Y-%m-%d').date() if income_date_raw else date.today()
         income = Income(
             id=str(uuid.uuid4()),
-            contract_id=request.form.get('contract_id'),
-            tenant_id=request.form.get('tenant_id') or None,
+            contract_id=contract.id,
+            tenant_id=request.form.get('tenant_id') or contract.tenant_id or None,
             income_type=request.form.get('income_type') or 'rent',
             amount=amount,
+            rent_portion=rent,
+            service_charge_portion=service_charge,
+            special_portion=special,
+            is_advance_payment=bool(request.form.get('is_advance_payment')),
+            reference=request.form.get('reference'),
+            source=request.form.get('source') or 'manuell',
             received_on=income_date,
             notes=request.form.get('notes')
         )
@@ -435,13 +453,27 @@ def update_income_entry(income_id):
 
     income = Income.query.get_or_404(income_id)
     try:
-        amount = float(request.form.get('amount', 0))
+        contract = Contract.query.get(request.form.get('contract_id')) or income.contract
+        rent, service_charge, special, amount = allocate_income_components(
+            total_amount=request.form.get('amount'),
+            rent_portion=request.form.get('rent_portion'),
+            service_charge_portion=request.form.get('service_charge_portion'),
+            special_portion=request.form.get('special_portion'),
+            contract=contract,
+        )
+
         income.amount = amount
+        income.rent_portion = rent
+        income.service_charge_portion = service_charge
+        income.special_portion = special
+        income.is_advance_payment = bool(request.form.get('is_advance_payment'))
+        income.reference = request.form.get('reference')
+        income.source = request.form.get('source') or income.source
         income.income_type = request.form.get('income_type') or income.income_type
         income.received_on = datetime.strptime(request.form.get('received_on'), '%Y-%m-%d').date()
         income.notes = request.form.get('notes')
-        income.contract_id = request.form.get('contract_id') or income.contract_id
-        income.tenant_id = request.form.get('tenant_id') or None
+        income.contract_id = contract.id if contract else income.contract_id
+        income.tenant_id = request.form.get('tenant_id') or (contract.tenant_id if contract else income.tenant_id)
         db.session.commit()
         flash('Einnahme aktualisiert.', 'success')
     except Exception as exc:
