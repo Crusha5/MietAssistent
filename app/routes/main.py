@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, redirect, url_for, session, request, flash, jsonify
-from app.models import User, Apartment, Tenant, Building, Meter, MeterType, MeterReading, Document, Contract, Protocol, OperatingCost, Income, DueDate, MaintenanceTask, Notification
+from app.models import User, Apartment, Tenant, Building, Meter, MeterType, MeterReading, Document, Contract, Protocol, OperatingCost, Income, DueDate, MaintenanceTask, Notification, Settlement
 from datetime import datetime, timedelta, date
 import uuid
 from app.extensions import db
@@ -134,6 +134,54 @@ def _build_dashboard_context(user=None):
 
         if reminders_dirty:
             db.session.commit()
+
+        remind_interval_hours = 24 * 14
+        today = date.today()
+        previous_year = today.year - 1
+        previous_year_end = date(previous_year, 12, 31)
+
+        if today > previous_year_end:
+            for apartment in apartments:
+                previous_settlement_exists = Settlement.query.filter(
+                    Settlement.apartment_id == apartment.id,
+                    Settlement.settlement_year == previous_year,
+                    (Settlement.is_archived.is_(False)) | (Settlement.is_archived.is_(None)),
+                ).first()
+
+                if previous_settlement_exists:
+                    continue
+
+                _push_notification(
+                    user.id,
+                    f"Nebenkostenabrechnung {previous_year} fehlt",
+                    f"Für {apartment.get_full_identifier()} wurde noch keine Abrechnung erstellt. Bitte den Anteil Mieter prüfen und eine Abrechnung anlegen.",
+                    link=url_for('settlements.calculate_settlement', apartment_id=apartment.id),
+                    category='settlement',
+                    dedup_hours=remind_interval_hours,
+                )
+
+        for tenant in tenants:
+            if not tenant.move_out_date or tenant.move_out_date >= today:
+                continue
+
+            settlement_after_move_out = Settlement.query.filter(
+                Settlement.tenant_id == tenant.id,
+                Settlement.period_end >= tenant.move_out_date,
+                (Settlement.is_archived.is_(False)) | (Settlement.is_archived.is_(None)),
+            ).first()
+
+            if settlement_after_move_out:
+                continue
+
+            apt_label = tenant.apartment.get_full_identifier() if tenant.apartment else 'Wohnung'
+            _push_notification(
+                user.id,
+                f"Abrechnung nach Auszug von {tenant.first_name} {tenant.last_name} fehlt",
+                f"Für {apt_label} wurde nach dem Auszug am {tenant.move_out_date.strftime('%d.%m.%Y')} noch keine Nebenkostenabrechnung mit Anteil Mieter erstellt.",
+                link=url_for('settlements.calculate_settlement', apartment_id=tenant.apartment_id) if tenant.apartment_id else None,
+                category='settlement',
+                dedup_hours=remind_interval_hours,
+            )
 
         # Erinnerungen für Vertragsende und Auszug
         for contract in due_contracts:

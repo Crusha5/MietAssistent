@@ -253,9 +253,10 @@ def _calculate_cost_share(cost, apartment, contract, meter_consumptions, total_a
             note_parts.append('Standardverteilung nicht möglich (keine Fläche)')
 
     share = share_base
-    if tenant_percent:
-        share = share_base * (tenant_percent / 100.0)
-        note_parts.append(f"Mieteranteil {tenant_percent:.1f}%")
+    if tenant_percent is not None:
+        share = gross_amount * (tenant_percent / 100.0)
+        basis = basis or f"{tenant_percent:.1f}% von Gesamtkosten"
+        note_parts.append(f"Mieteranteil {tenant_percent:.1f}% der Gesamtkosten")
 
     max_share = max(0.0, gross_amount)
     if share > max_share:
