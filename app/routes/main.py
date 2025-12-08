@@ -5,7 +5,6 @@ import uuid
 from app.extensions import db
 from app.utils.project_profile import load_project_profile
 from app.utils.schema_helpers import ensure_archiving_columns, ensure_user_landlord_flag
-from app.utils.income_helpers import allocate_income_components
 from sqlalchemy import inspect, text
 
 main_bp = Blueprint('main', __name__)
@@ -398,103 +397,22 @@ def mark_all_notifications():
 @main_bp.route('/landlord/incomes', methods=['POST'])
 @login_required
 def add_income_entry():
-    inspector = inspect(db.engine)
-    if not inspector.has_table('incomes'):
-        db.create_all()
-
-    try:
-        contract = Contract.query.get(request.form.get('contract_id'))
-        if not contract:
-            raise ValueError('Kein Vertrag gewählt.')
-
-        rent, service_charge, special, amount = allocate_income_components(
-            total_amount=request.form.get('amount'),
-            rent_portion=request.form.get('rent_portion'),
-            service_charge_portion=request.form.get('service_charge_portion'),
-            special_portion=request.form.get('special_portion'),
-            contract=contract,
-        )
-
-        if amount <= 0:
-            raise ValueError('Bitte einen Betrag größer 0 angeben.')
-        income_date_raw = request.form.get('received_on')
-        income_date = datetime.strptime(income_date_raw, '%Y-%m-%d').date() if income_date_raw else date.today()
-        income = Income(
-            id=str(uuid.uuid4()),
-            contract_id=contract.id,
-            tenant_id=request.form.get('tenant_id') or contract.tenant_id or None,
-            income_type=request.form.get('income_type') or 'rent',
-            amount=amount,
-            rent_portion=rent,
-            service_charge_portion=service_charge,
-            special_portion=special,
-            is_advance_payment=bool(request.form.get('is_advance_payment')),
-            reference=request.form.get('reference'),
-            source=request.form.get('source') or 'manuell',
-            received_on=income_date,
-            notes=request.form.get('notes')
-        )
-        db.session.add(income)
-        db.session.commit()
-        flash('Einnahme erfasst.', 'success')
-    except Exception as exc:
-        db.session.rollback()
-        flash(f'Einnahme konnte nicht gespeichert werden: {exc}', 'danger')
-
-    return redirect(url_for('main.dashboard'))
+    flash('Einnahmen bitte auf der Finanzen-Seite erfassen.', 'info')
+    return redirect(url_for('finances.incomes_overview'))
 
 
 @main_bp.route('/landlord/incomes/<income_id>/update', methods=['POST'])
 @login_required
 def update_income_entry(income_id):
-    inspector = inspect(db.engine)
-    if not inspector.has_table('incomes'):
-        db.create_all()
-
-    income = Income.query.get_or_404(income_id)
-    try:
-        contract = Contract.query.get(request.form.get('contract_id')) or income.contract
-        rent, service_charge, special, amount = allocate_income_components(
-            total_amount=request.form.get('amount'),
-            rent_portion=request.form.get('rent_portion'),
-            service_charge_portion=request.form.get('service_charge_portion'),
-            special_portion=request.form.get('special_portion'),
-            contract=contract,
-        )
-
-        income.amount = amount
-        income.rent_portion = rent
-        income.service_charge_portion = service_charge
-        income.special_portion = special
-        income.is_advance_payment = bool(request.form.get('is_advance_payment'))
-        income.reference = request.form.get('reference')
-        income.source = request.form.get('source') or income.source
-        income.income_type = request.form.get('income_type') or income.income_type
-        income.received_on = datetime.strptime(request.form.get('received_on'), '%Y-%m-%d').date()
-        income.notes = request.form.get('notes')
-        income.contract_id = contract.id if contract else income.contract_id
-        income.tenant_id = request.form.get('tenant_id') or (contract.tenant_id if contract else income.tenant_id)
-        db.session.commit()
-        flash('Einnahme aktualisiert.', 'success')
-    except Exception as exc:
-        db.session.rollback()
-        flash(f'Einnahme konnte nicht aktualisiert werden: {exc}', 'danger')
-
-    return redirect(request.referrer or url_for('main.dashboard'))
+    flash('Einnahmen werden jetzt unter Finanzen > Einnahmen bearbeitet.', 'info')
+    return redirect(url_for('finances.incomes_overview'))
 
 
 @main_bp.route('/landlord/incomes/<income_id>/delete', methods=['POST'])
 @login_required
 def delete_income(income_id):
-    income = Income.query.get_or_404(income_id)
-    try:
-        db.session.delete(income)
-        db.session.commit()
-        flash('Einnahme gelöscht.', 'success')
-    except Exception as exc:
-        db.session.rollback()
-        flash(f'Löschen fehlgeschlagen: {exc}', 'danger')
-    return redirect(request.referrer or url_for('main.dashboard'))
+    flash('Bitte Einnahmen-Löschungen über Finanzen > Einnahmen durchführen.', 'info')
+    return redirect(url_for('finances.incomes_overview'))
 
 
 @main_bp.route('/landlord/due-dates', methods=['POST'])
@@ -533,29 +451,7 @@ def add_due_date_entry():
 @main_bp.route('/landlord/incomes')
 @login_required
 def list_incomes():
-    inspector = inspect(db.engine)
-    if not inspector.has_table('incomes'):
-        db.create_all()
-
-    page = max(int(request.args.get('page', 1)), 1)
-    q = (request.args.get('q') or '').strip()
-
-    query = Income.query.join(Contract)
-    if q:
-        query = query.filter(Contract.contract_number.ilike(f"%{q}%"))
-
-    pagination = query.order_by(Income.received_on.desc()).paginate(page=page, per_page=50, error_out=False)
-    active_contracts = Contract.query.filter((Contract.is_archived.is_(False)) | (Contract.is_archived.is_(None))).all()
-
-    return render_template(
-        'main/incomes_list.html',
-        incomes=pagination.items,
-        pagination=pagination,
-        q=q,
-        contracts=active_contracts,
-        contract_options=_contract_options(active_contracts),
-        tenants=Tenant.query.all(),
-    )
+    return redirect(url_for('finances.incomes_overview'))
 
 
 @main_bp.route('/landlord/due-dates')

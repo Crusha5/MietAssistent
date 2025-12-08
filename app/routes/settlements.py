@@ -4,7 +4,7 @@ from datetime import datetime, date
 from flask import Blueprint, request, jsonify, render_template, redirect, url_for, flash, current_app, send_file
 from flask_jwt_extended import jwt_required
 from app.extensions import db
-from sqlalchemy import or_
+from sqlalchemy import or_, inspect
 from app.models import (
     Settlement,
     Apartment,
@@ -14,6 +14,7 @@ from app.models import (
     Meter,
     MeterReading,
     Landlord,
+    Income,
 )
 import uuid
 from dateutil.relativedelta import relativedelta
@@ -29,6 +30,65 @@ def _safe_months_between(start_date, end_date):
         return 1
     diff = relativedelta(end_date, start_date)
     return max(1, diff.years * 12 + diff.months + 1)
+
+
+def _contract_snapshot_from(contract, apartment):
+    if not contract:
+        return None
+
+    return {
+        'id': contract.id,
+        'contract_number': contract.contract_number,
+        'start_date': contract.start_date.isoformat() if contract.start_date else None,
+        'end_date': contract.end_date.isoformat() if contract.end_date else None,
+        'cold_rent': contract.cold_rent,
+        'operating_cost_advance': contract.operating_cost_advance,
+        'heating_advance': contract.heating_advance,
+        'monthly_advance': contract.get_monthly_operating_prepayment(),
+        'floor_space': contract.floor_space or (apartment.area_sqm if apartment else None),
+        'apartment_number': apartment.apartment_number if apartment else None,
+        'building_name': apartment.building.name if apartment and apartment.building else None,
+        'building_address': f"{apartment.building.street} {apartment.building.street_number}, {apartment.building.zip_code} {apartment.building.city}" if apartment and apartment.building else None,
+        'tenant_name': f"{contract.tenant.first_name} {contract.tenant.last_name}" if contract.tenant else None,
+        'landlord': _serialize_landlord(contract.landlord) if contract.landlord else None,
+    }
+
+
+def _collect_advance_payments(contract, period_start, period_end, months):
+    if not contract:
+        return 0.0
+
+    try:
+        inspector = inspect(db.engine)
+        if not inspector.has_table('incomes'):
+            raise RuntimeError('no income table')
+
+        advance_incomes = Income.query.filter(
+            Income.contract_id == contract.id,
+            Income.is_advance_payment.is_(True),
+            Income.received_on >= period_start,
+            Income.received_on <= period_end,
+        ).all()
+        total_from_incomes = sum((inc.service_charge_portion or inc.amount or 0) for inc in advance_incomes)
+    except Exception:
+        total_from_incomes = 0
+
+    if total_from_incomes > 0:
+        return round(total_from_incomes, 2)
+
+    return round(contract.get_monthly_operating_prepayment() * months, 2)
+
+
+def _ensure_settlement_snapshot(settlement):
+    if settlement.contract_snapshot:
+        return
+    snapshot = _contract_snapshot_from(settlement.contract, settlement.apartment)
+    if snapshot:
+        settlement.contract_snapshot = snapshot
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
 
 
 def _default_period_for_contract(contract):
@@ -302,7 +362,7 @@ def _calculate_settlement(apartment_id, period_start, period_end):
     total_area = _collect_building_area(apartment)
 
     months = _safe_months_between(period_start, period_end)
-    advances = contract.get_monthly_operating_prepayment() * months
+    advances = _collect_advance_payments(contract, period_start, period_end, months)
 
     raw_costs = OperatingCost.query.filter(
         OperatingCost.building_id == apartment.building_id,
@@ -364,22 +424,10 @@ def _calculate_settlement(apartment_id, period_start, period_end):
 
     landlord_addr = _serialize_landlord(contract.landlord) if contract and contract.landlord else None
 
-    contract_snapshot = {
-        'id': contract.id,
-        'contract_number': contract.contract_number,
-        'start_date': contract.start_date.isoformat() if contract.start_date else None,
-        'end_date': contract.end_date.isoformat() if contract.end_date else None,
-        'cold_rent': contract.cold_rent,
-        'operating_cost_advance': contract.operating_cost_advance,
-        'heating_advance': contract.heating_advance,
-        'monthly_advance': contract.get_monthly_operating_prepayment(),
-        'floor_space': contract.floor_space or apartment.area_sqm,
-        'apartment_number': apartment.apartment_number,
-        'building_name': apartment.building.name if apartment.building else None,
-        'building_address': f"{apartment.building.street} {apartment.building.street_number}, {apartment.building.zip_code} {apartment.building.city}" if apartment.building else None,
-        'tenant_name': f"{tenant.first_name} {tenant.last_name}",
-        'landlord': landlord_addr,
-    }
+    contract_snapshot = _contract_snapshot_from(contract, apartment)
+    if contract_snapshot:
+        contract_snapshot['tenant_name'] = f"{tenant.first_name} {tenant.last_name}"
+        contract_snapshot['landlord'] = landlord_addr
 
     settlement = Settlement(
         id=str(uuid.uuid4()),
@@ -424,6 +472,7 @@ def _calculate_settlement(apartment_id, period_start, period_end):
 
 def _generate_settlement_pdf(settlement, apartment, tenant, contract):
     """Erzeugt und speichert das PDF der Nebenkostenabrechnung."""
+    _ensure_settlement_snapshot(settlement)
     if not contract:
         contract = settlement.contract
     building = apartment.building if apartment else None
@@ -551,6 +600,8 @@ def calculate_settlement():
 @login_required
 def settlement_detail(settlement_id):
     settlement = Settlement.query.get_or_404(settlement_id)
+    _ensure_settlement_snapshot(settlement)
+
     return render_template('settlements/detail.html', settlement=settlement)
 
 
