@@ -22,9 +22,37 @@ def meters_list():
         db.joinedload(Meter.meter_type),
         db.joinedload(Meter.apartment),
         db.joinedload(Meter.sub_meters)
-    ).all()
+    ).order_by(Meter.building_id, Meter.meter_number).all()
 
-    return render_template("meters/list.html", meters=meters)
+    meter_map = {m.id: m for m in meters}
+    children_map = {m_id: [] for m_id in meter_map.keys()}
+    roots_by_building = {}
+
+    for meter in meter_map.values():
+        if meter.parent_meter_id and meter.parent_meter_id in meter_map:
+            children_map[meter.parent_meter_id].append(meter)
+        else:
+            roots_by_building.setdefault(meter.building_id, []).append(meter)
+
+    def attach_children(current_meter):
+        current_meter._children = sorted(children_map.get(current_meter.id, []), key=lambda m: m.meter_number)
+        for child in current_meter._children:
+            attach_children(child)
+
+    for building_id, building_roots in roots_by_building.items():
+        roots_by_building[building_id] = sorted(building_roots, key=lambda m: m.meter_number)
+        for root in roots_by_building[building_id]:
+            attach_children(root)
+
+    buildings = {m.building_id: m.building for m in meter_map.values() if m.building}
+
+    if any(b_id is None for b_id in roots_by_building.keys()):
+        class _Placeholder:
+            name = 'Ohne Gebäude'
+
+        buildings[None] = _Placeholder()
+
+    return render_template('meters/list.html', roots_by_building=roots_by_building, buildings=buildings)
 
 @meters_bp.route('/create', methods=['GET', 'POST'])
 @login_required
