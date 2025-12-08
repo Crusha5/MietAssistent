@@ -1,7 +1,7 @@
 import uuid
 import json
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, current_app
 
 from app.extensions import db
 from app.models import ClauseTemplate
@@ -16,6 +16,32 @@ def _clean_title(title: str) -> str:
     if cleaned.startswith(('§', '.')):
         cleaned = cleaned.lstrip('§').lstrip('.').strip()
     return cleaned
+
+
+def _sanitize_subclauses(raw_subclauses, depth=0, max_depth=6, visited=None):
+    """Stellt sicher, dass rekursive Bäume nicht zu Endlosschleifen führen."""
+    if not isinstance(raw_subclauses, list) or depth > max_depth:
+        return []
+
+    visited = visited or set()
+    sanitized = []
+    for item in raw_subclauses:
+        if not isinstance(item, dict):
+            continue
+
+        marker = id(item)
+        if marker in visited:
+            continue
+        visited.add(marker)
+
+        children = item.get('children') if isinstance(item.get('children'), list) else []
+        sanitized.append({
+            'title': item.get('title') or '',
+            'content': item.get('content') or '',
+            'children': _sanitize_subclauses(children, depth + 1, max_depth, visited)
+        })
+
+    return sanitized
 
 
 @templates_bp.route('/')
@@ -139,9 +165,11 @@ def delete_template(template_id):
 def preview_template(template_id):
     template = ClauseTemplate.query.get_or_404(template_id)
     subclauses = []
-    if template.variables:
-        try:
-            subclauses = json.loads(template.variables).get('subclauses', [])
-        except Exception:
-            subclauses = []
+    try:
+        if template.variables:
+            raw = json.loads(template.variables)
+            subclauses = _sanitize_subclauses(raw.get('subclauses', []))
+    except Exception as exc:
+        current_app.logger.error('Fehler in preview_template für %s: %s', template_id, exc, exc_info=True)
+        flash('Klausel konnte wegen fehlerhafter Baumstruktur nur teilweise geladen werden.', 'warning')
     return render_template('contract_templates/preview.html', template=template, subclauses=subclauses)

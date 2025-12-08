@@ -6,12 +6,35 @@
 <div class="row justify-content-center">
     <div class="col-lg-10">
         <div class="card border-0 shadow-sm">
-            <div class="card-header bg-success text-white">
-                <h5 class="card-title mb-0">
-                    <i class="bi bi-pencil-square me-2"></i>Unterzähler bearbeiten: {{ meter.meter_number }}
+            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0 d-flex align-items-center gap-2">
+                    <i class="bi bi-pencil-square"></i>
+                    Unterzähler bearbeiten: {{ meter.meter_number }}
+                    {% if meter.is_archived %}
+                        <span class="badge bg-warning text-dark">Archiviert</span>
+                    {% endif %}
                 </h5>
+                <form method="POST" action="{{ url_for('meters.archive_meter', meter_id=meter.id) }}" class="m-0">
+                    {% if meter.is_archived %}
+                        <input type="hidden" name="action" value="restore">
+                        <button type="submit" class="btn btn-outline-light btn-sm">
+                            <i class="bi bi-arrow-counterclockwise me-1"></i>Reaktivieren
+                        </button>
+                    {% else %}
+                        <input type="hidden" name="action" value="archive">
+                        <button type="submit" class="btn btn-outline-light btn-sm" onclick="return confirm('Unterzähler archivieren?');">
+                            <i class="bi bi-archive me-1"></i>Archivieren
+                        </button>
+                    {% endif %}
+                </form>
             </div>
             <div class="card-body">
+                {% if meter.is_archived %}
+                <div class="alert alert-warning d-flex align-items-center" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    <div class="flex-grow-1">Dieser Unterzähler ist archiviert und wird ausgeblendet, bis er reaktiviert wird.</div>
+                </div>
+                {% endif %}
                 <!-- Info-Box für Unterzähler -->
                 <div class="alert alert-info">
                     <i class="bi bi-info-circle me-2"></i>

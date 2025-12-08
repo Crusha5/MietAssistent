@@ -40,6 +40,29 @@
     </div>
     <div class="col-lg-4">
         <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+                <h5 class="card-title d-flex align-items-center gap-2">
+                    <i class="bi bi-bug text-warning"></i>
+                    Zähler-Debug
+                </h5>
+                <p class="text-muted">Nur für Administratoren: Validierungen für Testfälle aufheben und manuelles Bereinigen erlauben.</p>
+                <form method="POST">
+                    <input type="hidden" name="action" value="toggle_meter_debug">
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" role="switch" id="meter_debug_mode" name="meter_debug_mode" {% if user_preferences.get('meter_debug_mode') %}checked{% endif %}>
+                        <label class="form-check-label" for="meter_debug_mode">Messwert-Debug aktivieren</label>
+                    </div>
+                    <div class="alert alert-warning small">
+                        <i class="bi bi-exclamation-triangle me-1"></i>
+                        Bei aktivem Debug werden Unterzähler-Prüfungen ausgesetzt und Löschungen ohne Revision möglich.
+                    </div>
+                    <button type="submit" class="btn btn-outline-warning btn-sm">Einstellung speichern</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card shadow-sm border-0 h-100">
             <div class="card-body d-flex flex-column">
                 <h5 class="card-title">Backup &amp; Wiederherstellung</h5>
                 <p class="text-muted flex-grow-1">Exportiere oder importiere vollständige System-Backups.</p>

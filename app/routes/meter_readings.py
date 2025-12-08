@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify, render_template, redirect, url_for, flash, session, current_app, send_from_directory
 from flask_jwt_extended import jwt_required
 from app.extensions import db
-from app.models import MeterReading, Meter, MeterType, Apartment, Tenant, User, Building  # ✅ Building hinzugefügt
+from app.models import MeterReading, Meter, MeterType, Apartment, Tenant, User, Building, UserPreference  # ✅ Building hinzugefügt
 from datetime import datetime
 from app.routes.main import login_required
 import os
@@ -9,12 +9,34 @@ from werkzeug.utils import secure_filename
 import uuid
 import csv
 import io
+import json
 from flask import Response
 import pandas as pd
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
+
+
+def _meter_debug_enabled():
+    user_id = session.get('user_id')
+    if not user_id:
+        return False
+
+    user = User.query.get(user_id)
+    if not user or user.role != 'admin':
+        return False
+
+    prefs = UserPreference.query.filter_by(user_id=user_id).first()
+    if not prefs:
+        return False
+
+    try:
+        data = json.loads(prefs.preferences or '{}')
+    except Exception:
+        return False
+
+    return bool(data.get('meter_debug_mode'))
 def _active_readings_query():
     return MeterReading.query.filter(
         (MeterReading.is_archived.is_(False)) | (MeterReading.is_archived.is_(None))
@@ -34,6 +56,9 @@ def _latest_active_value(meter_id, ignore_ids=None):
 
 
 def _validate_meter_hierarchy(meter, new_value, ignore_ids=None):
+    if _meter_debug_enabled():
+        return
+
     if not meter:
         return
 
@@ -674,10 +699,11 @@ def reading_detail(reading_id):
     else:
         # Dies ist ein Original, zeige alle Korrekturen an
         correction_readings = MeterReading.query.filter_by(correction_of_id=reading.id).all()
-    
-    return render_template('meter_readings/detail.html', 
+
+    return render_template('meter_readings/detail.html',
                          reading=reading,
-                         correction_readings=correction_readings)
+                         correction_readings=correction_readings,
+                         meter_debug=_meter_debug_enabled())
 
 
 @meter_bp.route('/photos/<path:filename>')
@@ -825,3 +851,25 @@ def create_correction(reading_id):
             current_app.logger.error(f"Fehler beim Erstellen der Korrektur: {str(e)}", exc_info=True)
             flash(f'Fehler beim Erstellen der Korrektur: {str(e)}', 'danger')
             return redirect(url_for('meter_readings.reading_detail', reading_id=reading_id))
+
+
+@meter_bp.route('/<reading_id>/debug-delete', methods=['POST'])
+@login_required
+def debug_delete_reading(reading_id):
+    if not _meter_debug_enabled():
+        flash('Debug-Modus nur für Administratoren verfügbar.', 'danger')
+        return redirect(url_for('meter_readings.reading_detail', reading_id=reading_id))
+
+    reading = MeterReading.query.get_or_404(reading_id)
+
+    try:
+        db.session.delete(reading)
+        db.session.commit()
+        flash('Zählerstand revisionsfrei gelöscht.', 'warning')
+    except Exception as exc:
+        db.session.rollback()
+        current_app.logger.error('Debug-Löschung fehlgeschlagen: %s', exc, exc_info=True)
+        flash(f'Löschung nicht möglich: {exc}', 'danger')
+        return redirect(url_for('meter_readings.reading_detail', reading_id=reading_id))
+
+    return redirect(url_for('meter_readings.meter_readings_list'))
