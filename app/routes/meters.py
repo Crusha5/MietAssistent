@@ -24,7 +24,29 @@ def meters_list():
         db.joinedload(Meter.sub_meters)
     ).all()
 
-    return render_template('meters/list.html', meters=meters)
+    meter_map = {m.id: m for m in meters if not m.is_archived}
+    children_map = {m_id: [] for m_id in meter_map.keys()}
+    roots_by_building = {}
+
+    for meter in meter_map.values():
+        if meter.parent_meter_id and meter.parent_meter_id in meter_map:
+            children_map[meter.parent_meter_id].append(meter)
+        else:
+            roots_by_building.setdefault(meter.building_id, []).append(meter)
+
+    def attach_children(current_meter):
+        current_meter._children = sorted(children_map.get(current_meter.id, []), key=lambda m: m.meter_number)
+        for child in current_meter._children:
+            attach_children(child)
+
+    for building_id, building_roots in roots_by_building.items():
+        roots_by_building[building_id] = sorted(building_roots, key=lambda m: m.meter_number)
+        for root in roots_by_building[building_id]:
+            attach_children(root)
+
+    buildings = {m.building_id: m.building for m in meter_map.values() if m.building}
+
+    return render_template('meters/list.html', roots_by_building=roots_by_building, buildings=buildings)
 
 @meters_bp.route('/create', methods=['GET', 'POST'])
 @login_required
@@ -493,6 +515,54 @@ def get_building_meters(building_id):
         } for meter in meters])
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+@meters_bp.route('/api/meters/<meter_id>/reparent', methods=['POST'])
+@login_required
+def reparent_meter(meter_id):
+    """Weist einem Zähler einen neuen Parent zu (Drag & Drop)."""
+    meter = Meter.query.get_or_404(meter_id)
+    payload = request.get_json() or {}
+    new_parent_id = payload.get('new_parent_id') or None
+
+    try:
+        if meter.is_archived:
+            raise ValueError('Archivierte Zähler können nicht verschoben werden.')
+
+        if new_parent_id == meter_id:
+            raise ValueError('Ein Zähler kann nicht sich selbst unterordnen.')
+
+        new_parent = None
+        if new_parent_id:
+            new_parent = Meter.query.get(new_parent_id)
+            if not new_parent:
+                raise ValueError('Zielzähler existiert nicht.')
+            if new_parent.is_archived:
+                raise ValueError('Ein archivierter Zähler kann kein Parent sein.')
+            if new_parent.building_id != meter.building_id:
+                raise ValueError('Zähler können nur innerhalb desselben Gebäudes verschoben werden.')
+
+            def is_descendant(current_meter, target_id):
+                for sub in current_meter.sub_meters or []:
+                    if sub.id == target_id or is_descendant(sub, target_id):
+                        return True
+                return False
+
+            if is_descendant(meter, new_parent_id):
+                raise ValueError('Der gewählte Zielzähler ist ein Unterzähler dieses Zählers.')
+
+        meter.parent_meter_id = new_parent_id
+        meter.is_main_meter = new_parent_id is None
+        db.session.commit()
+
+        return jsonify({'status': 'ok', 'meter_id': meter.id, 'new_parent_id': new_parent_id})
+    except ValueError as ve:
+        db.session.rollback()
+        return jsonify({'error': str(ve)}), 400
+    except Exception as exc:
+        db.session.rollback()
+        current_app.logger.error('Fehler beim Reparenting: %s', exc, exc_info=True)
+        return jsonify({'error': 'Interner Fehler beim Verschieben des Zählers'}), 500
 
 # 🔥 API ROUTES FÜR MOBILE APP/EXTERNE SYSTEME
 
