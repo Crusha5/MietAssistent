@@ -130,6 +130,7 @@
         {% set cold_rent_val = (contract_data.cold_rent if contract else contract_data.get('cold_rent')) or (contract_data.rent_net if contract else contract_data.get('rent_net')) %}
         {% set op_advance_val = (contract_data.operating_cost_advance if contract else contract_data.get('operating_cost_advance')) or 0 %}
         {% set heat_advance_val = (contract_data.heating_advance if contract else contract_data.get('heating_advance')) or 0 %}
+        {% set monthly_advance_val = (contract_data.monthly_advance if contract else contract_data.get('monthly_advance')) %}
         <p>
             Vertrag Nr. {{ contract_data.contract_number if contract else contract_data.get('contract_number') }}<br>
             Laufzeit:
@@ -138,7 +139,7 @@
             {% endif %}
             – {{ end_text if end_text else 'n/a' }}<br>
             Kaltmiete: {{ '%.2f'|format(cold_rent_val or 0) }} € / Monat<br>
-            Vorauszahlung Betriebskosten/Heizung: {{ '%.2f'|format(op_advance_val + heat_advance_val) }} € / Monat
+            Vorauszahlung Betriebskosten/Heizung: {{ '%.2f'|format((monthly_advance_val if monthly_advance_val is not none else (op_advance_val + heat_advance_val)) or 0) }} € / Monat
         </p>
         {% else %}
         <p>Keine Vertragsdaten gefunden.</p>

@@ -80,9 +80,33 @@ def _collect_advance_payments(contract, period_start, period_end, months):
 
 
 def _ensure_settlement_snapshot(settlement):
-    if settlement.contract_snapshot:
+    if settlement.contract_snapshot and settlement.advance_payments not in (None, 0):
         return
-    snapshot = _contract_snapshot_from(settlement.contract, settlement.apartment)
+
+    contract = settlement.contract
+    if not contract and settlement.apartment:
+        try:
+            contract = _determine_active_contract(
+                settlement.apartment.id, settlement.period_start, settlement.period_end
+            )
+            if contract and not settlement.contract_id:
+                settlement.contract_id = contract.id
+        except Exception:
+            contract = None
+
+    snapshot = settlement.contract_snapshot or _contract_snapshot_from(
+        contract, settlement.apartment
+    )
+
+    if contract and settlement.advance_payments is None:
+        months = _safe_months_between(settlement.period_start, settlement.period_end)
+        try:
+            settlement.advance_payments = _collect_advance_payments(
+                contract, settlement.period_start, settlement.period_end, months
+            )
+        except Exception:
+            settlement.advance_payments = None
+
     if snapshot:
         settlement.contract_snapshot = snapshot
         try:

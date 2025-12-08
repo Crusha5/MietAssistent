@@ -51,8 +51,12 @@
                         <p><strong>Vorauszahlungen:</strong> {{ "%.2f"|format(settlement.advance_payments or 0) }} €</p>
                         {% if settlement.contract or snapshot %}
                         {% set c = settlement.contract if settlement.contract else snapshot %}
-                        <p class="mb-1"><small class="text-muted">monatliche Vorauszahlung lt. Vertrag: {{ "%.2f"|format(((c.operating_cost_advance if settlement.contract else c.get('operating_cost_advance')) or 0) + ((c.heating_advance if settlement.contract else c.get('heating_advance')) or 0)) }} €</small></p>
-                        <p class="mb-1"><small class="text-muted">Kaltmiete: {{ "%.2f"|format((c.cold_rent if settlement.contract else c.get('cold_rent')) or 0) }} € / Monat</small></p>
+                        {% set op_adv = (c.operating_cost_advance if settlement.contract else c.get('operating_cost_advance')) or 0 %}
+                        {% set heat_adv = (c.heating_advance if settlement.contract else c.get('heating_advance')) or 0 %}
+                        {% set monthly_adv = (c.get('monthly_advance') if not settlement.contract else None) or (op_adv + heat_adv) %}
+                        {% set cold_rent = (c.cold_rent if settlement.contract else (c.get('cold_rent') or c.get('rent_net'))) or 0 %}
+                        <p class="mb-1"><small class="text-muted">monatliche Vorauszahlung lt. Vertrag: {{ "%.2f"|format(monthly_adv or 0) }} €</small></p>
+                        <p class="mb-1"><small class="text-muted">Kaltmiete: {{ "%.2f"|format(cold_rent) }} € / Monat</small></p>
                         {% endif %}
                         <p class="fw-bold"><strong>Saldo:</strong> {{ "%.2f"|format(settlement.balance or 0) }} €</p>
                     </div>
@@ -61,9 +65,13 @@
                 <div class="row">
                     <div class="col-md-12">
                         <h6>Vertragsdetails</h6>
+                        {% set cold_rent = (settlement.contract.cold_rent if settlement.contract else (snapshot.get('cold_rent') or snapshot.get('rent_net'))) or 0 %}
+                        {% set op_adv = (settlement.contract.operating_cost_advance if settlement.contract else snapshot.get('operating_cost_advance') or 0) %}
+                        {% set heat_adv = (settlement.contract.heating_advance if settlement.contract else snapshot.get('heating_advance') or 0) %}
+                        {% set monthly_adv = snapshot.get('monthly_advance') if not settlement.contract else None %}
                         <p class="text-muted mb-1">
-                            Kaltmiete: {{ "%.2f"|format((settlement.contract.cold_rent if settlement.contract else snapshot.get('cold_rent')) or 0) }} € / Monat ·
-                            Vorauszahlung BK/HZ: {{ "%.2f"|format(((settlement.contract.operating_cost_advance if settlement.contract else snapshot.get('operating_cost_advance') or 0) + (settlement.contract.heating_advance if settlement.contract else snapshot.get('heating_advance') or 0))) }} € / Monat ·
+                            Kaltmiete: {{ "%.2f"|format(cold_rent) }} € / Monat ·
+                            Vorauszahlung BK/HZ: {{ "%.2f"|format((monthly_adv if monthly_adv is not none else (op_adv + heat_adv)) or 0) }} € / Monat ·
                             Wohnfläche Abrechnung: {{ "%.2f"|format(settlement.apartment_area or 0) }} m²
                         </p>
                         {% if snapshot.landlord %}
