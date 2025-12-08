@@ -144,7 +144,7 @@ def _refresh_settlement(settlement):
 
 
 def _ensure_settlement_snapshot(settlement):
-    contract = settlement.contract
+    contract = settlement.contract or (Contract.query.get(settlement.contract_id) if settlement.contract_id else None)
     snapshot = settlement.contract_snapshot or {}
 
     if not contract and settlement.apartment:
@@ -156,6 +156,16 @@ def _ensure_settlement_snapshot(settlement):
                 settlement.contract_id = contract.id
         except Exception:
             contract = None
+
+    # Fallback: neueste Vertragsversion der Wohnung ziehen, falls kein aktiver Vertrag ermittelt werden konnte
+    if not contract and settlement.apartment:
+        contract = (
+            Contract.query.filter_by(apartment_id=settlement.apartment.id)
+            .order_by(Contract.start_date.desc())
+            .first()
+        )
+        if contract and not settlement.contract_id:
+            settlement.contract_id = contract.id
 
     needs_refresh = not snapshot
     if contract and snapshot:
@@ -793,6 +803,10 @@ def settlement_edit(settlement_id):
         except Exception as e:
             db.session.rollback()
             flash(f'Fehler beim Aktualisieren der Abrechnung: {str(e)}', 'danger')
+
+    # Die Bearbeitungsseite soll als Modal innerhalb der Übersicht geöffnet werden
+    if request.method == 'GET' and not request.args.get('force_page'):
+        return redirect(url_for('settlements.settlements_list', edit=settlement.id))
 
     return render_template('settlements/edit.html', settlement=settlement, apartments=apartments)
 

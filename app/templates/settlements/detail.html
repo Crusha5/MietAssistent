@@ -1,5 +1,35 @@
 {% extends "base.html" %}
 
+{% block extra_css %}
+<style>
+    .btn-back-light {
+        color: #fff;
+        border-color: rgba(255, 255, 255, 0.65);
+    }
+    .btn-back-light:hover, .btn-back-light:focus {
+        color: #fff;
+        background-color: rgba(255, 255, 255, 0.15);
+        border-color: rgba(255, 255, 255, 0.85);
+        box-shadow: none;
+    }
+    .cost-table-wrapper {
+        overflow-x: auto;
+    }
+    @media (min-width: 992px) {
+        .cost-table-wrapper {
+            overflow-x: visible;
+        }
+    }
+    .cost-table-wrapper .table td,
+    .cost-table-wrapper .table th {
+        white-space: normal;
+    }
+    .cost-action-col {
+        width: 52px;
+    }
+</style>
+{% endblock %}
+
 {% block title %}Abrechnung {{ settlement.id }} - Rental Management{% endblock %}
 
 {% block content %}
@@ -12,7 +42,7 @@
                 <h5 class="card-title mb-0">
                     <i class="bi bi-calculator me-2"></i>Abrechnung {{ settlement.id }}
                 </h5>
-                <a href="/settlements" class="btn btn-outline-light btn-sm text-white border-white">
+                <a href="/settlements" class="btn btn-outline-light btn-sm btn-back-light">
                     <i class="bi bi-arrow-left"></i> Zurück
                 </a>
             </div>
@@ -89,26 +119,26 @@
                 {% endif %}
                 <hr>
                 <h6>Kostenarten</h6>
-                <div class="table-responsive">
+                <div class="table-responsive cost-table-wrapper">
                     <table class="table table-sm">
                         <thead>
                             <tr>
                                 <th>Beleg</th>
-                                <th>Kostenart</th>
-                                <th>Umlageschlüssel</th>
+                                <th>Kosten</th>
+                                <th>Schlüssel</th>
                                 <th>Verbrauch</th>
-                                <th>Gesamtkosten</th>
-                                <th>Anteil Mieter</th>
+                                <th>Summe</th>
+                                <th>Mieteranteil</th>
                                 <th>Hinweis</th>
-                                <th class="text-end" title="Bearbeiten"><i class="bi bi-pencil"></i></th>
+                                <th class="text-end cost-action-col" title="Bearbeiten"><i class="bi bi-pencil"></i></th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for item in settlement.cost_breakdown or [] %}
                             <tr>
                                 <td>
-                                    {% if item.invoice_number %}<div>Rechnung: {{ item.invoice_number }}</div>{% endif %}
-                                    {% if item.billing_period %}<div>Zeitraum: {{ item.billing_period }}</div>{% endif %}
+                                    {% if item.invoice_number %}<div class="small text-muted">Rechnung: {{ item.invoice_number }}</div>{% endif %}
+                                    {% if item.billing_period %}<div class="small text-muted">Zeitraum: {{ item.billing_period }}</div>{% endif %}
                                     {% if item.apartment_specific %}<span class="badge bg-secondary">Wohnung</span>{% else %}<span class="badge bg-info text-dark">Gebäude</span>{% endif %}
                                 </td>
                                 <td>{{ item.category }}</td>
@@ -199,7 +229,7 @@
             </div>
             <div class="card-body">
                 <div class="d-grid gap-2">
-                    <a href="/settlements/{{ settlement.id }}/edit" class="btn btn-primary">
+                    <a href="/settlements?edit={{ settlement.id }}" class="btn btn-primary">
                         <i class="bi bi-pencil-square me-1"></i> Abrechnung bearbeiten
                     </a>
                     <a href="/settlements/{{ settlement.id }}/pdf" class="btn btn-outline-primary">
