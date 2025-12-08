@@ -21,7 +21,7 @@ def meters_list():
         db.joinedload(Meter.apartment),
         db.joinedload(Meter.sub_meters)
     ).filter(
-        Meter.is_archived.isnot(True)
+        or_(Meter.is_archived == False, Meter.is_archived.is_(None))
     ).order_by(Meter.building_id, Meter.meter_number).all()
 
     meter_map = {m.id: m for m in meters}
