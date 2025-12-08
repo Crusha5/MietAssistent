@@ -22,7 +22,10 @@ def meters_list():
         or_(
             Meter.is_archived.is_(False),
             Meter.is_archived.is_(None),
-            Meter.is_archived == 0
+            Meter.is_archived == 0,
+            Meter.is_archived == '0',
+            Meter.is_archived == 'false',
+            Meter.is_archived == 'False'
         )
     ).options(
         db.joinedload(Meter.building),
@@ -30,6 +33,9 @@ def meters_list():
         db.joinedload(Meter.apartment),
         db.joinedload(Meter.sub_meters)
     ).order_by(Meter.building_id, Meter.meter_number).all()
+
+    for meter in meters:
+        meter._children = []
 
     meter_map = {m.id: m for m in meters}
     children_map = {m_id: [] for m_id in meter_map.keys()}
