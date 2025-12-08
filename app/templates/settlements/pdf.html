@@ -18,6 +18,8 @@
     {% set landlord_display_name = (landlord_data.name or landlord_personal) if landlord_data else '' %}
     {% set balance_val = settlement.balance or 0 %}
     {% set balance_abs = balance_val | abs %}
+    {% set iban_val = landlord_data.iban if landlord_data else None %}
+    {% set iban_suffix = ('…' ~ iban_val[-4:]) if iban_val else None %}
 
     <div class="letter-block">
         <div class="sender-info">
@@ -60,9 +62,9 @@
             <p class="paragraph-gap">anbei erhalten Sie die Nebenkostenabrechnung für Ihre Wohnung im oben genannten Zeitraum. Wir haben die Kosten transparent aufbereitet und die Vorauszahlungen berücksichtigt.</p>
             <p class="paragraph-gap spacer-row"></p>
             {% if balance_val > 0.01 %}
-                <p class="paragraph-gap">Es ergibt sich eine Nachzahlung in Höhe von {{ '%.2f'|format(balance_abs) }} €. Bitte überweisen Sie den Betrag innerhalb von 14 Tagen auf die unten stehende Bankverbindung.</p>
+                <p class="paragraph-gap">Sie erhalten in den nächsten Tagen{{ ' auf das hinterlegte Konto' if iban_suffix else '' }}{% if iban_suffix %} (IBAN {{ iban_suffix }}){% endif %} den Betrag {{ '%.2f'|format(balance_abs) }} €. Bitte teilen Sie uns eine aktuelle Bankverbindung mit, falls sich Ihre Daten geändert haben.</p>
             {% elif balance_val < -0.01 %}
-                <p class="paragraph-gap">Zu Ihren Gunsten entsteht ein Guthaben in Höhe von {{ '%.2f'|format(balance_abs) }} €. Wir erstatten den Betrag zeitnah auf die hinterlegte Bankverbindung. Teilen Sie uns bitte eine Kontoverbindung mit, falls wir noch keine haben.</p>
+                <p class="paragraph-gap">Bitte überweisen Sie den Betrag in Höhe von {{ '%.2f'|format(balance_abs) }} € innerhalb von 14 Tagen auf die unten aufgeführte Bankverbindung{% if iban_suffix %} (IBAN {{ iban_suffix }}){% endif %}. Vielen Dank für die fristgerechte Zahlung.</p>
             {% else %}
                 <p class="paragraph-gap">Die Abrechnung ist ausgeglichen. Ein Zahlungsbedarf besteht derzeit nicht.</p>
             {% endif %}
@@ -165,7 +167,7 @@
                 <td style="text-align:right">- {{ '%.2f'|format(settlement.advance_payments or 0) }} €</td>
             </tr>
             <tr class="totals">
-                <th>Saldo (Nachzahlung + / Guthaben -)</th>
+                <th>Saldo (Guthaben + / Nachzahlung -)</th>
                 <td style="text-align:right">{{ '%.2f'|format(settlement.balance or 0) }} €</td>
             </tr>
         </table>
@@ -205,6 +207,15 @@
         </table>
     </div>
 
+    {% set consumption_ns = namespace(items=[]) %}
+    {% for meter in settlement.consumption_details or [] %}
+        {% set meter_apartment_id = meter.get('apartment_id') %}
+        {% set meter_apartment_number = meter.get('apartment_number') %}
+        {% if meter_apartment_id == settlement.apartment_id or (apartment and meter_apartment_number and meter_apartment_number == apartment.apartment_number) %}
+            {% set _ = consumption_ns.items.append(meter) %}
+        {% endif %}
+    {% endfor %}
+    {% set consumption_meters = consumption_ns.items %}
     <div class="section">
         <h3>Verbrauchsnachweise</h3>
         <table class="table">
@@ -220,7 +231,7 @@
                 </tr>
             </thead>
             <tbody>
-                {% for meter in settlement.consumption_details or [] %}
+                {% for meter in consumption_meters %}
                 <tr>
                     <td>{{ meter.meter_number }}{% if meter.meter_type %} ({{ meter.meter_type }}){% endif %}</td>
                     <td>{{ meter.get('unit') or '' }}</td>
@@ -252,9 +263,9 @@
     <div class="section notice">
         Gemäß § 556 Abs. 3 BGB kann der Mieter innerhalb von 12 Monaten nach Zugang der Abrechnung Einwendungen erheben.
         {% if balance_val > 0.01 %}
-            Bitte überweisen Sie den Nachzahlungsbetrag innerhalb von 14 Tagen auf das unten stehende Konto.
+            Wir zahlen ein Guthaben innerhalb von 14 Tagen auf die uns bekannte Bankverbindung aus{% if iban_suffix %} (IBAN {{ iban_suffix }}){% endif %}. Bitte informieren Sie uns, falls die Kontodaten nicht mehr aktuell sind.
         {% elif balance_val < -0.01 %}
-            Wir zahlen ein Guthaben innerhalb von 14 Tagen auf die uns bekannte Bankverbindung aus. Bitte teilen Sie uns andernfalls ein Konto mit.
+            Bitte überweisen Sie den offenen Betrag innerhalb von 14 Tagen auf das unten stehende Konto.
         {% else %}
             Es ist keine Zahlung erforderlich; die Abrechnung ist ausgeglichen.
         {% endif %}
