@@ -15,65 +15,16 @@ meters_bp = Blueprint('meters', __name__)
 @login_required
 def meters_list():
     """Zeigt alle Zähler an"""
-    def _is_archived(value):
-        """Robuste Prüfung für inkonsistente Archiv-Flags."""
-        if value is None:
-            return False
+    meters = Meter.query.filter(
+        or_(Meter.is_archived == False, Meter.is_archived.is_(None))
+    ).options(
+        db.joinedload(Meter.building),
+        db.joinedload(Meter.meter_type),
+        db.joinedload(Meter.apartment),
+        db.joinedload(Meter.sub_meters)
+    ).all()
 
-        # Zahlen und echte Booleans direkt auswerten
-        if isinstance(value, bool):
-            return value
-        if isinstance(value, (int, float)):
-            return value != 0
-
-        # Strings tolerant bewerten (z. B. 'false', '0', '', None)
-        if isinstance(value, str):
-            normalized = value.strip().lower()
-            return normalized in {'1', 'true', 'yes', 'y', 't'}
-
-        # Fallback: unbekannte Werte als nicht archiviert behandeln, um nichts zu verstecken
-        return False
-
-    meters = [
-        m for m in Meter.query.options(
-            db.joinedload(Meter.building),
-            db.joinedload(Meter.meter_type),
-            db.joinedload(Meter.apartment),
-            db.joinedload(Meter.sub_meters)
-        ).order_by(Meter.building_id, Meter.meter_number).all()
-        if not _is_archived(m.is_archived)
-    ]
-
-    meter_map = {m.id: m for m in meters}
-    children_map = {m_id: [] for m_id in meter_map.keys()}
-    roots_by_building = {}
-
-    for meter in meter_map.values():
-        if meter.parent_meter_id and meter.parent_meter_id in meter_map:
-            children_map[meter.parent_meter_id].append(meter)
-        else:
-            roots_by_building.setdefault(meter.building_id, []).append(meter)
-
-    def attach_children(current_meter):
-        current_meter._children = sorted(children_map.get(current_meter.id, []), key=lambda m: m.meter_number)
-        for child in current_meter._children:
-            attach_children(child)
-
-    for building_id, building_roots in roots_by_building.items():
-        roots_by_building[building_id] = sorted(building_roots, key=lambda m: m.meter_number)
-        for root in roots_by_building[building_id]:
-            attach_children(root)
-
-    buildings = {m.building_id: m.building for m in meter_map.values() if m.building}
-
-    # Ensure we have a placeholder section for meters without a valid building relation
-    if any(b_id is None for b_id in roots_by_building.keys()):
-        class _Placeholder:
-            name = 'Ohne Gebäude'
-
-        buildings[None] = _Placeholder()
-
-    return render_template('meters/list.html', roots_by_building=roots_by_building, buildings=buildings)
+    return render_template("meters/list.html", meters=meters)
 
 @meters_bp.route('/create', methods=['GET', 'POST'])
 @login_required
