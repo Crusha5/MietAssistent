@@ -473,6 +473,7 @@ def _register_runtime_migration_hook(app):
             _ensure_contract_protocol_columns()
             _ensure_meter_price_column()
             _ensure_income_breakdown_columns()
+            _ensure_settlement_audit_table()
         except Exception as exc:
             print(f"⚠️  Konnte Runtime-Migration nicht ausführen: {exc}")
         finally:
@@ -695,3 +696,18 @@ def _ensure_income_breakdown_columns():
         print(f"✅ Einnahmespalten ergänzt: {', '.join(missing.keys())}")
     except Exception as mig_exc:
         print(f"⚠️ Konnte Einnahmespalten nicht ergänzen: {mig_exc}")
+
+
+def _ensure_settlement_audit_table():
+    """Legt das revisionssichere Protokoll für Abrechnungen an, falls noch nicht vorhanden."""
+    from sqlalchemy import inspect
+    inspector = inspect(db.engine)
+
+    if 'settlement_audit_logs' in inspector.get_table_names():
+        return
+
+    try:
+        db.create_all()
+        print("✅ settlement_audit_logs Tabelle angelegt")
+    except Exception as mig_exc:
+        print(f"⚠️ Konnte settlement_audit_logs nicht anlegen: {mig_exc}")

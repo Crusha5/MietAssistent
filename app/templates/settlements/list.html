@@ -58,9 +58,16 @@
                                 <a href="/settlements/{{ settlement.id }}" class="btn btn-outline-primary">
                                     <i class="bi bi-eye"></i>
                                 </a>
-                                <a href="/settlements/{{ settlement.id }}/edit" class="btn btn-outline-secondary">
+                                <button class="btn btn-outline-secondary" type="button"
+                                    data-bs-toggle="modal" data-bs-target="#settlementEditModal"
+                                    data-id="{{ settlement.id }}" data-apartment="{{ settlement.apartment_id }}"
+                                    data-start="{{ settlement.period_start.strftime('%Y-%m-%d') }}"
+                                    data-end="{{ settlement.period_end.strftime('%Y-%m-%d') }}"
+                                    data-status="{{ settlement.status }}"
+                                    data-notes="{{ settlement.notes or '' }}"
+                                    data-tenant-notes="{{ settlement.tenant_notes or '' }}">
                                     <i class="bi bi-pencil"></i>
-                                </a>
+                                </button>
                                 <a href="/settlements/{{ settlement.id }}/pdf" class="btn btn-outline-secondary">
                                     <i class="bi bi-file-pdf"></i>
                                 </a>
@@ -83,4 +90,42 @@
         {% endif %}
     </div>
 </div>
+{% include 'settlements/edit_modal.html' %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const settlementModal = document.getElementById('settlementEditModal');
+    const settlementForm = document.getElementById('settlementEditForm');
+    const settlementApartment = document.getElementById('settlementApartment');
+    const settlementStart = document.getElementById('settlementPeriodStart');
+    const settlementEnd = document.getElementById('settlementPeriodEnd');
+    const settlementStatus = document.getElementById('settlementStatus');
+    const settlementNotes = document.getElementById('settlementNotes');
+    const settlementTenantNotes = document.getElementById('settlementTenantNotes');
+
+    settlementModal?.addEventListener('show.bs.modal', (event) => {
+        const button = event.relatedTarget;
+        if (!button) return;
+        const id = button.getAttribute('data-id');
+        settlementForm.action = `/settlements/${id}/edit`;
+        settlementApartment.value = button.getAttribute('data-apartment') || '';
+        settlementStart.value = button.getAttribute('data-start') || '';
+        settlementEnd.value = button.getAttribute('data-end') || '';
+        settlementStatus.value = button.getAttribute('data-status') || 'draft';
+        settlementNotes.value = button.getAttribute('data-notes') || '';
+        settlementTenantNotes.value = button.getAttribute('data-tenant-notes') || '';
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const editId = urlParams.get('edit');
+        if (editId) {
+            const trigger = document.querySelector(`[data-bs-target="#settlementEditModal"][data-id="${editId}"]`);
+            if (trigger) {
+                trigger.click();
+            }
+        }
+    });
+</script>
 {% endblock %}

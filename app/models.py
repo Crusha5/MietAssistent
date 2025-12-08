@@ -787,6 +787,20 @@ class Notification(db.Model):
 
     user = db.relationship('User', backref=db.backref('notifications', lazy=True, cascade='all, delete-orphan'))
 
+
+class SettlementAuditLog(db.Model):
+    __tablename__ = 'settlement_audit_logs'
+
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    settlement_id = db.Column(db.String(36), db.ForeignKey('settlements.id'), nullable=False)
+    user_id = db.Column(db.String(36), db.ForeignKey('users.id'))
+    action = db.Column(db.String(120), nullable=False)
+    payload = db.Column(db.JSON)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    settlement = db.relationship('Settlement', backref=db.backref('audit_logs', lazy=True, order_by='SettlementAuditLog.created_at.desc()'))
+    user = db.relationship('User', backref='settlement_audit_logs')
+
 class ContractTemplate(db.Model):
     __tablename__ = 'contract_templates'
     
