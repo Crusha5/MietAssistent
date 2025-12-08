@@ -17,7 +17,11 @@ meters_bp = Blueprint('meters', __name__)
 def meters_list():
     """Zeigt alle Zähler an"""
     meters = Meter.query.filter(
-        or_(Meter.is_archived == False, Meter.is_archived.is_(None))
+        or_(
+            Meter.is_archived == False,
+            Meter.is_archived == 0,
+            Meter.is_archived.is_(None)
+        )
     ).options(
         db.joinedload(Meter.building),
         db.joinedload(Meter.meter_type),
@@ -108,6 +112,7 @@ def create_meter():
                 
                 db.session.add(meter)
                 db.session.commit()
+                db.session.expire_all()
                 
                 flash('✅ Hauptzähler erfolgreich angelegt!', 'success')
                 return redirect(url_for('meters.meters_list'))
@@ -392,9 +397,10 @@ def add_submeter(meter_id):
                 notes=request.form.get('notes', '').strip(),
                 price_per_unit=price_per_unit,
             )
-            
+
             db.session.add(submeter)
             db.session.commit()
+            db.session.expire_all()
             flash('✅ Unterzähler erfolgreich angelegt!', 'success')
             return redirect(url_for('meters.meter_detail', meter_id=parent_meter.id))
             
@@ -638,10 +644,11 @@ def create_meter_api():
             notes=data.get('notes', ''),
             price_per_unit=price_per_unit,
         )
-        
+
         db.session.add(meter)
         db.session.commit()
-        
+        db.session.expire_all()
+
         return jsonify({
             'message': 'Zähler erfolgreich angelegt',
             'id': meter.id
