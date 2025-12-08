@@ -186,14 +186,17 @@ def meter_detail(meter_id):
 @login_required
 def edit_meter(meter_id):
     """Bearbeitet einen Zähler - KORRIGIERT OHNE initial_reading"""
-    meter = Meter.query.get_or_404(meter_id)
+    meter = Meter.query.options(
+        db.joinedload(Meter.sub_meters)
+    ).get_or_404(meter_id)
     buildings = Building.query.order_by(Building.name).all()
     meter_types = MeterType.query.filter_by(is_active=True).order_by(MeterType.name).all()
-    
+
     # Alle Hauptzähler als mögliche Parent-Zähler
     parent_meters = Meter.query.filter(
         Meter.id != meter_id,
         Meter.is_main_meter == True,
+        Meter.building_id == meter.building_id,
         or_(Meter.is_archived == False, Meter.is_archived.is_(None))
     ).options(
         db.joinedload(Meter.building)
@@ -204,6 +207,26 @@ def edit_meter(meter_id):
     if request.method == 'POST':
         try:
             parent_meter_id = request.form.get('parent_meter_id') or None
+            if parent_meter_id == meter_id:
+                raise ValueError('Ein Zähler kann nicht sein eigener übergeordneter Zähler sein.')
+
+            parent_meter = None
+            if parent_meter_id:
+                parent_meter = Meter.query.get(parent_meter_id)
+                if not parent_meter:
+                    raise ValueError('Ausgewählter übergeordneter Zähler existiert nicht.')
+                if parent_meter.building_id != meter.building_id:
+                    raise ValueError('Übergeordnete Zähler müssen im gleichen Gebäude liegen.')
+
+                def is_descendant(current_meter, target_id):
+                    for sub_meter in current_meter.sub_meters or []:
+                        if sub_meter.id == target_id or is_descendant(sub_meter, target_id):
+                            return True
+                    return False
+
+                if is_descendant(meter, parent_meter_id):
+                    raise ValueError('Der ausgewählte übergeordnete Zähler ist ein Unterzähler dieses Zählers.')
+
             is_main_meter = parent_meter_id is None
 
             meter.meter_number = request.form['meter_number'].strip()
@@ -231,7 +254,11 @@ def edit_meter(meter_id):
             if next_url:
                 return redirect(next_url)
             return redirect(url_for('meters.meter_detail', meter_id=meter.id))
-            
+
+        except ValueError as ve:
+            db.session.rollback()
+            flash(str(ve), 'danger')
+            return redirect(url_for('meters.edit_meter', meter_id=meter.id, next=next_url))
         except Exception as e:
             db.session.rollback()
             current_app.logger.error(f"Fehler beim Aktualisieren des Zählers: {str(e)}", exc_info=True)

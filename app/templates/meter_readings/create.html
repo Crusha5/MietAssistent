@@ -28,9 +28,11 @@
                             <label for="meter_id" class="form-label">Zähler *</label>
                             <select class="form-select" id="meter_id" name="meter_id" required>
                                 <option value="">Bitte Zähler auswählen...</option>
-                                {% for meter in meters %}
-                                <option value="{{ meter.id }}" {% if selected_meter and selected_meter.id == meter.id %}selected{% endif %}>
-                                    {{ meter.meter_number }} - {{ meter.description or '' }} 
+                                {% for option in meter_options %}
+                                {% set meter = option.meter %}
+                                <option value="{{ meter.id }}" class="meter-option level-{{ option.level }}" style="padding-left: {{ 14 * option.level }}px;" {% if selected_meter and selected_meter.id == meter.id %}selected{% endif %}>
+                                    {% if option.level > 0 %}{{ '&nbsp;' * (option.level * 2) | safe }}↳ {% endif %}
+                                    {{ meter.meter_number }} - {{ meter.description or '' }}
                                     ({{ meter.building.name }}
                                     {% if meter.apartment %} - Wohnung {{ meter.apartment.apartment_number }}{% endif %})
                                 </option>

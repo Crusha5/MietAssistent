@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify, render_template, redirect, url_fo
 from flask_jwt_extended import jwt_required
 from app.extensions import db
 from app.models import MeterReading, Meter, MeterType, Apartment, Tenant, User, Building, UserPreference  # ✅ Building hinzugefügt
+from markupsafe import Markup
 from datetime import datetime
 from app.routes.main import login_required
 import os
@@ -16,6 +17,7 @@ from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
+from sqlalchemy import or_
 
 
 def _meter_debug_enabled():
@@ -84,7 +86,10 @@ def _validate_meter_hierarchy(meter, new_value, ignore_ids=None):
             delta = parent_value - sibling_sum
             if abs(delta) > tolerance:
                 raise ValueError(
-                    f'Die Summe der Unterzähler ({sibling_sum:.3f}) muss dem Hauptzähler ({parent_value:.3f}) entsprechen.'
+                    Markup(
+                        f"Die Summe der Unterzähler ({sibling_sum:.3f}) muss dem Hauptzähler ({parent_value:.3f}) entsprechen. "
+                        f"<span class='text-success'>Offener Wert: {delta:+.3f}</span>"
+                    )
                 )
 
     active_subs = [s for s in (meter.sub_meters or []) if not s.is_archived]
@@ -94,8 +99,46 @@ def _validate_meter_hierarchy(meter, new_value, ignore_ids=None):
             delta = new_value - sub_sum
             if abs(delta) > tolerance:
                 raise ValueError(
-                    f'Die Summe der Unterzähler ({sub_sum:.3f}) muss dem Hauptzähler ({new_value:.3f}) entsprechen.'
+                    Markup(
+                        f"Die Summe der Unterzähler ({sub_sum:.3f}) muss dem Hauptzähler ({new_value:.3f}) entsprechen. "
+                        f"<span class='text-success'>Offener Wert: {delta:+.3f}</span>"
+                    )
                 )
+
+
+def _build_meter_options():
+    meters = Meter.query.options(
+        db.joinedload(Meter.building),
+        db.joinedload(Meter.apartment),
+        db.joinedload(Meter.sub_meters),
+    ).filter(
+        or_(Meter.is_archived == False, Meter.is_archived.is_(None))
+    ).all()
+
+    meter_map = {meter.id: meter for meter in meters}
+    roots = [m for m in meters if not m.parent_meter_id or m.parent_meter_id not in meter_map]
+
+    def sort_key(meter):
+        return (
+            meter.building.name if meter.building else '',
+            meter.meter_number,
+        )
+
+    options = []
+
+    def add_with_children(meter, level=0):
+        options.append({'meter': meter, 'level': min(level, 3)})
+        children = sorted(
+            [sm for sm in (meter.sub_meters or []) if not sm.is_archived],
+            key=sort_key
+        )
+        for child in children:
+            add_with_children(child, level + 1)
+
+    for root in sorted(roots, key=sort_key):
+        add_with_children(root, 0)
+
+    return options
 
 meter_bp = Blueprint('meter_readings', __name__)
 
@@ -152,9 +195,10 @@ def build_filtered_query(filter_args):
         query = query.filter(Meter.parent_meter_id.isnot(None))
 
     return query.order_by(
-        Building.name, 
-        Meter.meter_number,
-        MeterReading.reading_date.desc()
+        MeterReading.reading_date.desc(),
+        MeterReading.created_at.desc(),
+        Building.name,
+        Meter.meter_number
     )
 
 def get_filtered_readings_for_export(filter_args):
@@ -326,9 +370,10 @@ def get_filtered_readings(filter_args):
         query = query.filter(Meter.parent_meter_id.isnot(None))
     
     return query.order_by(
-        Building.name, 
-        Meter.meter_number,
-        MeterReading.reading_date.desc()
+        MeterReading.reading_date.desc(),
+        MeterReading.created_at.desc(),
+        Building.name,
+        Meter.meter_number
     ).all()
 
 @meter_bp.route('/export/csv')
@@ -600,9 +645,10 @@ def get_filtered_readings(filter_args):
         query = query.filter(Meter.parent_meter_id.isnot(None))
     
     return query.order_by(
-        Building.name, 
-        Meter.meter_number,
-        MeterReading.reading_date.desc()
+        MeterReading.reading_date.desc(),
+        MeterReading.created_at.desc(),
+        Building.name,
+        Meter.meter_number
     ).all()
 
 # Konfiguration für Datei-Uploads
@@ -621,7 +667,7 @@ def create_meter_reading():
     if meter_id:
         selected_meter = Meter.query.get(meter_id)
     
-    meters = Meter.query.all()
+    meter_options = _build_meter_options()
     
     if request.method == 'POST':
         try:
@@ -674,8 +720,8 @@ def create_meter_reading():
             current_app.logger.error(f"Fehler beim Erfassen des Zählerstands: {str(e)}", exc_info=True)
             flash(f'Fehler beim Erfassen des Zählerstands: {str(e)}', 'danger')
     
-    return render_template('meter_readings/create.html', 
-                         meters=meters,
+    return render_template('meter_readings/create.html',
+                         meter_options=meter_options,
                          selected_meter=selected_meter)
 
 @meter_bp.route('/<reading_id>')
