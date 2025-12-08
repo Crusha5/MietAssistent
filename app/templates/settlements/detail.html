@@ -167,6 +167,7 @@
                 </div>
                 <hr>
                 <h6>Verbrauchszähler</h6>
+                {% set consumption_meters = (settlement.consumption_details or []) | selectattr('apartment_id', 'equalto', settlement.apartment_id) | list %}
                 <div class="table-responsive">
                     <table class="table table-sm">
                         <thead>
@@ -182,7 +183,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for meter in settlement.consumption_details or [] %}
+                            {% for meter in consumption_meters %}
                             <tr>
                                 <td>{{ meter.meter_number }} {% if meter.meter_type %}({{ meter.meter_type }}){% endif %}</td>
                                 <td>{{ meter.get('unit') or '' }}</td>

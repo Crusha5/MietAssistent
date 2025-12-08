@@ -34,6 +34,7 @@ h1, h2, h3, h4 {
 
 .section {
     margin-bottom: 26px;
+    page-break-inside: avoid;
 }
 
 .table {
@@ -130,6 +131,7 @@ h1, h2, h3, h4 {
     padding-top: 10mm;
     margin-bottom: 24px;
     page-break-inside: avoid;
+    page-break-after: always;
 }
 
 .sender-info {
