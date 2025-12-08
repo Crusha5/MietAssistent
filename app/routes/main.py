@@ -271,7 +271,12 @@ def _build_dashboard_context(user=None):
         })
 
     anomaly_count = 0
-    sorted_readings = sorted(MeterReading.query.all(), key=lambda r: (r.meter_id, r.reading_date))
+    sorted_readings = sorted(
+        MeterReading.query.filter(
+            (MeterReading.is_archived.is_(False)) | (MeterReading.is_archived.is_(None))
+        ).all(),
+        key=lambda r: (r.meter_id, r.reading_date),
+    )
     last_by_meter = {}
     for reading in sorted_readings:
         previous = last_by_meter.get(reading.meter_id)
@@ -289,7 +294,10 @@ def _build_dashboard_context(user=None):
         for meter in meters:
             if meter.meter_type and 'heiz' in meter.meter_type.name.lower():
                 reading = (
-                    MeterReading.query.filter_by(meter_id=meter.id)
+                    MeterReading.query.filter(
+                        MeterReading.meter_id == meter.id,
+                        (MeterReading.is_archived.is_(False)) | (MeterReading.is_archived.is_(None)),
+                    )
                     .order_by(MeterReading.reading_date.desc())
                     .first()
                 )

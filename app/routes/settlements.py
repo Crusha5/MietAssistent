@@ -47,6 +47,7 @@ def _contract_snapshot_from(contract, apartment):
         'rent_net': contract.rent_net,
         'operating_cost_advance': contract.operating_cost_advance,
         'heating_advance': contract.heating_advance,
+        'rent_additional': contract.rent_additional,
         'monthly_advance': contract.get_monthly_operating_prepayment(),
         'floor_space': contract.floor_space or (apartment.area_sqm if apartment else None),
         'apartment_number': apartment.apartment_number if apartment else None,
@@ -233,7 +234,9 @@ def _get_consumption(meter, start_date, end_date):
 
     start_reading = (
         MeterReading.query.filter(
-            MeterReading.meter_id == meter.id, MeterReading.reading_date <= start_date
+            MeterReading.meter_id == meter.id,
+            MeterReading.reading_date <= start_date,
+            (MeterReading.is_archived.is_(False)) | (MeterReading.is_archived.is_(None)),
         )
         .order_by(MeterReading.reading_date.desc())
         .first()
@@ -241,7 +244,9 @@ def _get_consumption(meter, start_date, end_date):
     if not start_reading:
         start_reading = (
             MeterReading.query.filter(
-                MeterReading.meter_id == meter.id, MeterReading.reading_date >= start_date
+                MeterReading.meter_id == meter.id,
+                MeterReading.reading_date >= start_date,
+                (MeterReading.is_archived.is_(False)) | (MeterReading.is_archived.is_(None)),
             )
             .order_by(MeterReading.reading_date.asc())
             .first()
@@ -249,7 +254,9 @@ def _get_consumption(meter, start_date, end_date):
 
     end_reading = (
         MeterReading.query.filter(
-            MeterReading.meter_id == meter.id, MeterReading.reading_date <= end_date
+            MeterReading.meter_id == meter.id,
+            MeterReading.reading_date <= end_date,
+            (MeterReading.is_archived.is_(False)) | (MeterReading.is_archived.is_(None)),
         )
         .order_by(MeterReading.reading_date.desc())
         .first()
@@ -257,7 +264,9 @@ def _get_consumption(meter, start_date, end_date):
     if not end_reading:
         end_reading = (
             MeterReading.query.filter(
-                MeterReading.meter_id == meter.id, MeterReading.reading_date >= end_date
+                MeterReading.meter_id == meter.id,
+                MeterReading.reading_date >= end_date,
+                (MeterReading.is_archived.is_(False)) | (MeterReading.is_archived.is_(None)),
             )
             .order_by(MeterReading.reading_date.asc())
             .first()
@@ -749,7 +758,11 @@ def settlement_detail(settlement_id):
     if contract:
         monthly_contract_advance = contract.get_monthly_operating_prepayment()
     elif snapshot:
-        monthly_contract_advance = snapshot.get('monthly_advance')
+        monthly_contract_advance = snapshot.get('monthly_advance') or (
+            (snapshot.get('operating_cost_advance') or 0)
+            + (snapshot.get('heating_advance') or 0)
+            + (snapshot.get('rent_additional') or 0)
+        )
 
     if total_paid_advances is None and contract:
         total_paid_advances = _collect_advance_payments(contract, settlement.period_start, settlement.period_end, active_months)
@@ -766,7 +779,9 @@ def settlement_detail(settlement_id):
         'cold_rent': (
             (contract.cold_rent or contract.rent_net) if contract else (snapshot.get('cold_rent') or snapshot.get('rent_net') or 0)
         ) if (contract or snapshot) else 0,
-        'monthly_contract_advance': (monthly_contract_advance if monthly_contract_advance is not None else snapshot.get('monthly_advance')) if (contract or snapshot) else 0,
+        'monthly_contract_advance': (
+            monthly_contract_advance if monthly_contract_advance is not None else snapshot.get('monthly_advance')
+        ) if (contract or snapshot) else 0,
         'monthly_effective_advance': monthly_effective_from_incomes if monthly_effective_from_incomes is not None else (round((total_paid_advances or 0) / months, 2) if months else 0),
     }
 

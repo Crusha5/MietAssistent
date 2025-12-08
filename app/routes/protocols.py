@@ -208,7 +208,10 @@ def create_protocol():
     # Ermittle letzte Zählerstände für Anzeige
     for meter in meters:
         last_reading = (
-            MeterReading.query.filter_by(meter_id=meter.id)
+            MeterReading.query.filter(
+                MeterReading.meter_id == meter.id,
+                (MeterReading.is_archived.is_(False)) | (MeterReading.is_archived.is_(None)),
+            )
             .order_by(MeterReading.reading_date.desc())
             .first()
         )

@@ -173,7 +173,10 @@ def meter_detail(meter_id):
         db.joinedload(Meter.sub_meters)
     ).get_or_404(meter_id)
     
-    readings = MeterReading.query.filter_by(meter_id=meter_id).order_by(MeterReading.reading_date.desc()).all()
+    readings = MeterReading.query.filter(
+        MeterReading.meter_id == meter_id,
+        (MeterReading.is_archived.is_(False)) | (MeterReading.is_archived.is_(None)),
+    ).order_by(MeterReading.reading_date.desc()).all()
     
     return render_template('meters/detail.html', 
                          meter=meter, 

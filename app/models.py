@@ -755,7 +755,11 @@ class Contract(db.Model):
 
     def get_monthly_operating_prepayment(self) -> float:
         """Hilfsfunktion für Nebenkostenabrechnungen."""
-        return float(self.operating_cost_advance or 0) + float(self.heating_advance or 0)
+        return (
+            float(self.rent_additional or 0)
+            + float(self.operating_cost_advance or 0)
+            + float(self.heating_advance or 0)
+        )
     
     
 # In models.py - Neue Models
