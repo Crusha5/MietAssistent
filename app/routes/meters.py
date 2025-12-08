@@ -24,7 +24,10 @@ def meters_list():
         or_(
             Meter.is_archived.is_(False),
             Meter.is_archived.is_(None),
-            Meter.is_archived == 0  # safety for non-boolean legacy values
+            Meter.is_archived == 0,  # safety for non-boolean legacy values
+            Meter.is_archived == '0',
+            Meter.is_archived == 'False',
+            Meter.is_archived == 'false'
         )
     ).order_by(Meter.building_id, Meter.meter_number).all()
 
