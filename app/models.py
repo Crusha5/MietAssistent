@@ -307,6 +307,7 @@ class Meter(db.Model):
     multiplier = db.Column(db.Float, default=1.0)
     location_description = db.Column(db.String(255))
     notes = db.Column(db.Text)
+    price_per_unit = db.Column(db.Float)
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -786,6 +787,20 @@ class Notification(db.Model):
 
     user = db.relationship('User', backref=db.backref('notifications', lazy=True, cascade='all, delete-orphan'))
 
+
+class SettlementAuditLog(db.Model):
+    __tablename__ = 'settlement_audit_logs'
+
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    settlement_id = db.Column(db.String(36), db.ForeignKey('settlements.id'), nullable=False)
+    user_id = db.Column(db.String(36), db.ForeignKey('users.id'))
+    action = db.Column(db.String(120), nullable=False)
+    payload = db.Column(db.JSON)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    settlement = db.relationship('Settlement', backref=db.backref('audit_logs', lazy=True, order_by='SettlementAuditLog.created_at.desc()'))
+    user = db.relationship('User', backref='settlement_audit_logs')
+
 class ContractTemplate(db.Model):
     __tablename__ = 'contract_templates'
     
@@ -1044,6 +1059,13 @@ class Income(db.Model):
     tenant_id = db.Column(db.String(36), db.ForeignKey('tenants.id'))
     income_type = db.Column(db.String(50), default='rent')
     amount = db.Column(db.Float, nullable=False)
+    rent_portion = db.Column(db.Float, default=0.0)
+    service_charge_portion = db.Column(db.Float, default=0.0)
+    special_portion = db.Column(db.Float, default=0.0)
+    is_advance_payment = db.Column(db.Boolean, default=False)
+    reference = db.Column(db.String(255))
+    source = db.Column(db.String(50))
+    import_metadata = db.Column(db.Text)
     received_on = db.Column(db.Date, nullable=False, default=datetime.utcnow)
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)

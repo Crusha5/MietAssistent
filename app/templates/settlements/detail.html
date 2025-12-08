@@ -1,8 +1,40 @@
 {% extends "base.html" %}
 
+{% block extra_css %}
+<style>
+    .btn-back-light {
+        color: #fff;
+        border-color: rgba(255, 255, 255, 0.65);
+    }
+    .btn-back-light:hover, .btn-back-light:focus {
+        color: #fff;
+        background-color: rgba(255, 255, 255, 0.15);
+        border-color: rgba(255, 255, 255, 0.85);
+        box-shadow: none;
+    }
+    .cost-table-wrapper {
+        overflow-x: auto;
+    }
+    @media (min-width: 992px) {
+        .cost-table-wrapper {
+            overflow-x: visible;
+        }
+    }
+    .cost-table-wrapper .table td,
+    .cost-table-wrapper .table th {
+        white-space: normal;
+    }
+    .cost-action-col {
+        width: 52px;
+    }
+</style>
+{% endblock %}
+
 {% block title %}Abrechnung {{ settlement.id }} - Rental Management{% endblock %}
 
 {% block content %}
+{% set snapshot = contract_info.snapshot if contract_info is defined else settlement.contract_snapshot or {} %}
+{% set cold_rent_val = (contract_info.cold_rent if contract_info is defined else None) or ((settlement.contract.cold_rent or settlement.contract.rent_net) if settlement.contract else (snapshot.get('cold_rent') or snapshot.get('rent_net'))) or 0 %}
 <div class="row">
     <div class="col-lg-8">
         <div class="card border-0 shadow-sm">
@@ -10,7 +42,7 @@
                 <h5 class="card-title mb-0">
                     <i class="bi bi-calculator me-2"></i>Abrechnung {{ settlement.id }}
                 </h5>
-                <a href="/settlements" class="btn btn-light btn-sm text-primary">
+                <a href="/settlements" class="btn btn-outline-light btn-sm btn-back-light">
                     <i class="bi bi-arrow-left"></i> Zurück
                 </a>
             </div>
@@ -50,9 +82,9 @@
                         <p><strong>Gesamtkostenanteil:</strong> {{ "%.2f"|format(settlement.total_costs or 0) }} €</p>
                         <p><strong>Vorauszahlungen:</strong> {{ "%.2f"|format(settlement.advance_payments or 0) }} €</p>
                         {% if settlement.contract or snapshot %}
-                        {% set c = settlement.contract if settlement.contract else snapshot %}
-                        <p class="mb-1"><small class="text-muted">monatliche Vorauszahlung lt. Vertrag: {{ "%.2f"|format(((c.operating_cost_advance if settlement.contract else c.get('operating_cost_advance')) or 0) + ((c.heating_advance if settlement.contract else c.get('heating_advance')) or 0)) }} €</small></p>
-                        <p class="mb-1"><small class="text-muted">Kaltmiete: {{ "%.2f"|format((c.cold_rent if settlement.contract else c.get('cold_rent')) or 0) }} € / Monat</small></p>
+                        {% set monthly_adv = (contract_info.monthly_contract_advance if contract_info is defined else 0) or (contract_info.monthly_effective_advance if contract_info is defined else 0) %}
+                        <p class="mb-1"><small class="text-muted">monatliche Vorauszahlung lt. Vertrag: {{ "%.2f"|format(monthly_adv or 0) }} €</small></p>
+                        <p class="mb-1"><small class="text-muted">Kaltmiete: {{ "%.2f"|format(cold_rent_val) }} € / Monat</small></p>
                         {% endif %}
                         <p class="fw-bold"><strong>Saldo:</strong> {{ "%.2f"|format(settlement.balance or 0) }} €</p>
                     </div>
@@ -61,9 +93,12 @@
                 <div class="row">
                     <div class="col-md-12">
                         <h6>Vertragsdetails</h6>
+                        {% set op_adv = (settlement.contract.operating_cost_advance if settlement.contract else snapshot.get('operating_cost_advance') or 0) %}
+                        {% set heat_adv = (settlement.contract.heating_advance if settlement.contract else snapshot.get('heating_advance') or 0) %}
+                        {% set monthly_adv = (contract_info.monthly_contract_advance if contract_info is defined else None) or (contract_info.monthly_effective_advance if contract_info is defined else None) or (snapshot.get('monthly_advance') if not settlement.contract else None) %}
                         <p class="text-muted mb-1">
-                            Kaltmiete: {{ "%.2f"|format((settlement.contract.cold_rent if settlement.contract else snapshot.get('cold_rent')) or 0) }} € / Monat ·
-                            Vorauszahlung BK/HZ: {{ "%.2f"|format(((settlement.contract.operating_cost_advance if settlement.contract else snapshot.get('operating_cost_advance') or 0) + (settlement.contract.heating_advance if settlement.contract else snapshot.get('heating_advance') or 0))) }} € / Monat ·
+                            Kaltmiete: {{ "%.2f"|format(cold_rent_val) }} € / Monat ·
+                            Vorauszahlung BK/HZ: {{ "%.2f"|format((monthly_adv if monthly_adv is not none else (op_adv + heat_adv)) or 0) }} € / Monat ·
                             Wohnfläche Abrechnung: {{ "%.2f"|format(settlement.apartment_area or 0) }} m²
                         </p>
                         {% if snapshot.landlord %}
@@ -84,25 +119,26 @@
                 {% endif %}
                 <hr>
                 <h6>Kostenarten</h6>
-                <div class="table-responsive">
+                <div class="table-responsive cost-table-wrapper">
                     <table class="table table-sm">
                         <thead>
-                            <tr>
+                            <tr class="small">
                                 <th>Beleg</th>
-                                <th>Kostenart</th>
-                                <th>Umlageschlüssel</th>
+                                <th>Art</th>
+                                <th>Schl.</th>
                                 <th>Verbrauch</th>
-                                <th>Gesamtkosten</th>
-                                <th>Anteil Mieter</th>
+                                <th>Summe</th>
+                                <th>Anteil</th>
                                 <th>Hinweis</th>
+                                <th class="text-end cost-action-col" title="Bearbeiten"><i class="bi bi-pencil"></i></th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for item in settlement.cost_breakdown or [] %}
                             <tr>
                                 <td>
-                                    {% if item.invoice_number %}<div>Rechnung: {{ item.invoice_number }}</div>{% endif %}
-                                    {% if item.billing_period %}<div>Zeitraum: {{ item.billing_period }}</div>{% endif %}
+                                    {% if item.invoice_number %}<div class="small text-muted">Rechnung: {{ item.invoice_number }}</div>{% endif %}
+                                    {% if item.billing_period %}<div class="small text-muted">Zeitraum: {{ item.billing_period }}</div>{% endif %}
                                     {% if item.apartment_specific %}<span class="badge bg-secondary">Wohnung</span>{% else %}<span class="badge bg-info text-dark">Gebäude</span>{% endif %}
                                 </td>
                                 <td>{{ item.category }}</td>
@@ -117,9 +153,14 @@
                                 <td>{{ "%.2f"|format(item.amount_total or 0) }} €</td>
                                 <td>{{ "%.2f"|format(item.share or 0) }} €</td>
                                 <td>{{ item.note }}</td>
+                                <td class="text-end">
+                                    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('costs.costs_home') }}?edit_cost={{ item.cost_id }}&next=/settlements#costModal" title="Kostenposition bearbeiten">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                </td>
                             </tr>
                             {% else %}
-                            <tr><td colspan="7" class="text-muted">Keine Kosten erfasst.</td></tr>
+                            <tr><td colspan="8" class="text-muted">Keine Kosten erfasst.</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>
@@ -132,24 +173,48 @@
                             <tr>
                                 <th>Zähler</th>
                                 <th>Einheit</th>
-                                <th>Wohnung</th>
+                                <th>Preis/x</th>
                                 <th>Stand Anfang</th>
                                 <th>Stand Ende</th>
                                 <th>Verbrauch</th>
+                                <th>Anteil Mieter</th>
+                                <th class="text-end" title="Bearbeiten"><i class="bi bi-pencil"></i></th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for meter in settlement.consumption_details or [] %}
                             <tr>
                                 <td>{{ meter.meter_number }} {% if meter.meter_type %}({{ meter.meter_type }}){% endif %}</td>
-                                <td>{{ meter.unit or '' }}</td>
-                                <td>{{ meter.apartment_number or '-' }}</td>
-                                <td>{{ meter.start_value if meter.start_value is not none else '-' }} {% if meter.start_date %}<small class="text-muted">({{ meter.start_date }})</small>{% endif %}</td>
-                                <td>{{ meter.end_value if meter.end_value is not none else '-' }} {% if meter.end_date %}<small class="text-muted">({{ meter.end_date }})</small>{% endif %}</td>
-                                <td>{{ meter.consumption if meter.consumption is not none else '-' }}</td>
+                                <td>{{ meter.get('unit') or '' }}</td>
+                                <td>
+                                    {% if meter.get('price_per_unit') is not none %}
+                                        {{ meter.get('price_per_unit') }} €/{{ meter.get('unit') or 'Einheit' }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td>{{ meter.get('start_value') if meter.get('start_value') is not none else '-' }} {% if meter.get('start_date') %}<small class="text-muted">({{ meter.get('start_date') }})</small>{% endif %}</td>
+                                <td>{{ meter.get('end_value') if meter.get('end_value') is not none else '-' }} {% if meter.get('end_date') %}<small class="text-muted">({{ meter.get('end_date') }})</small>{% endif %}</td>
+                                <td>{{ meter.get('consumption') if meter.get('consumption') is not none else '-' }}</td>
+                                <td>
+                                    {% if meter.get('tenant_share') is not none %}
+                                        {{ '%.2f'|format(meter.get('tenant_share')) }} €
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    {% if meter.get('meter_id') %}
+                                    <a class="btn btn-outline-secondary btn-sm" href="/meters/{{ meter.get('meter_id') }}/edit?next=/settlements" title="Zähler bearbeiten">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    {% else %}
+                                    <span class="text-muted">–</span>
+                                    {% endif %}
+                                </td>
                             </tr>
                             {% else %}
-                            <tr><td colspan="6" class="text-muted">Keine Zählerstände im Zeitraum gefunden.</td></tr>
+                            <tr><td colspan="8" class="text-muted">Keine Zählerstände im Zeitraum gefunden.</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>
@@ -164,9 +229,16 @@
             </div>
             <div class="card-body">
                 <div class="d-grid gap-2">
-                    <a href="/settlements/{{ settlement.id }}/edit" class="btn btn-primary">
+                    <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#settlementEditModal"
+                        data-id="{{ settlement.id }}"
+                        data-apartment="{{ settlement.apartment_id }}"
+                        data-start="{{ settlement.period_start.strftime('%Y-%m-%d') }}"
+                        data-end="{{ settlement.period_end.strftime('%Y-%m-%d') }}"
+                        data-status="{{ settlement.status }}"
+                        data-notes="{{ settlement.notes or '' }}"
+                        data-tenant-notes="{{ settlement.tenant_notes or '' }}">
                         <i class="bi bi-pencil-square me-1"></i> Abrechnung bearbeiten
-                    </a>
+                    </button>
                     <a href="/settlements/{{ settlement.id }}/pdf" class="btn btn-outline-primary">
                         <i class="bi bi-file-pdf me-1"></i> PDF herunterladen
                     </a>
@@ -188,4 +260,47 @@
         </div>
     </div>
 </div>
+{% include 'settlements/edit_modal.html' %}
+{% endblock %}
+
+{% block extra_js %}
+{{ super() }}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const modal = document.getElementById('settlementEditModal');
+        const form = document.getElementById('settlementEditForm');
+        const apartmentField = document.getElementById('settlementApartment');
+        const startField = document.getElementById('settlementPeriodStart');
+        const endField = document.getElementById('settlementPeriodEnd');
+        const statusField = document.getElementById('settlementStatus');
+        const notesField = document.getElementById('settlementNotes');
+        const tenantNotesField = document.getElementById('settlementTenantNotes');
+
+        const fillFromTrigger = (trigger) => {
+            if (!trigger) return;
+            const id = trigger.getAttribute('data-id');
+            form.action = `/settlements/${id}/edit?force_page=1`;
+            apartmentField.value = trigger.getAttribute('data-apartment') || '';
+            startField.value = trigger.getAttribute('data-start') || '';
+            endField.value = trigger.getAttribute('data-end') || '';
+            statusField.value = trigger.getAttribute('data-status') || 'draft';
+            notesField.value = trigger.getAttribute('data-notes') || '';
+            tenantNotesField.value = trigger.getAttribute('data-tenant-notes') || '';
+        };
+
+        modal?.addEventListener('show.bs.modal', (event) => {
+            fillFromTrigger(event.relatedTarget);
+        });
+
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('edit') === '1' && modal) {
+            const triggerBtn = document.querySelector('[data-bs-target="#settlementEditModal"]');
+            if (triggerBtn) {
+                fillFromTrigger(triggerBtn);
+                const modalInstance = new bootstrap.Modal(modal);
+                modalInstance.show();
+            }
+        }
+    });
+</script>
 {% endblock %}

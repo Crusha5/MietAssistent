@@ -6,6 +6,18 @@ function syncTenant(contractSelect, tenantSelect) {
     tenantSelect.value = tenantId || '';
 }
 
+function pickContractForTenant(tenantSelect, contractSelect) {
+    if (!tenantSelect || !contractSelect) return;
+    const tenantId = tenantSelect.value;
+    if (!tenantId) return;
+    const match = Array.from(contractSelect.options).find(
+        (opt) => opt.getAttribute('data-tenant') === tenantId
+    );
+    if (match) {
+        contractSelect.value = match.value;
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     const incomeContract = document.getElementById('income_contract_select');
     const incomeTenant = document.getElementById('income_tenant_select');
@@ -19,19 +31,27 @@ document.addEventListener('DOMContentLoaded', function() {
             const trigger = event.relatedTarget;
             if (!trigger) return;
             const form = document.getElementById('incomeEditForm');
-            form.action = `/landlord/incomes/${trigger.dataset.id}/update`;
+            const updateUrl = trigger.dataset.updateUrl || `/landlord/incomes/${trigger.dataset.id}/update`;
+            form.action = updateUrl;
             document.getElementById('income_amount').value = trigger.dataset.amount || '';
+            document.getElementById('income_reference').value = trigger.dataset.reference || '';
+            document.getElementById('income_rent').value = trigger.dataset.rent || '';
+            document.getElementById('income_service').value = trigger.dataset.service || '';
+            document.getElementById('income_special').value = trigger.dataset.special || '';
             document.getElementById('income_type').value = trigger.dataset.type || 'rent';
             document.getElementById('income_date').value = trigger.dataset.date || '';
             document.getElementById('income_notes').value = trigger.dataset.notes || '';
             document.getElementById('income_contract_modal').value = trigger.dataset.contract || '';
             document.getElementById('income_tenant_modal').value = trigger.dataset.tenant || '';
+            document.getElementById('income_source').value = trigger.dataset.source || '';
+            document.getElementById('income_advance').checked = !!trigger.dataset.advance;
         });
 
         const modalContract = document.getElementById('income_contract_modal');
         const modalTenant = document.getElementById('income_tenant_modal');
         if (modalContract && modalTenant) {
             modalContract.addEventListener('change', () => syncTenant(modalContract, modalTenant));
+            modalTenant.addEventListener('change', () => pickContractForTenant(modalTenant, modalContract));
         }
     }
 

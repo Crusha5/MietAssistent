@@ -127,9 +127,10 @@
         {% set end_val = contract_data.end_date if contract else contract_data.get('end_date') %}
         {% set start_text = start_val.strftime('%d.%m.%Y') if start_val and start_val.__class__.__name__ == 'date' else start_val %}
         {% set end_text = end_val.strftime('%d.%m.%Y') if end_val and end_val.__class__.__name__ == 'date' else end_val %}
-        {% set cold_rent_val = (contract_data.cold_rent if contract else contract_data.get('cold_rent')) or (contract_data.rent_net if contract else contract_data.get('rent_net')) %}
+        {% set cold_rent_val = ((contract_data.cold_rent or contract_data.rent_net) if contract else (contract_data.get('cold_rent') or contract_data.get('rent_net'))) %}
         {% set op_advance_val = (contract_data.operating_cost_advance if contract else contract_data.get('operating_cost_advance')) or 0 %}
         {% set heat_advance_val = (contract_data.heating_advance if contract else contract_data.get('heating_advance')) or 0 %}
+        {% set monthly_advance_val = (contract_data.monthly_advance if contract else contract_data.get('monthly_advance')) %}
         <p>
             Vertrag Nr. {{ contract_data.contract_number if contract else contract_data.get('contract_number') }}<br>
             Laufzeit:
@@ -138,7 +139,7 @@
             {% endif %}
             – {{ end_text if end_text else 'n/a' }}<br>
             Kaltmiete: {{ '%.2f'|format(cold_rent_val or 0) }} € / Monat<br>
-            Vorauszahlung Betriebskosten/Heizung: {{ '%.2f'|format(op_advance_val + heat_advance_val) }} € / Monat
+            Vorauszahlung Betriebskosten/Heizung: {{ '%.2f'|format((monthly_advance_val if monthly_advance_val is not none else (op_advance_val + heat_advance_val)) or 0) }} € / Monat
         </p>
         {% else %}
         <p>Keine Vertragsdaten gefunden.</p>
@@ -211,24 +212,38 @@
                 <tr>
                     <th>Zähler</th>
                     <th>Einheit</th>
-                    <th>Wohnung</th>
+                    <th>Preis/x</th>
                     <th>Stand Start</th>
                     <th>Stand Ende</th>
                     <th>Verbrauch</th>
+                    <th>Anteil Mieter</th>
                 </tr>
             </thead>
             <tbody>
                 {% for meter in settlement.consumption_details or [] %}
                 <tr>
-                    <td>{{ meter.meter_number }} ({{ meter.meter_type }})</td>
-                    <td>{{ meter.unit }}</td>
-                    <td>{{ meter.apartment_number or '-' }}</td>
-                    <td>{{ meter.start_value if meter.start_value is not none else '-' }} {% if meter.start_date %}({{ meter.start_date }}){% endif %}</td>
-                    <td>{{ meter.end_value if meter.end_value is not none else '-' }} {% if meter.end_date %}({{ meter.end_date }}){% endif %}</td>
-                    <td>{{ meter.consumption if meter.consumption is not none else '-' }}</td>
+                    <td>{{ meter.meter_number }}{% if meter.meter_type %} ({{ meter.meter_type }}){% endif %}</td>
+                    <td>{{ meter.get('unit') or '' }}</td>
+                    <td>
+                        {% if meter.get('price_per_unit') is not none %}
+                            {{ meter.get('price_per_unit') }} €/{{ meter.get('unit') or 'Einheit' }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>{{ meter.get('start_value') if meter.get('start_value') is not none else '-' }} {% if meter.get('start_date') %}({{ meter.get('start_date') }}){% endif %}</td>
+                    <td>{{ meter.get('end_value') if meter.get('end_value') is not none else '-' }} {% if meter.get('end_date') %}({{ meter.get('end_date') }}){% endif %}</td>
+                    <td>{{ meter.get('consumption') if meter.get('consumption') is not none else '-' }}</td>
+                    <td>
+                        {% if meter.get('tenant_share') is not none %}
+                            {{ '%.2f'|format(meter.get('tenant_share')) }} €
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
                 </tr>
                 {% else %}
-                <tr><td colspan="6">Keine Zählerstände verfügbar.</td></tr>
+                <tr><td colspan="7">Keine Zählerstände verfügbar.</td></tr>
                 {% endfor %}
             </tbody>
         </table>

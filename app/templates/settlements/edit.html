@@ -10,7 +10,7 @@
                 <h5 class="card-title mb-0">
                     <i class="bi bi-pencil-square me-2"></i>Abrechnung bearbeiten
                 </h5>
-                <a href="/settlements/{{ settlement.id }}" class="btn btn-light btn-sm text-primary">
+                <a href="/settlements/{{ settlement.id }}" class="btn btn-outline-light btn-sm text-white border-white">
                     <i class="bi bi-arrow-left"></i> Zurück
                 </a>
             </div>
@@ -41,9 +41,9 @@
                         <div class="col-md-6">
                             <label for="status" class="form-label">Status</label>
                             <select class="form-select" id="status" name="status">
-                                {% set statuses = ['draft','calculated','approved','sent','paid','disputed'] %}
-                                {% for s in statuses %}
-                                <option value="{{ s }}" {% if settlement.status == s %}selected{% endif %}>{{ s }}</option>
+                                {% set statuses = {'draft':'Entwurf','calculated':'Berechnet','approved':'Freigegeben','sent':'Versendet','paid':'Bezahlt','disputed':'Beanstandet'} %}
+                                {% for key, label in statuses.items() %}
+                                <option value="{{ key }}" {% if settlement.status == key %}selected{% endif %}>{{ label }}</option>
                                 {% endfor %}
                             </select>
                         </div>

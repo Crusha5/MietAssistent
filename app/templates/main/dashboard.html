@@ -82,48 +82,6 @@
         </div>
         <div class="row g-3 mt-3">
             <div class="col-lg-6">
-                <h6 class="mb-2">Einnahme erfassen</h6>
-                <form class="row g-2" method="post" action="{{ url_for('main.add_income_entry') }}">
-                    <div class="col-md-4">
-                        <input type="number" step="0.01" name="amount" class="form-control" placeholder="Betrag" required>
-                    </div>
-                    <div class="col-md-4">
-                        <input type="date" name="received_on" class="form-control" value="{{ now.strftime('%Y-%m-%d') }}">
-                    </div>
-                    <div class="col-md-4">
-                        <select name="income_type" class="form-select">
-                            <option value="rent">Miete</option>
-                            <option value="service_charge">Nebenkosten</option>
-                            <option value="extra">Sonderzahlung</option>
-                        </select>
-                    </div>
-                    <div class="col-md-6">
-                        <select name="contract_id" class="form-select" id="income_contract_select" required>
-                            <option value="">Vertrag wählen</option>
-                            {% for contract in contract_options %}
-                            <option value="{{ contract.id }}" data-tenant="{{ contract.tenant_id }}">
-                                {{ contract.label }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-md-6">
-                        <select name="tenant_id" class="form-select" id="income_tenant_select">
-                            <option value="">Mieter (optional)</option>
-                            {% for tenant in tenants %}
-                            <option value="{{ tenant.id }}">{{ tenant.first_name }} {{ tenant.last_name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-12">
-                        <input type="text" name="notes" class="form-control" placeholder="Notiz (optional)">
-                    </div>
-                    <div class="col-12">
-                        <button class="btn btn-primary btn-sm" type="submit"><i class="bi bi-plus-circle me-1"></i>Speichern</button>
-                    </div>
-                </form>
-            </div>
-            <div class="col-lg-6">
                 <h6 class="mb-2">Fälligen Termin anlegen</h6>
                 <form class="row g-2" method="post" action="{{ url_for('main.add_due_date_entry') }}">
                     <div class="col-md-8">
@@ -152,7 +110,7 @@
             <div class="col-lg-6">
                 <div class="d-flex justify-content-between align-items-center mb-1">
                     <h6 class="mb-0">Letzte Einnahmen</h6>
-                    <a class="small" href="{{ url_for('main.list_incomes') }}">Alle anzeigen</a>
+                    <a class="small" href="{{ url_for('finances.incomes_overview') }}">Alle anzeigen</a>
                 </div>
                 <ul class="list-group list-group-flush">
                     {% for income in recent_incomes %}
@@ -163,12 +121,9 @@
                         </div>
                         <div class="d-flex align-items-center gap-2">
                             <span class="badge bg-light text-dark">{{ income.contract.contract_number }}</span>
-                            <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#incomeModal" data-id="{{ income.id }}" data-amount="{{ income.amount }}" data-type="{{ income.income_type }}" data-date="{{ income.received_on.strftime('%Y-%m-%d') }}" data-notes="{{ income.notes or '' }}" data-contract="{{ income.contract_id }}" data-tenant="{{ income.tenant_id or '' }}">
-                                <i class="bi bi-pencil"></i>
-                            </button>
-                            <form method="post" action="{{ url_for('main.delete_income', income_id=income.id) }}" class="d-inline">
-                                <button class="btn btn-sm btn-outline-danger" onclick="return confirm('Einnahme löschen?')"><i class="bi bi-trash"></i></button>
-                            </form>
+                            <a class="btn btn-sm btn-outline-primary" href="{{ url_for('finances.incomes_overview') }}">
+                                <i class="bi bi-box-arrow-up-right"></i>
+                            </a>
                         </div>
                     </li>
                     {% else %}
@@ -230,7 +185,6 @@
         </div>
     </div>
 </div>
-{% include 'main/income_due_modals.html' %}
 {% endif %}
 
 <!-- Statistik Karten -->
@@ -553,7 +507,6 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
-{% include 'main/income_due_js.html' %}
 
 <style>
 .stat-card {

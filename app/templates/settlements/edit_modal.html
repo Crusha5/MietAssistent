@@ -1,0 +1,53 @@
+<div class="modal fade" id="settlementEditModal" tabindex="-1" aria-labelledby="settlementEditModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title" id="settlementEditModalLabel"><i class="bi bi-pencil-square me-2"></i>Abrechnung bearbeiten</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Schließen"></button>
+      </div>
+      <form method="POST" id="settlementEditForm">
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label for="settlementApartment" class="form-label">Wohnung *</label>
+              <select class="form-select" id="settlementApartment" name="apartment_id" required>
+                {% for apartment in apartments %}
+                <option value="{{ apartment.id }}">{{ apartment.get_full_identifier() }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label for="settlementPeriodStart" class="form-label">Abrechnungszeitraum Start *</label>
+              <input type="date" class="form-control" id="settlementPeriodStart" name="period_start" required>
+            </div>
+            <div class="col-md-6">
+              <label for="settlementPeriodEnd" class="form-label">Abrechnungszeitraum Ende *</label>
+              <input type="date" class="form-control" id="settlementPeriodEnd" name="period_end" required>
+            </div>
+            <div class="col-md-6">
+              <label for="settlementStatus" class="form-label">Status</label>
+              <select class="form-select" id="settlementStatus" name="status">
+                {% set statuses = {'draft':'Entwurf','calculated':'Berechnet','approved':'Freigegeben','sent':'Versendet','paid':'Bezahlt','disputed':'Beanstandet'} %}
+                {% for key, label in statuses.items() %}
+                <option value="{{ key }}">{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12">
+              <label for="settlementNotes" class="form-label">Notizen</label>
+              <textarea class="form-control" id="settlementNotes" name="notes" rows="3" placeholder="Interne Hinweise..."></textarea>
+            </div>
+            <div class="col-12">
+              <label for="settlementTenantNotes" class="form-label">Hinweise für den Mieter</label>
+              <textarea class="form-control" id="settlementTenantNotes" name="tenant_notes" rows="3" placeholder="Optionale Empfehlung, z. B. Anpassung der Vorauszahlungen"></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
+          <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i>Speichern & neu berechnen</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

@@ -245,6 +245,9 @@
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
             <form method="POST" id="costForm" enctype="multipart/form-data">
+                {% if next_url %}
+                <input type="hidden" name="next" value="{{ next_url }}">
+                {% endif %}
                 <div class="modal-header">
                     <h5 class="modal-title" id="costModalTitle">Neue Kosten erfassen</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -540,6 +543,15 @@
             const apartment = button?.getAttribute('data-apartment') || '';
             costApartmentSelect.value = apartment;
         });
+
+        const params = new URLSearchParams(window.location.search);
+        const editCostId = params.get('edit_cost');
+        if (editCostId) {
+            const trigger = document.querySelector(`[data-mode="edit"][data-id="${editCostId}"]`);
+            if (trigger) {
+                trigger.click();
+            }
+        }
     });
 </script>
 {% endblock %}

@@ -12,7 +12,10 @@
                 </h5>
             </div>
             <div class="card-body">
-                <form method="POST" action="{{ url_for('meters.edit_meter', meter_id=meter.id) }}">
+                <form method="POST" action="{{ url_for('meters.edit_meter', meter_id=meter.id, next=next_url) }}">
+                    {% if next_url %}
+                    <input type="hidden" name="next" value="{{ next_url }}">
+                    {% endif %}
                     <div class="row g-3">
                         <!-- Grundinformationen -->
                         <div class="col-md-6">
@@ -50,6 +53,12 @@
                         <div class="col-md-6">
                             <label for="multiplier" class="form-label">Multiplikator</label>
                             <input type="number" step="0.0001" class="form-control" id="multiplier" name="multiplier" value="{{ meter.multiplier or 1.0 }}">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="price_per_unit" class="form-label">Preis pro Einheit (Preis/x)</label>
+                            <input type="number" step="0.0001" class="form-control" id="price_per_unit" name="price_per_unit" value="{{ meter.price_per_unit if meter.price_per_unit is not none else '' }}" placeholder="z.B. 0.35">
+                            <div class="form-text">Preis pro ausgewählter Einheit (z.B. kWh, m²)</div>
                         </div>
 
                         <!-- Zusatzinformationen -->
@@ -96,7 +105,7 @@
                         <button type="submit" class="btn btn-primary">
                             <i class="bi bi-check-circle me-1"></i>Änderungen speichern
                         </button>
-                        <a href="{{ url_for('meters.meter_detail', meter_id=meter.id) }}" class="btn btn-outline-secondary">Abbrechen</a>
+                        <a href="{{ next_url or url_for('meters.meter_detail', meter_id=meter.id) }}" class="btn btn-outline-secondary">Abbrechen</a>
                     </div>
                 </form>
             </div>

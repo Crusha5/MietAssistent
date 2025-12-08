@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, redirect, url_for, session, request, flash, jsonify
-from app.models import User, Apartment, Tenant, Building, Meter, MeterType, MeterReading, Document, Contract, Protocol, OperatingCost, Income, DueDate, MaintenanceTask, Notification
+from app.models import User, Apartment, Tenant, Building, Meter, MeterType, MeterReading, Document, Contract, Protocol, OperatingCost, Income, DueDate, MaintenanceTask, Notification, Settlement
 from datetime import datetime, timedelta, date
 import uuid
 from app.extensions import db
@@ -134,6 +134,54 @@ def _build_dashboard_context(user=None):
 
         if reminders_dirty:
             db.session.commit()
+
+        remind_interval_hours = 24 * 14
+        today = date.today()
+        previous_year = today.year - 1
+        previous_year_end = date(previous_year, 12, 31)
+
+        if today > previous_year_end:
+            for apartment in apartments:
+                previous_settlement_exists = Settlement.query.filter(
+                    Settlement.apartment_id == apartment.id,
+                    Settlement.settlement_year == previous_year,
+                    (Settlement.is_archived.is_(False)) | (Settlement.is_archived.is_(None)),
+                ).first()
+
+                if previous_settlement_exists:
+                    continue
+
+                _push_notification(
+                    user.id,
+                    f"Nebenkostenabrechnung {previous_year} fehlt",
+                    f"Für {apartment.get_full_identifier()} wurde noch keine Abrechnung erstellt. Bitte den Anteil Mieter prüfen und eine Abrechnung anlegen.",
+                    link=url_for('settlements.calculate_settlement', apartment_id=apartment.id),
+                    category='settlement',
+                    dedup_hours=remind_interval_hours,
+                )
+
+        for tenant in tenants:
+            if not tenant.move_out_date or tenant.move_out_date >= today:
+                continue
+
+            settlement_after_move_out = Settlement.query.filter(
+                Settlement.tenant_id == tenant.id,
+                Settlement.period_end >= tenant.move_out_date,
+                (Settlement.is_archived.is_(False)) | (Settlement.is_archived.is_(None)),
+            ).first()
+
+            if settlement_after_move_out:
+                continue
+
+            apt_label = tenant.apartment.get_full_identifier() if tenant.apartment else 'Wohnung'
+            _push_notification(
+                user.id,
+                f"Abrechnung nach Auszug von {tenant.first_name} {tenant.last_name} fehlt",
+                f"Für {apt_label} wurde nach dem Auszug am {tenant.move_out_date.strftime('%d.%m.%Y')} noch keine Nebenkostenabrechnung mit Anteil Mieter erstellt.",
+                link=url_for('settlements.calculate_settlement', apartment_id=tenant.apartment_id) if tenant.apartment_id else None,
+                category='settlement',
+                dedup_hours=remind_interval_hours,
+            )
 
         # Erinnerungen für Vertragsende und Auszug
         for contract in due_contracts:
@@ -349,72 +397,22 @@ def mark_all_notifications():
 @main_bp.route('/landlord/incomes', methods=['POST'])
 @login_required
 def add_income_entry():
-    inspector = inspect(db.engine)
-    if not inspector.has_table('incomes'):
-        db.create_all()
-
-    try:
-        amount = float(request.form.get('amount', 0))
-        if amount <= 0:
-            raise ValueError('Bitte einen Betrag größer 0 angeben.')
-        income_date_raw = request.form.get('received_on')
-        income_date = datetime.strptime(income_date_raw, '%Y-%m-%d').date() if income_date_raw else date.today()
-        income = Income(
-            id=str(uuid.uuid4()),
-            contract_id=request.form.get('contract_id'),
-            tenant_id=request.form.get('tenant_id') or None,
-            income_type=request.form.get('income_type') or 'rent',
-            amount=amount,
-            received_on=income_date,
-            notes=request.form.get('notes')
-        )
-        db.session.add(income)
-        db.session.commit()
-        flash('Einnahme erfasst.', 'success')
-    except Exception as exc:
-        db.session.rollback()
-        flash(f'Einnahme konnte nicht gespeichert werden: {exc}', 'danger')
-
-    return redirect(url_for('main.dashboard'))
+    flash('Einnahmen bitte auf der Finanzen-Seite erfassen.', 'info')
+    return redirect(url_for('finances.incomes_overview'))
 
 
 @main_bp.route('/landlord/incomes/<income_id>/update', methods=['POST'])
 @login_required
 def update_income_entry(income_id):
-    inspector = inspect(db.engine)
-    if not inspector.has_table('incomes'):
-        db.create_all()
-
-    income = Income.query.get_or_404(income_id)
-    try:
-        amount = float(request.form.get('amount', 0))
-        income.amount = amount
-        income.income_type = request.form.get('income_type') or income.income_type
-        income.received_on = datetime.strptime(request.form.get('received_on'), '%Y-%m-%d').date()
-        income.notes = request.form.get('notes')
-        income.contract_id = request.form.get('contract_id') or income.contract_id
-        income.tenant_id = request.form.get('tenant_id') or None
-        db.session.commit()
-        flash('Einnahme aktualisiert.', 'success')
-    except Exception as exc:
-        db.session.rollback()
-        flash(f'Einnahme konnte nicht aktualisiert werden: {exc}', 'danger')
-
-    return redirect(request.referrer or url_for('main.dashboard'))
+    flash('Einnahmen werden jetzt unter Finanzen > Einnahmen bearbeitet.', 'info')
+    return redirect(url_for('finances.incomes_overview'))
 
 
 @main_bp.route('/landlord/incomes/<income_id>/delete', methods=['POST'])
 @login_required
 def delete_income(income_id):
-    income = Income.query.get_or_404(income_id)
-    try:
-        db.session.delete(income)
-        db.session.commit()
-        flash('Einnahme gelöscht.', 'success')
-    except Exception as exc:
-        db.session.rollback()
-        flash(f'Löschen fehlgeschlagen: {exc}', 'danger')
-    return redirect(request.referrer or url_for('main.dashboard'))
+    flash('Bitte Einnahmen-Löschungen über Finanzen > Einnahmen durchführen.', 'info')
+    return redirect(url_for('finances.incomes_overview'))
 
 
 @main_bp.route('/landlord/due-dates', methods=['POST'])
@@ -453,29 +451,7 @@ def add_due_date_entry():
 @main_bp.route('/landlord/incomes')
 @login_required
 def list_incomes():
-    inspector = inspect(db.engine)
-    if not inspector.has_table('incomes'):
-        db.create_all()
-
-    page = max(int(request.args.get('page', 1)), 1)
-    q = (request.args.get('q') or '').strip()
-
-    query = Income.query.join(Contract)
-    if q:
-        query = query.filter(Contract.contract_number.ilike(f"%{q}%"))
-
-    pagination = query.order_by(Income.received_on.desc()).paginate(page=page, per_page=50, error_out=False)
-    active_contracts = Contract.query.filter((Contract.is_archived.is_(False)) | (Contract.is_archived.is_(None))).all()
-
-    return render_template(
-        'main/incomes_list.html',
-        incomes=pagination.items,
-        pagination=pagination,
-        q=q,
-        contracts=active_contracts,
-        contract_options=_contract_options(active_contracts),
-        tenants=Tenant.query.all(),
-    )
+    return redirect(url_for('finances.incomes_overview'))
 
 
 @main_bp.route('/landlord/due-dates')

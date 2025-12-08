@@ -21,10 +21,13 @@
                 <thead>
                     <tr>
                         <th>Datum</th>
-                        <th>Betrag</th>
-                        <th>Art</th>
+                        <th>Gesamt</th>
+                        <th>Kaltmiete</th>
+                        <th>Nebenkosten</th>
+                        <th>Sonder</th>
                         <th>Vertrag</th>
                         <th>Mieter</th>
+                        <th>Vorauszahlung</th>
                         <th class="text-end">Aktionen</th>
                     </tr>
                 </thead>
@@ -33,11 +36,14 @@
                     <tr>
                         <td>{{ income.received_on.strftime('%d.%m.%Y') }}</td>
                         <td class="fw-semibold">{{ '%.2f'|format(income.amount) }} €</td>
-                        <td>{{ income.income_type }}</td>
+                        <td>{{ '%.2f'|format(income.rent_portion or 0) }} €</td>
+                        <td>{{ '%.2f'|format(income.service_charge_portion or 0) }} €</td>
+                        <td>{{ '%.2f'|format(income.special_portion or 0) }} €</td>
                         <td><span class="badge bg-light text-dark">{{ income.contract.contract_number or 'Vertrag' }}</span></td>
                         <td>{{ income.tenant.first_name + ' ' + income.tenant.last_name if income.tenant else '—' }}</td>
+                        <td>{% if income.is_advance_payment %}<span class="badge bg-info">Ja</span>{% else %}—{% endif %}</td>
                         <td class="text-end">
-                            <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#incomeModal" data-id="{{ income.id }}" data-amount="{{ income.amount }}" data-type="{{ income.income_type }}" data-date="{{ income.received_on.strftime('%Y-%m-%d') }}" data-notes="{{ income.notes or '' }}" data-contract="{{ income.contract_id }}" data-tenant="{{ income.tenant_id or '' }}">
+                            <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#incomeModal" data-id="{{ income.id }}" data-amount="{{ income.amount }}" data-type="{{ income.income_type }}" data-date="{{ income.received_on.strftime('%Y-%m-%d') }}" data-notes="{{ income.notes or '' }}" data-contract="{{ income.contract_id }}" data-tenant="{{ income.tenant_id or '' }}" data-rent="{{ income.rent_portion or 0 }}" data-service="{{ income.service_charge_portion or 0 }}" data-special="{{ income.special_portion or 0 }}" data-reference="{{ income.reference or '' }}" data-advance="{{ '1' if income.is_advance_payment else '' }}" data-source="{{ income.source or '' }}" data-update-url="{{ url_for('main.update_income_entry', income_id=income.id) }}">
                                 <i class="bi bi-pencil"></i>
                             </button>
                             <form method="post" action="{{ url_for('main.delete_income', income_id=income.id) }}" class="d-inline">
