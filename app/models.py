@@ -783,6 +783,8 @@ class Notification(db.Model):
     category = db.Column(db.String(50), default='info')
     link = db.Column(db.String(255))
     is_read = db.Column(db.Boolean, default=False)
+    read_at = db.Column(db.DateTime)
+    last_shown_at = db.Column(db.DateTime, default=datetime.utcnow)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     user = db.relationship('User', backref=db.backref('notifications', lazy=True, cascade='all, delete-orphan'))
