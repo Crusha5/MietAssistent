@@ -21,7 +21,11 @@ def meters_list():
         db.joinedload(Meter.apartment),
         db.joinedload(Meter.sub_meters)
     ).filter(
-        or_(Meter.is_archived == False, Meter.is_archived.is_(None))
+        or_(
+            Meter.is_archived.is_(False),
+            Meter.is_archived.is_(None),
+            Meter.is_archived == 0  # safety for non-boolean legacy values
+        )
     ).order_by(Meter.building_id, Meter.meter_number).all()
 
     meter_map = {m.id: m for m in meters}
@@ -45,6 +49,13 @@ def meters_list():
             attach_children(root)
 
     buildings = {m.building_id: m.building for m in meter_map.values() if m.building}
+
+    # Ensure we have a placeholder section for meters without a valid building relation
+    if any(b_id is None for b_id in roots_by_building.keys()):
+        class _Placeholder:
+            name = 'Ohne Gebäude'
+
+        buildings[None] = _Placeholder()
 
     return render_template('meters/list.html', roots_by_building=roots_by_building, buildings=buildings)
 
