@@ -15,21 +15,34 @@ meters_bp = Blueprint('meters', __name__)
 @login_required
 def meters_list():
     """Zeigt alle Zähler an"""
-    meters = Meter.query.options(
-        db.joinedload(Meter.building),
-        db.joinedload(Meter.meter_type),
-        db.joinedload(Meter.apartment),
-        db.joinedload(Meter.sub_meters)
-    ).filter(
-        or_(
-            Meter.is_archived.is_(False),
-            Meter.is_archived.is_(None),
-            Meter.is_archived == 0,  # safety for non-boolean legacy values
-            Meter.is_archived == '0',
-            Meter.is_archived == 'False',
-            Meter.is_archived == 'false'
-        )
-    ).order_by(Meter.building_id, Meter.meter_number).all()
+    def _is_archived(value):
+        """Robuste Prüfung für inkonsistente Archiv-Flags."""
+        if value is None:
+            return False
+
+        # Zahlen und echte Booleans direkt auswerten
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, (int, float)):
+            return value != 0
+
+        # Strings tolerant bewerten (z. B. 'false', '0', '', None)
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            return normalized in {'1', 'true', 'yes', 'y', 't'}
+
+        # Fallback: unbekannte Werte als nicht archiviert behandeln, um nichts zu verstecken
+        return False
+
+    meters = [
+        m for m in Meter.query.options(
+            db.joinedload(Meter.building),
+            db.joinedload(Meter.meter_type),
+            db.joinedload(Meter.apartment),
+            db.joinedload(Meter.sub_meters)
+        ).order_by(Meter.building_id, Meter.meter_number).all()
+        if not _is_archived(m.is_archived)
+    ]
 
     meter_map = {m.id: m for m in meters}
     children_map = {m_id: [] for m_id in meter_map.keys()}
