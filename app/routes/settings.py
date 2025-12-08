@@ -80,7 +80,11 @@ def settings_home():
             flash('Theme-Einstellung gespeichert und benutzerbezogen hinterlegt.', 'success')
             return redirect(url_for('settings_web.settings_home'))
 
-        if action == 'toggle_meter_debug' and _require_admin(user):
+        if action == 'toggle_meter_debug':
+            if not _require_admin(user):
+                flash('Nur Administratoren können den Debug-Modus ändern.', 'danger')
+                return redirect(url_for('settings_web.settings_home'))
+
             preference_data['meter_debug_mode'] = request.form.get('meter_debug_mode') == 'on'
             prefs.preferences = json.dumps(preference_data)
             db.session.commit()
@@ -110,6 +114,7 @@ def settings_home():
     return render_template(
         'settings/index.html',
         user_preferences=preference_data,
+        meter_debug_mode=preference_data.get('meter_debug_mode', False),
         landlords=[],
         user=user,
         project_profile=load_project_profile(),
