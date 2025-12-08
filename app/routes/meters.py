@@ -2,7 +2,6 @@ from flask import Blueprint, request, jsonify, render_template, redirect, url_fo
 from flask_jwt_extended import jwt_required
 from app.models import Meter, MeterType, Building, Apartment, MeterReading
 from app.routes.main import login_required
-from collections import defaultdict
 from datetime import datetime
 import uuid
 
@@ -16,11 +15,14 @@ meters_bp = Blueprint('meters', __name__)
 @login_required
 def meters_list():
     """Zeigt alle Zähler an"""
+    # Stelle sicher, dass wir immer frische Daten aus der DB bekommen
+    db.session.expire_all()
+
     meters = Meter.query.filter(
         or_(
-            Meter.is_archived == False,
-            Meter.is_archived == 0,
-            Meter.is_archived.is_(None)
+            Meter.is_archived.is_(False),
+            Meter.is_archived.is_(None),
+            Meter.is_archived == 0
         )
     ).options(
         db.joinedload(Meter.building),
@@ -29,18 +31,15 @@ def meters_list():
         db.joinedload(Meter.sub_meters)
     ).order_by(Meter.building_id, Meter.meter_number).all()
 
-    meter_map = {meter.id: meter for meter in meters}
-    children_map = defaultdict(list)
-    roots_by_building = defaultdict(list)
+    meter_map = {m.id: m for m in meters}
+    children_map = {m_id: [] for m_id in meter_map.keys()}
+    roots_by_building = {}
 
     for meter in meter_map.values():
-        # Stelle sicher, dass jeder Meter ein _children-Attribut für das Template besitzt
-        meter._children = []
-
         if meter.parent_meter_id and meter.parent_meter_id in meter_map:
             children_map[meter.parent_meter_id].append(meter)
         else:
-            roots_by_building[meter.building_id].append(meter)
+            roots_by_building.setdefault(meter.building_id, []).append(meter)
 
     def attach_children(current_meter):
         current_meter._children = sorted(children_map.get(current_meter.id, []), key=lambda m: m.meter_number)
@@ -48,9 +47,8 @@ def meters_list():
             attach_children(child)
 
     for building_id, building_roots in roots_by_building.items():
-        ordered_roots = sorted(building_roots, key=lambda m: m.meter_number)
-        roots_by_building[building_id] = ordered_roots
-        for root in ordered_roots:
+        roots_by_building[building_id] = sorted(building_roots, key=lambda m: m.meter_number)
+        for root in roots_by_building[building_id]:
             attach_children(root)
 
     buildings = {m.building_id: m.building for m in meter_map.values() if m.building}
