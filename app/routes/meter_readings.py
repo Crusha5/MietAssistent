@@ -819,6 +819,7 @@ def create_correction(reading_id):
         except ValueError as ve:
             db.session.rollback()
             flash(str(ve), 'danger')
+            return redirect(url_for('meter_readings.reading_detail', reading_id=reading_id))
         except Exception as e:
             db.session.rollback()
             current_app.logger.error(f"Fehler beim Erstellen der Korrektur: {str(e)}", exc_info=True)
