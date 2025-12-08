@@ -110,6 +110,8 @@ def costs_home():
         current_app.logger.error('Kostenübersicht konnte nicht geladen werden: %s', exc, exc_info=True)
         flash('Kostenübersicht konnte nicht geladen werden. Bitte versuchen Sie es erneut.', 'danger')
 
+    next_url = request.args.get('next') or request.form.get('next')
+
     if request.method == 'POST':
         try:
             document_path = _handle_invoice_upload(request.files)
@@ -117,6 +119,8 @@ def costs_home():
             db.session.add(cost)
             db.session.commit()
             flash('Kostenposition gespeichert.', 'success')
+            if next_url:
+                return redirect(next_url)
             return redirect(url_for('costs.costs_home'))
         except Exception as exc:
             db.session.rollback()
@@ -130,7 +134,8 @@ def costs_home():
         buildings=buildings,
         apartments=apartments,
         categories=categories,
-        default_system_number=default_number
+        default_system_number=default_number,
+        next_url=next_url
     )
 
 
@@ -187,6 +192,7 @@ def delete_category(category_id):
 @login_required
 def update_cost(cost_id):
     cost = OperatingCost.query.get_or_404(cost_id)
+    next_url = request.form.get('next')
     try:
         document_path = _handle_invoice_upload(request.files, cost.document_path)
         _parse_cost_form(request.form, cost, document_path)
@@ -196,6 +202,8 @@ def update_cost(cost_id):
         db.session.rollback()
         current_app.logger.error('Kosten konnten nicht aktualisiert werden: %s', exc, exc_info=True)
         flash(f'Kosten konnten nicht aktualisiert werden: {exc}', 'danger')
+    if next_url:
+        return redirect(next_url)
     return redirect(url_for('costs.costs_home'))
 
 

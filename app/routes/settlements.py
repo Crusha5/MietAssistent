@@ -719,8 +719,10 @@ def settlement_detail(settlement_id):
 
     contract_info = {
         'snapshot': snapshot,
-        'cold_rent': (contract.cold_rent if contract else (snapshot.get('cold_rent') or snapshot.get('rent_net') or 0)) if (contract or snapshot) else 0,
-        'monthly_contract_advance': monthly_contract_advance or 0,
+        'cold_rent': (
+            (contract.cold_rent or contract.rent_net) if contract else (snapshot.get('cold_rent') or snapshot.get('rent_net') or 0)
+        ) if (contract or snapshot) else 0,
+        'monthly_contract_advance': (monthly_contract_advance if monthly_contract_advance is not None else snapshot.get('monthly_advance')) if (contract or snapshot) else 0,
         'monthly_effective_advance': round((effective_advances or 0) / months, 2) if months else 0,
     }
 

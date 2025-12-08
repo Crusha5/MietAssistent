@@ -4,7 +4,7 @@
 
 {% block content %}
 {% set snapshot = contract_info.snapshot if contract_info is defined else settlement.contract_snapshot or {} %}
-{% set cold_rent_val = contract_info.cold_rent if contract_info is defined else ((settlement.contract.cold_rent if settlement.contract else (snapshot.get('cold_rent') or snapshot.get('rent_net'))) or 0) %}
+{% set cold_rent_val = (contract_info.cold_rent if contract_info is defined else None) or ((settlement.contract.cold_rent or settlement.contract.rent_net) if settlement.contract else (snapshot.get('cold_rent') or snapshot.get('rent_net'))) or 0 %}
 <div class="row">
     <div class="col-lg-8">
         <div class="card border-0 shadow-sm">
@@ -65,7 +65,7 @@
                         <h6>Vertragsdetails</h6>
                         {% set op_adv = (settlement.contract.operating_cost_advance if settlement.contract else snapshot.get('operating_cost_advance') or 0) %}
                         {% set heat_adv = (settlement.contract.heating_advance if settlement.contract else snapshot.get('heating_advance') or 0) %}
-                        {% set monthly_adv = contract_info.monthly_contract_advance if contract_info is defined else (snapshot.get('monthly_advance') if not settlement.contract else None) %}
+                        {% set monthly_adv = (contract_info.monthly_contract_advance if contract_info is defined else None) or (contract_info.monthly_effective_advance if contract_info is defined else None) or (snapshot.get('monthly_advance') if not settlement.contract else None) %}
                         <p class="text-muted mb-1">
                             Kaltmiete: {{ "%.2f"|format(cold_rent_val) }} € / Monat ·
                             Vorauszahlung BK/HZ: {{ "%.2f"|format((monthly_adv if monthly_adv is not none else (op_adv + heat_adv)) or 0) }} € / Monat ·
@@ -100,7 +100,7 @@
                                 <th>Gesamtkosten</th>
                                 <th>Anteil Mieter</th>
                                 <th>Hinweis</th>
-                                <th class="text-end">Bearbeiten</th>
+                                <th class="text-end" title="Bearbeiten"><i class="bi bi-pencil"></i></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -124,7 +124,7 @@
                                 <td>{{ "%.2f"|format(item.share or 0) }} €</td>
                                 <td>{{ item.note }}</td>
                                 <td class="text-end">
-                                    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('costs.costs_home') }}?edit_cost={{ item.cost_id }}#costModal" title="Kostenposition bearbeiten">
+                                    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('costs.costs_home') }}?edit_cost={{ item.cost_id }}&next=/settlements#costModal" title="Kostenposition bearbeiten">
                                         <i class="bi bi-pencil"></i>
                                     </a>
                                 </td>
@@ -148,7 +148,7 @@
                                 <th>Stand Ende</th>
                                 <th>Verbrauch</th>
                                 <th>Anteil Mieter</th>
-                                <th class="text-end">Bearbeiten</th>
+                                <th class="text-end" title="Bearbeiten"><i class="bi bi-pencil"></i></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -175,7 +175,7 @@
                                 </td>
                                 <td class="text-end">
                                     {% if meter.get('meter_id') %}
-                                    <a class="btn btn-outline-secondary btn-sm" href="/meters/{{ meter.get('meter_id') }}/edit" title="Zähler bearbeiten">
+                                    <a class="btn btn-outline-secondary btn-sm" href="/meters/{{ meter.get('meter_id') }}/edit?next=/settlements" title="Zähler bearbeiten">
                                         <i class="bi bi-pencil"></i>
                                     </a>
                                     {% else %}

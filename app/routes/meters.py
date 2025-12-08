@@ -191,6 +191,8 @@ def edit_meter(meter_id):
         db.joinedload(Meter.building)
     ).all()
 
+    next_url = request.args.get('next') or request.form.get('next')
+
     if request.method == 'POST':
         try:
             parent_meter_id = request.form.get('parent_meter_id') or None
@@ -218,6 +220,8 @@ def edit_meter(meter_id):
             
             db.session.commit()
             flash('✅ Zähler erfolgreich aktualisiert!', 'success')
+            if next_url:
+                return redirect(next_url)
             return redirect(url_for('meters.meter_detail', meter_id=meter.id))
             
         except Exception as e:
@@ -225,11 +229,12 @@ def edit_meter(meter_id):
             current_app.logger.error(f"Fehler beim Aktualisieren des Zählers: {str(e)}", exc_info=True)
             flash(f'❌ Fehler beim Aktualisieren des Zählers: {str(e)}', 'danger')
     
-    return render_template('meters/edit.html', 
+    return render_template('meters/edit.html',
                          meter=meter,
                          buildings=buildings,
                          meter_types=meter_types,
-                         parent_meters=parent_meters)
+                         parent_meters=parent_meters,
+                         next_url=next_url)
 
 @meters_bp.route('/<meter_id>/delete', methods=['POST'])
 @login_required

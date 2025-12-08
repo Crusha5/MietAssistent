@@ -127,7 +127,7 @@
         {% set end_val = contract_data.end_date if contract else contract_data.get('end_date') %}
         {% set start_text = start_val.strftime('%d.%m.%Y') if start_val and start_val.__class__.__name__ == 'date' else start_val %}
         {% set end_text = end_val.strftime('%d.%m.%Y') if end_val and end_val.__class__.__name__ == 'date' else end_val %}
-        {% set cold_rent_val = (contract_data.cold_rent if contract else contract_data.get('cold_rent')) or (contract_data.rent_net if contract else contract_data.get('rent_net')) %}
+        {% set cold_rent_val = ((contract_data.cold_rent or contract_data.rent_net) if contract else (contract_data.get('cold_rent') or contract_data.get('rent_net'))) %}
         {% set op_advance_val = (contract_data.operating_cost_advance if contract else contract_data.get('operating_cost_advance')) or 0 %}
         {% set heat_advance_val = (contract_data.heating_advance if contract else contract_data.get('heating_advance')) or 0 %}
         {% set monthly_advance_val = (contract_data.monthly_advance if contract else contract_data.get('monthly_advance')) %}
