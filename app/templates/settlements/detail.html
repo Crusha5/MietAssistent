@@ -122,13 +122,13 @@
                 <div class="table-responsive cost-table-wrapper">
                     <table class="table table-sm">
                         <thead>
-                            <tr>
+                            <tr class="small">
                                 <th>Beleg</th>
-                                <th>Kosten</th>
-                                <th>Schlüssel</th>
+                                <th>Art</th>
+                                <th>Schl.</th>
                                 <th>Verbrauch</th>
                                 <th>Summe</th>
-                                <th>Mieteranteil</th>
+                                <th>Anteil</th>
                                 <th>Hinweis</th>
                                 <th class="text-end cost-action-col" title="Bearbeiten"><i class="bi bi-pencil"></i></th>
                             </tr>
@@ -229,9 +229,16 @@
             </div>
             <div class="card-body">
                 <div class="d-grid gap-2">
-                    <a href="/settlements?edit={{ settlement.id }}" class="btn btn-primary">
+                    <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#settlementEditModal"
+                        data-id="{{ settlement.id }}"
+                        data-apartment="{{ settlement.apartment_id }}"
+                        data-start="{{ settlement.period_start.strftime('%Y-%m-%d') }}"
+                        data-end="{{ settlement.period_end.strftime('%Y-%m-%d') }}"
+                        data-status="{{ settlement.status }}"
+                        data-notes="{{ settlement.notes or '' }}"
+                        data-tenant-notes="{{ settlement.tenant_notes or '' }}">
                         <i class="bi bi-pencil-square me-1"></i> Abrechnung bearbeiten
-                    </a>
+                    </button>
                     <a href="/settlements/{{ settlement.id }}/pdf" class="btn btn-outline-primary">
                         <i class="bi bi-file-pdf me-1"></i> PDF herunterladen
                     </a>
@@ -253,4 +260,47 @@
         </div>
     </div>
 </div>
+{% include 'settlements/edit_modal.html' %}
+{% endblock %}
+
+{% block extra_js %}
+{{ super() }}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const modal = document.getElementById('settlementEditModal');
+        const form = document.getElementById('settlementEditForm');
+        const apartmentField = document.getElementById('settlementApartment');
+        const startField = document.getElementById('settlementPeriodStart');
+        const endField = document.getElementById('settlementPeriodEnd');
+        const statusField = document.getElementById('settlementStatus');
+        const notesField = document.getElementById('settlementNotes');
+        const tenantNotesField = document.getElementById('settlementTenantNotes');
+
+        const fillFromTrigger = (trigger) => {
+            if (!trigger) return;
+            const id = trigger.getAttribute('data-id');
+            form.action = `/settlements/${id}/edit?force_page=1`;
+            apartmentField.value = trigger.getAttribute('data-apartment') || '';
+            startField.value = trigger.getAttribute('data-start') || '';
+            endField.value = trigger.getAttribute('data-end') || '';
+            statusField.value = trigger.getAttribute('data-status') || 'draft';
+            notesField.value = trigger.getAttribute('data-notes') || '';
+            tenantNotesField.value = trigger.getAttribute('data-tenant-notes') || '';
+        };
+
+        modal?.addEventListener('show.bs.modal', (event) => {
+            fillFromTrigger(event.relatedTarget);
+        });
+
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('edit') === '1' && modal) {
+            const triggerBtn = document.querySelector('[data-bs-target="#settlementEditModal"]');
+            if (triggerBtn) {
+                fillFromTrigger(triggerBtn);
+                const modalInstance = new bootstrap.Modal(modal);
+                modalInstance.show();
+            }
+        }
+    });
+</script>
 {% endblock %}

@@ -68,11 +68,15 @@ def _collect_advance_payments(contract, period_start, period_end, months):
 
         advance_incomes = Income.query.filter(
             Income.contract_id == contract.id,
-            Income.is_advance_payment.is_(True),
             Income.received_on >= period_start,
             Income.received_on <= period_end,
         ).all()
-        total_from_incomes = sum((inc.service_charge_portion or inc.amount or 0) for inc in advance_incomes)
+        total_from_incomes = 0
+        for inc in advance_incomes:
+            service_part = inc.service_charge_portion
+            if service_part is None:
+                service_part = (inc.amount or 0) - (inc.rent_portion or 0) - (inc.special_portion or 0)
+            total_from_incomes += service_part if service_part is not None else (inc.amount or 0)
     except Exception:
         total_from_incomes = 0
 
@@ -717,15 +721,31 @@ def settlement_detail(settlement_id):
 
     snapshot = settlement.contract_snapshot or {}
     months = _safe_months_between(settlement.period_start, settlement.period_end)
+    def _active_months_for_contract():
+        if not contract:
+            return months
+        start = max(settlement.period_start, contract.start_date) if contract.start_date else settlement.period_start
+        end = min(settlement.period_end, contract.end_date) if contract.end_date else settlement.period_end
+        return _safe_months_between(start, end)
+
     monthly_contract_advance = None
+    total_paid_advances = settlement.advance_payments
+    active_months = _active_months_for_contract()
+
     if contract:
         monthly_contract_advance = contract.get_monthly_operating_prepayment()
     elif snapshot:
         monthly_contract_advance = snapshot.get('monthly_advance')
 
-    effective_advances = settlement.advance_payments
-    if effective_advances is None and contract:
-        effective_advances = _collect_advance_payments(contract, settlement.period_start, settlement.period_end, months)
+    if total_paid_advances is None and contract:
+        total_paid_advances = _collect_advance_payments(contract, settlement.period_start, settlement.period_end, active_months)
+
+    monthly_effective_from_incomes = None
+    if total_paid_advances:
+        monthly_effective_from_incomes = round((total_paid_advances or 0) / active_months, 2) if active_months else 0
+
+    if monthly_contract_advance is None and monthly_effective_from_incomes is not None:
+        monthly_contract_advance = monthly_effective_from_incomes
 
     contract_info = {
         'snapshot': snapshot,
@@ -733,7 +753,7 @@ def settlement_detail(settlement_id):
             (contract.cold_rent or contract.rent_net) if contract else (snapshot.get('cold_rent') or snapshot.get('rent_net') or 0)
         ) if (contract or snapshot) else 0,
         'monthly_contract_advance': (monthly_contract_advance if monthly_contract_advance is not None else snapshot.get('monthly_advance')) if (contract or snapshot) else 0,
-        'monthly_effective_advance': round((effective_advances or 0) / months, 2) if months else 0,
+        'monthly_effective_advance': monthly_effective_from_incomes if monthly_effective_from_incomes is not None else (round((total_paid_advances or 0) / months, 2) if months else 0),
     }
 
     return render_template('settlements/detail.html', settlement=settlement, contract_info=contract_info)
@@ -804,9 +824,9 @@ def settlement_edit(settlement_id):
             db.session.rollback()
             flash(f'Fehler beim Aktualisieren der Abrechnung: {str(e)}', 'danger')
 
-    # Die Bearbeitungsseite soll als Modal innerhalb der Übersicht geöffnet werden
+    # Die Bearbeitungsseite wird im Detail über ein Modal geöffnet
     if request.method == 'GET' and not request.args.get('force_page'):
-        return redirect(url_for('settlements.settlements_list', edit=settlement.id))
+        return redirect(url_for('settlements.settlement_detail', settlement_id=settlement.id, edit='1'))
 
     return render_template('settlements/edit.html', settlement=settlement, apartments=apartments)
 

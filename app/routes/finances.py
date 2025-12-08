@@ -231,17 +231,25 @@ def create_income():
         flash('Bitte Vertrag auswählen.', 'danger')
         return redirect(request.referrer or url_for('finances.incomes_overview'))
 
-    rent, service_charge, special, amount = allocate_income_components(
-        total_amount=request.form.get('amount'),
-        rent_portion=request.form.get('rent_portion'),
-        service_charge_portion=request.form.get('service_charge_portion'),
-        special_portion=request.form.get('special_portion'),
-        contract=contract,
-    )
-
+    category = request.form.get('income_category') or 'rent'
+    amount = float(request.form.get('amount') or 0)
     if amount <= 0:
         flash('Betrag muss größer 0 sein.', 'danger')
         return redirect(request.referrer or url_for('finances.incomes_overview'))
+
+    rent = service_charge = special = 0.0
+    income_type = 'rent'
+    if category == 'service':
+        service_charge = amount
+        income_type = 'service_charge'
+    elif category == 'special':
+        special = amount
+        income_type = 'extra'
+    elif category == 'deposit':
+        special = amount
+        income_type = 'deposit'
+    else:
+        rent = amount
 
     income_date_raw = request.form.get('received_on')
     income_date = datetime.strptime(income_date_raw, '%Y-%m-%d').date() if income_date_raw else date.today()
@@ -250,14 +258,14 @@ def create_income():
         id=str(uuid.uuid4()),
         contract_id=contract.id,
         tenant_id=request.form.get('tenant_id') or contract.tenant_id,
-        income_type=request.form.get('income_type') or 'rent',
+        income_type=income_type,
         amount=amount,
         rent_portion=rent,
         service_charge_portion=service_charge,
         special_portion=special,
         is_advance_payment=bool(request.form.get('is_advance_payment')),
         reference=request.form.get('reference'),
-        source='manuell',
+        source=request.form.get('source') or 'manuell',
         received_on=income_date,
         notes=request.form.get('notes'),
     )
@@ -273,13 +281,22 @@ def update_income(income_id):
     income = Income.query.get_or_404(income_id)
     contract = Contract.query.get(request.form.get('contract_id')) or income.contract
 
-    rent, service_charge, special, amount = allocate_income_components(
-        total_amount=request.form.get('amount'),
-        rent_portion=request.form.get('rent_portion'),
-        service_charge_portion=request.form.get('service_charge_portion'),
-        special_portion=request.form.get('special_portion'),
-        contract=contract,
-    )
+    category = request.form.get('income_category') or request.form.get('income_type') or 'rent'
+    amount = float(request.form.get('amount') or 0)
+    rent = service_charge = special = 0.0
+    income_type = income.income_type or 'rent'
+    if category == 'service' or category == 'service_charge':
+        service_charge = amount
+        income_type = 'service_charge'
+    elif category == 'special' or category == 'extra':
+        special = amount
+        income_type = 'extra'
+    elif category == 'deposit':
+        special = amount
+        income_type = 'deposit'
+    else:
+        rent = amount
+        income_type = 'rent'
 
     income.amount = amount
     income.rent_portion = rent
@@ -288,7 +305,7 @@ def update_income(income_id):
     income.is_advance_payment = bool(request.form.get('is_advance_payment'))
     income.reference = request.form.get('reference')
     income.source = request.form.get('source') or income.source
-    income.income_type = request.form.get('income_type') or income.income_type
+    income.income_type = income_type
     income.received_on = datetime.strptime(request.form.get('received_on'), '%Y-%m-%d').date()
     income.notes = request.form.get('notes')
     income.contract_id = contract.id if contract else income.contract_id

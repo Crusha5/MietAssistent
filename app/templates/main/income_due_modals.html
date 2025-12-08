@@ -7,7 +7,7 @@
             </div>
             <div class="modal-body row g-2">
                 <div class="col-12">
-                    <label class="form-label">Betrag</label>
+                    <label class="form-label">Gesamt</label>
                     <input type="number" step="0.01" name="amount" id="income_amount" class="form-control" required>
                 </div>
                 <div class="col-12">
@@ -32,10 +32,11 @@
                 </div>
                 <div class="col-6">
                     <label class="form-label">Art</label>
-                    <select name="income_type" id="income_type" class="form-select">
+                    <select name="income_category" id="income_type" class="form-select">
                         <option value="rent">Miete</option>
                         <option value="service_charge">Nebenkosten</option>
                         <option value="extra">Sonderzahlung</option>
+                        <option value="deposit">Kaution</option>
                     </select>
                 </div>
                 <div class="col-12">

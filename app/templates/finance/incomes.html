@@ -1,139 +1,76 @@
 {% extends "base.html" %}
-{% block title %}Finanzen - Einnahmen & Vorauszahlungen{% endblock %}
+{% block title %}Finanzen - Einnahmen erfassen{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h1 class="h4 mb-0">Finanzen · Einnahmen & Vorauszahlungen</h1>
+    <h1 class="h4 mb-0">Finanzen · Einnahmen</h1>
     <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.dashboard') }}"><i class="bi bi-arrow-left"></i> Zurück zum Dashboard</a>
 </div>
-<div class="row g-3 mb-3">
-    <div class="col-md-3">
-        <div class="border rounded-3 p-3 h-100">
-            <div class="text-muted small">Gesamt</div>
-            <div class="h4 mb-0 fw-semibold">{{ '%.2f'|format(totals.amount or 0) }} €</div>
-        </div>
+
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center">
+        <h6 class="mb-0">Einnahme erfassen</h6>
+        <small class="text-muted">Mieter & Vertrag wählen, Betrag und Verwendungszweck eintragen</small>
     </div>
-    <div class="col-md-3">
-        <div class="border rounded-3 p-3 h-100">
-            <div class="text-muted small">Kaltmiete</div>
-            <div class="h5 mb-0">{{ '%.2f'|format(totals.rent or 0) }} €</div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="border rounded-3 p-3 h-100">
-            <div class="text-muted small">Nebenkosten</div>
-            <div class="h5 mb-0">{{ '%.2f'|format(totals.service or 0) }} €</div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="border rounded-3 p-3 h-100">
-            <div class="text-muted small">Sondervereinbarungen</div>
-            <div class="h5 mb-0">{{ '%.2f'|format(totals.special or 0) }} €</div>
-        </div>
+    <div class="card-body">
+        <form class="row g-3" method="post" action="{{ url_for('finances.create_income') }}" id="financeIncomeForm">
+            <div class="col-md-4">
+                <label class="form-label">Mieter</label>
+                <select class="form-select" name="tenant_id" id="finance_tenant">
+                    <option value="">Bitte wählen</option>
+                    {% for tenant in tenants %}
+                    <option value="{{ tenant.id }}">{{ tenant.first_name }} {{ tenant.last_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Vertrag</label>
+                <select class="form-select" name="contract_id" id="finance_contract" required>
+                    <option value="">Bitte wählen</option>
+                    {% for contract in contracts %}
+                    <option value="{{ contract.id }}" data-tenant="{{ contract.tenant_id }}">{{ contract.contract_number }} – {{ contract.apartment.get_full_identifier() if contract.apartment else '' }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Kategorie</label>
+                <select class="form-select" name="income_category" id="finance_category" required>
+                    <option value="rent">Kaltmiete</option>
+                    <option value="service">Nebenkosten</option>
+                    <option value="special">Sonderzahlung</option>
+                    <option value="deposit">Kaution</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Betrag (Gesamt)</label>
+                <input type="number" step="0.01" name="amount" class="form-control" id="finance_total" placeholder="0,00" required>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Datum</label>
+                <input type="date" name="received_on" class="form-control" value="{{ now().strftime('%Y-%m-%d') }}" required>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Verwendungszweck</label>
+                <input type="text" name="reference" class="form-control" placeholder="z. B. NK Januar">
+            </div>
+            <div class="col-md-12">
+                <label class="form-label">Notiz (optional)</label>
+                <textarea name="notes" rows="2" class="form-control" placeholder="Interne Notizen"></textarea>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Quelle (optional)</label>
+                <input type="text" name="source" class="form-control" placeholder="Konto, Kasse …">
+            </div>
+            <div class="col-md-4 form-check mt-4">
+                <input class="form-check-input" type="checkbox" value="1" id="finance_advance" name="is_advance_payment">
+                <label class="form-check-label" for="finance_advance">Vorauszahlung</label>
+            </div>
+            <div class="col-12">
+                <button class="btn btn-primary" type="submit"><i class="bi bi-save"></i> Speichern</button>
+            </div>
+        </form>
     </div>
 </div>
-<div class="row g-3 mb-4">
-    <div class="col-lg-7">
-        <div class="card shadow-sm border-0 h-100">
-            <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center">
-                <h6 class="mb-0">Einnahme/Vorauszahlung erfassen</h6>
-            </div>
-            <div class="card-body">
-                <form class="row g-2" method="post" action="{{ url_for('finances.create_income') }}" id="financeIncomeForm">
-                    <div class="col-md-6">
-                        <label class="form-label">Vertrag</label>
-                        <select class="form-select" name="contract_id" id="finance_contract" required>
-                            <option value="">Bitte wählen</option>
-                            {% for contract in contracts %}
-                            <option value="{{ contract.id }}" data-tenant="{{ contract.tenant_id }}" data-rent="{{ contract.rent_net or contract.cold_rent or 0 }}" data-service="{{ (contract.rent_additional or 0) + (contract.operating_cost_advance or 0) + (contract.heating_advance or 0) }}">{{ contract.contract_number }} – {{ contract.apartment.get_full_identifier() if contract.apartment else '' }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label">Mieter</label>
-                        <select class="form-select" name="tenant_id" id="finance_tenant">
-                            <option value="">Automatisch</option>
-                            {% for tenant in tenants %}
-                            <option value="{{ tenant.id }}">{{ tenant.first_name }} {{ tenant.last_name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Datum</label>
-                        <input type="date" name="received_on" class="form-control" value="{{ now().strftime('%Y-%m-%d') }}" required>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Kaltmiete</label>
-                        <input type="number" step="0.01" name="rent_portion" class="form-control finance-component" placeholder="0,00">
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Nebenkosten</label>
-                        <input type="number" step="0.01" name="service_charge_portion" class="form-control finance-component" placeholder="0,00">
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Sondervereinbarung</label>
-                        <input type="number" step="0.01" name="special_portion" class="form-control finance-component" placeholder="0,00">
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Gesamt</label>
-                        <input type="number" step="0.01" name="amount" class="form-control" id="finance_total" placeholder="0,00">
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Verwendungszweck/Referenz</label>
-                        <input type="text" name="reference" class="form-control" placeholder="z. B. Miete Januar">
-                    </div>
-                    <div class="col-md-12">
-                        <label class="form-label">Notiz (optional)</label>
-                        <textarea name="notes" rows="2" class="form-control" placeholder="Interne Notizen"></textarea>
-                    </div>
-                    <div class="col-md-6 form-check">
-                        <input class="form-check-input" type="checkbox" value="1" id="finance_advance" name="is_advance_payment">
-                        <label class="form-check-label" for="finance_advance">Vorauszahlung</label>
-                    </div>
-                    <div class="col-12">
-                        <button class="btn btn-primary" type="submit"><i class="bi bi-save"></i> Speichern</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-    <div class="col-lg-5">
-        <div class="card shadow-sm border-0 h-100">
-            <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center">
-                <h6 class="mb-0">CSV/PDF Import</h6>
-            </div>
-            <div class="card-body">
-                <form class="row g-2" method="post" enctype="multipart/form-data" action="{{ url_for('finances.import_incomes') }}">
-                    <div class="col-12">
-                        <label class="form-label">Kontoauszug (CSV oder PDF)</label>
-                        <input type="file" name="statement_file" class="form-control" accept=".csv,.pdf" required>
-                    </div>
-                    <div class="col-12">
-                        <label class="form-label">Fallback-Vertrag (wenn Zuordnung fehlt)</label>
-                        <select name="fallback_contract_id" class="form-select">
-                            <option value="">Automatisch zuweisen</option>
-                            {% for contract in contracts %}
-                            <option value="{{ contract.id }}">{{ contract.contract_number }} – {{ contract.apartment.get_full_identifier() if contract.apartment else '' }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-12 form-check">
-                        <input class="form-check-input" type="checkbox" id="finance_import_advance" name="mark_as_advance" value="1">
-                        <label class="form-check-label" for="finance_import_advance">Alle importierten Zahlungen als Vorauszahlung markieren</label>
-                    </div>
-                    <div class="col-12">
-                        <button class="btn btn-outline-primary" type="submit"><i class="bi bi-upload"></i> Import starten</button>
-                    </div>
-                    <div class="col-12 small text-muted">
-                        <ul class="mb-0">
-                            <li>CSV: erkennt Spalten wie Betrag, Datum, Verwendungszweck.</li>
-                            <li>PDF: sucht Datums- und Betragsmuster und weist anhand des Textes automatisch Mieter zu.</li>
-                        </ul>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
+
 <div class="card shadow-sm border-0">
     <div class="card-body">
         <form class="row g-2 mb-3" method="get">
@@ -168,13 +105,10 @@
                         <th>Datum</th>
                         <th>Mieter</th>
                         <th>Vertrag</th>
-                        <th>Kaltmiete</th>
-                        <th>Nebenkosten</th>
-                        <th>Sonder</th>
+                        <th>Kategorie</th>
                         <th>Gesamt</th>
                         <th>Vorauszahlung</th>
-                        <th>Referenz</th>
-                        <th>Quelle</th>
+                        <th>Verwendungszweck</th>
                         <th class="text-end">Aktionen</th>
                     </tr>
                 </thead>
@@ -184,15 +118,28 @@
                         <td>{{ income.received_on.strftime('%d.%m.%Y') if income.received_on else '—' }}</td>
                         <td>{{ income.tenant.first_name + ' ' + income.tenant.last_name if income.tenant else '—' }}</td>
                         <td><span class="badge bg-light text-dark">{{ income.contract.contract_number if income.contract else '—' }}</span></td>
-                        <td>{{ '%.2f'|format(income.rent_portion or 0) }} €</td>
-                        <td>{{ '%.2f'|format(income.service_charge_portion or 0) }} €</td>
-                        <td>{{ '%.2f'|format(income.special_portion or 0) }} €</td>
+                        <td>
+                            {% if income.income_type == 'service_charge' %}Nebenkosten{% elif income.income_type == 'extra' %}Sonderzahlung{% elif income.income_type == 'deposit' %}Kaution{% else %}Kaltmiete{% endif %}
+                        </td>
                         <td class="fw-semibold">{{ '%.2f'|format(income.amount or 0) }} €</td>
                         <td>{% if income.is_advance_payment %}<span class="badge bg-info">Ja</span>{% else %}—{% endif %}</td>
                         <td>{{ income.reference or '—' }}</td>
-                        <td>{{ income.source or '—' }}</td>
                         <td class="text-end">
-                            <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#incomeModal" data-id="{{ income.id }}" data-amount="{{ income.amount }}" data-rent="{{ income.rent_portion or 0 }}" data-service="{{ income.service_charge_portion or 0 }}" data-special="{{ income.special_portion or 0 }}" data-type="{{ income.income_type }}" data-date="{{ income.received_on.strftime('%Y-%m-%d') if income.received_on else '' }}" data-notes="{{ income.notes or '' }}" data-contract="{{ income.contract_id }}" data-tenant="{{ income.tenant_id or '' }}" data-reference="{{ income.reference or '' }}" data-advance="{{ '1' if income.is_advance_payment else '' }}" data-source="{{ income.source or '' }}" data-update-url="{{ url_for('finances.update_income', income_id=income.id) }}">
+                            <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#incomeModal"
+                                data-id="{{ income.id }}"
+                                data-amount="{{ income.amount }}"
+                                data-rent="{{ income.rent_portion or 0 }}"
+                                data-service="{{ income.service_charge_portion or 0 }}"
+                                data-special="{{ income.special_portion or 0 }}"
+                                data-type="{{ income.income_type }}"
+                                data-date="{{ income.received_on.strftime('%Y-%m-%d') if income.received_on else '' }}"
+                                data-notes="{{ income.notes or '' }}"
+                                data-contract="{{ income.contract_id }}"
+                                data-tenant="{{ income.tenant_id or '' }}"
+                                data-reference="{{ income.reference or '' }}"
+                                data-advance="{{ '1' if income.is_advance_payment else '' }}"
+                                data-source="{{ income.source or '' }}"
+                                data-update-url="{{ url_for('finances.update_income', income_id=income.id) }}">
                                 <i class="bi bi-pencil"></i>
                             </button>
                             <form method="post" action="{{ url_for('finances.delete_income_entry', income_id=income.id) }}" class="d-inline">
@@ -201,7 +148,7 @@
                         </td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="11" class="text-center text-muted py-3">Keine Zahlungen erfasst.</td></tr>
+                    <tr><td colspan="8" class="text-center text-muted py-3">Keine Zahlungen erfasst.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -225,45 +172,21 @@
 {{ super() }}
 {% include 'main/income_due_js.html' %}
 <script>
-    function recalcTotal() {
-        const fields = document.querySelectorAll('#financeIncomeForm .finance-component');
-        let sum = 0;
-        fields.forEach(f => { sum += parseFloat(f.value || 0); });
-        const target = document.getElementById('finance_total');
-        if (target && sum > 0) {
-            target.value = sum.toFixed(2);
-        }
-    }
     document.addEventListener('DOMContentLoaded', () => {
-        const components = document.querySelectorAll('#financeIncomeForm .finance-component');
-        components.forEach(el => el.addEventListener('input', recalcTotal));
-
         const contractSelect = document.getElementById('finance_contract');
         const tenantSelect = document.getElementById('finance_tenant');
-        if (contractSelect) {
+        if (contractSelect && tenantSelect) {
             contractSelect.addEventListener('change', () => {
                 const opt = contractSelect.selectedOptions[0];
-                if (!opt) return;
-                const rent = opt.getAttribute('data-rent');
-                const service = opt.getAttribute('data-service');
-                document.querySelector('input[name="rent_portion"]').value = rent || '';
-                document.querySelector('input[name="service_charge_portion"]').value = service || '';
-                if (tenantSelect && opt.getAttribute('data-tenant')) {
-                    tenantSelect.value = opt.getAttribute('data-tenant');
+                if (opt && opt.dataset.tenant) {
+                    tenantSelect.value = opt.dataset.tenant;
                 }
-                recalcTotal();
             });
-        }
-
-        if (tenantSelect && contractSelect) {
             tenantSelect.addEventListener('change', () => {
-                const targetTenant = tenantSelect.value;
-                if (!targetTenant) return;
-                const match = Array.from(contractSelect.options).find(o => o.dataset.tenant === targetTenant);
-                if (match) {
-                    contractSelect.value = match.value;
-                    contractSelect.dispatchEvent(new Event('change'));
-                }
+                const val = tenantSelect.value;
+                if (!val) return;
+                const match = Array.from(contractSelect.options).find(o => o.dataset.tenant === val);
+                if (match) contractSelect.value = match.value;
             });
         }
     });
