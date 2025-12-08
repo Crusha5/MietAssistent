@@ -6,6 +6,18 @@ function syncTenant(contractSelect, tenantSelect) {
     tenantSelect.value = tenantId || '';
 }
 
+function pickContractForTenant(tenantSelect, contractSelect) {
+    if (!tenantSelect || !contractSelect) return;
+    const tenantId = tenantSelect.value;
+    if (!tenantId) return;
+    const match = Array.from(contractSelect.options).find(
+        (opt) => opt.getAttribute('data-tenant') === tenantId
+    );
+    if (match) {
+        contractSelect.value = match.value;
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     const incomeContract = document.getElementById('income_contract_select');
     const incomeTenant = document.getElementById('income_tenant_select');
@@ -39,6 +51,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const modalTenant = document.getElementById('income_tenant_modal');
         if (modalContract && modalTenant) {
             modalContract.addEventListener('change', () => syncTenant(modalContract, modalTenant));
+            modalTenant.addEventListener('change', () => pickContractForTenant(modalTenant, modalContract));
         }
     }
 

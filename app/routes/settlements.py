@@ -80,10 +80,9 @@ def _collect_advance_payments(contract, period_start, period_end, months):
 
 
 def _ensure_settlement_snapshot(settlement):
-    if settlement.contract_snapshot and settlement.advance_payments not in (None, 0):
-        return
-
     contract = settlement.contract
+    snapshot = settlement.contract_snapshot or {}
+
     if not contract and settlement.apartment:
         try:
             contract = _determine_active_contract(
@@ -94,9 +93,20 @@ def _ensure_settlement_snapshot(settlement):
         except Exception:
             contract = None
 
-    snapshot = settlement.contract_snapshot or _contract_snapshot_from(
-        contract, settlement.apartment
-    )
+    needs_refresh = not snapshot
+    if contract and snapshot:
+        cold_val = snapshot.get('cold_rent') or snapshot.get('rent_net') or 0
+        contract_cold = contract.cold_rent or contract.rent_net or 0
+        monthly_adv = snapshot.get('monthly_advance')
+        if snapshot.get('contract_number') != contract.contract_number:
+            needs_refresh = True
+        if contract_cold and cold_val != contract_cold:
+            needs_refresh = True
+        if monthly_adv is None and contract.get_monthly_operating_prepayment():
+            needs_refresh = True
+
+    if needs_refresh:
+        snapshot = _contract_snapshot_from(contract, settlement.apartment)
 
     if contract and settlement.advance_payments is None:
         months = _safe_months_between(settlement.period_start, settlement.period_end)

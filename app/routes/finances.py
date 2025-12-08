@@ -1,7 +1,7 @@
-from datetime import datetime, date
 import io
 import re
 import uuid
+from datetime import date, datetime
 
 import pandas as pd
 from flask import Blueprint, flash, redirect, render_template, request, url_for
@@ -11,7 +11,7 @@ from PyPDF2 import PdfReader
 
 from app.extensions import db
 from app.models import Contract, Income, Tenant
-from app.routes.main import login_required
+from app.routes.main import login_required, _contract_options
 from app.utils.income_helpers import allocate_income_components, parse_amount, pick_contract_for_tenant
 
 finances_bp = Blueprint('finances', __name__)
@@ -50,12 +50,15 @@ def incomes_overview():
     contracts = Contract.query.filter((Contract.is_archived.is_(False)) | (Contract.is_archived.is_(None))).all()
     tenants = Tenant.query.all()
 
+    contract_options = _contract_options(contracts)
+
     return render_template(
         'finance/incomes.html',
         incomes=pagination.items,
         pagination=pagination,
         tenants=tenants,
         contracts=contracts,
+        contract_options=contract_options,
         totals={
             'amount': totals[0] if totals else 0,
             'rent': totals[1] if totals else 0,

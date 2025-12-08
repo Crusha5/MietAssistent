@@ -223,6 +223,7 @@
 {% endblock %}
 {% block extra_js %}
 {{ super() }}
+{% include 'main/income_due_js.html' %}
 <script>
     function recalcTotal() {
         const fields = document.querySelectorAll('#financeIncomeForm .finance-component');
@@ -247,10 +248,22 @@
                 const service = opt.getAttribute('data-service');
                 document.querySelector('input[name="rent_portion"]').value = rent || '';
                 document.querySelector('input[name="service_charge_portion"]').value = service || '';
-                if (opt.getAttribute('data-tenant')) {
+                if (tenantSelect && opt.getAttribute('data-tenant')) {
                     tenantSelect.value = opt.getAttribute('data-tenant');
                 }
                 recalcTotal();
+            });
+        }
+
+        if (tenantSelect && contractSelect) {
+            tenantSelect.addEventListener('change', () => {
+                const targetTenant = tenantSelect.value;
+                if (!targetTenant) return;
+                const match = Array.from(contractSelect.options).find(o => o.dataset.tenant === targetTenant);
+                if (match) {
+                    contractSelect.value = match.value;
+                    contractSelect.dispatchEvent(new Event('change'));
+                }
             });
         }
     });
