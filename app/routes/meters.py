@@ -15,16 +15,16 @@ meters_bp = Blueprint('meters', __name__)
 @login_required
 def meters_list():
     """Zeigt alle Zähler an"""
-    meters = Meter.query.filter(
-        or_(Meter.is_archived == False, Meter.is_archived.is_(None))
-    ).options(
+    meters = Meter.query.options(
         db.joinedload(Meter.building),
         db.joinedload(Meter.meter_type),
         db.joinedload(Meter.apartment),
         db.joinedload(Meter.sub_meters)
-    ).all()
+    ).filter(
+        Meter.is_archived.isnot(True)
+    ).order_by(Meter.building_id, Meter.meter_number).all()
 
-    meter_map = {m.id: m for m in meters if not m.is_archived}
+    meter_map = {m.id: m for m in meters}
     children_map = {m_id: [] for m_id in meter_map.keys()}
     roots_by_building = {}
 
