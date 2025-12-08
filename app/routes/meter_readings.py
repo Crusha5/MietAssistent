@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify, render_template, redirect, url_for, flash, session, current_app, send_from_directory
 from flask_jwt_extended import jwt_required
 from app.extensions import db
-from app.models import MeterReading, Meter, MeterType, Apartment, Tenant, User, Building  # ✅ Building hinzugefügt
+from app.models import MeterReading, Meter, MeterType, Apartment, Tenant, User, Building, UserPreference  # ✅ Building hinzugefügt
 from datetime import datetime
 from app.routes.main import login_required
 import os
@@ -9,12 +9,93 @@ from werkzeug.utils import secure_filename
 import uuid
 import csv
 import io
+import json
 from flask import Response
 import pandas as pd
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
+
+
+def _meter_debug_enabled():
+    user_id = session.get('user_id')
+    if not user_id:
+        return False
+
+    user = User.query.get(user_id)
+    if not user or user.role != 'admin':
+        return False
+
+    prefs = UserPreference.query.filter_by(user_id=user_id).first()
+    if not prefs:
+        return False
+
+    try:
+        data = json.loads(prefs.preferences or '{}')
+    except Exception:
+        return False
+
+    return bool(data.get('meter_debug_mode'))
+def _active_readings_query():
+    return MeterReading.query.filter(
+        (MeterReading.is_archived.is_(False)) | (MeterReading.is_archived.is_(None))
+    )
+
+
+def _latest_active_value(meter_id, ignore_ids=None):
+    ignore_ids = ignore_ids or []
+    query = _active_readings_query().filter(MeterReading.meter_id == meter_id)
+    if ignore_ids:
+        query = query.filter(~MeterReading.id.in_(ignore_ids))
+    reading = query.order_by(
+        MeterReading.reading_date.desc(),
+        MeterReading.created_at.desc(),
+    ).first()
+    return reading.reading_value if reading else None
+
+
+def _validate_meter_hierarchy(meter, new_value, ignore_ids=None):
+    if _meter_debug_enabled():
+        return
+
+    if not meter:
+        return
+
+    tolerance = 0.0001
+    ignore_ids = ignore_ids or []
+
+    if meter.parent_meter:
+        parent_value = _latest_active_value(meter.parent_meter.id, ignore_ids)
+        if parent_value is not None and new_value - parent_value > tolerance:
+            raise ValueError(
+                f'Der Unterzählerwert darf den Hauptzählerstand ({parent_value}) nicht überschreiten.'
+            )
+
+        sibling_sum = new_value
+        for sub in meter.parent_meter.sub_meters or []:
+            if sub.is_archived:
+                continue
+            if sub.id == meter.id:
+                continue
+            sibling_sum += _latest_active_value(sub.id, ignore_ids) or 0
+
+        if parent_value is not None:
+            delta = parent_value - sibling_sum
+            if abs(delta) > tolerance:
+                raise ValueError(
+                    f'Die Summe der Unterzähler ({sibling_sum:.3f}) muss dem Hauptzähler ({parent_value:.3f}) entsprechen.'
+                )
+
+    active_subs = [s for s in (meter.sub_meters or []) if not s.is_archived]
+    if active_subs:
+        sub_sum = sum(_latest_active_value(sub.id, ignore_ids) or 0 for sub in active_subs)
+        if sub_sum > 0:
+            delta = new_value - sub_sum
+            if abs(delta) > tolerance:
+                raise ValueError(
+                    f'Die Summe der Unterzähler ({sub_sum:.3f}) muss dem Hauptzähler ({new_value:.3f}) entsprechen.'
+                )
 
 meter_bp = Blueprint('meter_readings', __name__)
 
@@ -29,7 +110,8 @@ def build_filtered_query(filter_args):
         join(Meter, MeterReading.meter_id == Meter.id).\
         join(Building, Meter.building_id == Building.id).\
         join(MeterType, Meter.meter_type_id == MeterType.id).\
-        outerjoin(Apartment, Meter.apartment_id == Apartment.id)
+        outerjoin(Apartment, Meter.apartment_id == Apartment.id).\
+        filter((MeterReading.is_archived.is_(False)) | (MeterReading.is_archived.is_(None)))
 
     # Filter anwenden
     building_id = filter_args.get('building_id')
@@ -545,11 +627,18 @@ def create_meter_reading():
         try:
             # Debug: Formulardaten ausgeben
             print("Form data:", dict(request.form))
-            
+
+            meter = Meter.query.options(
+                db.joinedload(Meter.parent_meter).joinedload(Meter.sub_meters),
+                db.joinedload(Meter.sub_meters),
+            ).get(request.form['meter_id'])
+            if not meter:
+                raise ValueError('Ungültiger Zähler.')
+
             # Erstelle Zählerstand mit allen erforderlichen Feldern
             reading = MeterReading(
                 id=str(uuid.uuid4()),
-                meter_id=request.form['meter_id'],
+                meter_id=meter.id,
                 reading_value=float(request.form['reading_value']),
                 reading_date=datetime.strptime(request.form['reading_date'], '%Y-%m-%d').date(),
                 reading_type=request.form.get('reading_type', 'actual'),
@@ -557,7 +646,9 @@ def create_meter_reading():
                 is_manual_entry=True,
                 created_by=session.get('user_id')  # Verwende Session User ID
             )
-            
+
+            _validate_meter_hierarchy(meter, reading.reading_value)
+
             # Foto-Upload verarbeiten
             if 'photo' in request.files:
                 file = request.files['photo']
@@ -575,6 +666,9 @@ def create_meter_reading():
             flash('Zählerstand erfolgreich erfasst!', 'success')
             return redirect(url_for('meter_readings.meter_readings_list'))
             
+        except ValueError as ve:
+            db.session.rollback()
+            flash(str(ve), 'danger')
         except Exception as e:
             db.session.rollback()
             current_app.logger.error(f"Fehler beim Erfassen des Zählerstands: {str(e)}", exc_info=True)
@@ -605,10 +699,11 @@ def reading_detail(reading_id):
     else:
         # Dies ist ein Original, zeige alle Korrekturen an
         correction_readings = MeterReading.query.filter_by(correction_of_id=reading.id).all()
-    
-    return render_template('meter_readings/detail.html', 
+
+    return render_template('meter_readings/detail.html',
                          reading=reading,
-                         correction_readings=correction_readings)
+                         correction_readings=correction_readings,
+                         meter_debug=_meter_debug_enabled())
 
 
 @meter_bp.route('/photos/<path:filename>')
@@ -641,7 +736,7 @@ def debug_upload_test():
 @meter_bp.route('/api/meter-readings', methods=['GET'])
 @jwt_required()
 def get_meter_readings_api():
-    readings = MeterReading.query.all()
+    readings = _active_readings_query().all()
     return jsonify([{
         'id': reading.id,
         'meter_id': reading.meter_id,
@@ -656,18 +751,27 @@ def get_meter_readings_api():
 @jwt_required()
 def create_meter_reading_api():
     data = request.get_json()
-    
+
     try:
+        meter = Meter.query.options(
+            db.joinedload(Meter.parent_meter).joinedload(Meter.sub_meters),
+            db.joinedload(Meter.sub_meters),
+        ).get(data['meter_id'])
+        if not meter:
+            raise ValueError('Ungültiger Zähler.')
+
         reading = MeterReading(
             id=str(uuid.uuid4()),
-            meter_id=data['meter_id'],
+            meter_id=meter.id,
             reading_value=float(data['reading_value']),
             reading_date=datetime.fromisoformat(data['reading_date']).date(),
             reading_type=data.get('reading_type', 'actual'),
             notes=data.get('notes', ''),
             is_manual_entry=True
         )
-        
+
+        _validate_meter_hierarchy(meter, reading.reading_value)
+
         db.session.add(reading)
         db.session.commit()
         
@@ -676,6 +780,9 @@ def create_meter_reading_api():
             'id': reading.id
         }), 201
         
+    except ValueError as ve:
+        db.session.rollback()
+        return jsonify({'error': str(ve)}), 400
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 400
@@ -683,7 +790,12 @@ def create_meter_reading_api():
 @meter_bp.route('/api/meters/<meter_id>/readings', methods=['GET'])
 @jwt_required()
 def get_meter_readings_by_meter(meter_id):
-    readings = MeterReading.query.filter_by(meter_id=meter_id).order_by(MeterReading.reading_date.desc()).all()
+    readings = (
+        _active_readings_query()
+        .filter(MeterReading.meter_id == meter_id)
+        .order_by(MeterReading.reading_date.desc())
+        .all()
+    )
     return jsonify([{
         'id': reading.id,
         'reading_value': float(reading.reading_value),
@@ -698,14 +810,22 @@ def get_meter_readings_by_meter(meter_id):
 def create_correction(reading_id):
     """Erstellt eine Korrekturbuchung für einen Zählerstand"""
     original_reading = MeterReading.query.get_or_404(reading_id)
-    
+
     if request.method == 'POST':
         try:
             # Erstelle Korrekturbuchung
+            meter = Meter.query.options(
+                db.joinedload(Meter.parent_meter).joinedload(Meter.sub_meters),
+                db.joinedload(Meter.sub_meters),
+            ).get(original_reading.meter_id)
+
+            correction_value = float(request.form['correction_value'])
+            _validate_meter_hierarchy(meter, correction_value, ignore_ids=[original_reading.id])
+
             correction_reading = MeterReading(
                 id=str(uuid.uuid4()),
                 meter_id=original_reading.meter_id,
-                reading_value=float(request.form['correction_value']),
+                reading_value=correction_value,
                 reading_date=datetime.strptime(request.form['correction_date'], '%Y-%m-%d').date(),
                 reading_type='correction',
                 notes=f"Korrektur von Zählerstand {original_reading.id}. Ursprünglicher Wert: {original_reading.reading_value} vom {original_reading.reading_date.strftime('%d.%m.%Y')}.\nKorrektur-Grund: {request.form['correction_reason']}",
@@ -714,15 +834,42 @@ def create_correction(reading_id):
                 is_manual_entry=True,
                 created_by=session.get('user_id')
             )
-            
+
+            original_reading.is_archived = True
             db.session.add(correction_reading)
             db.session.commit()
-            
+
             flash('Korrektur erfolgreich erstellt!', 'success')
             return redirect(url_for('meter_readings.reading_detail', reading_id=correction_reading.id))
-            
+
+        except ValueError as ve:
+            db.session.rollback()
+            flash(str(ve), 'danger')
+            return redirect(url_for('meter_readings.reading_detail', reading_id=reading_id))
         except Exception as e:
             db.session.rollback()
             current_app.logger.error(f"Fehler beim Erstellen der Korrektur: {str(e)}", exc_info=True)
             flash(f'Fehler beim Erstellen der Korrektur: {str(e)}', 'danger')
             return redirect(url_for('meter_readings.reading_detail', reading_id=reading_id))
+
+
+@meter_bp.route('/<reading_id>/debug-delete', methods=['POST'])
+@login_required
+def debug_delete_reading(reading_id):
+    if not _meter_debug_enabled():
+        flash('Debug-Modus nur für Administratoren verfügbar.', 'danger')
+        return redirect(url_for('meter_readings.reading_detail', reading_id=reading_id))
+
+    reading = MeterReading.query.get_or_404(reading_id)
+
+    try:
+        db.session.delete(reading)
+        db.session.commit()
+        flash('Zählerstand revisionsfrei gelöscht.', 'warning')
+    except Exception as exc:
+        db.session.rollback()
+        current_app.logger.error('Debug-Löschung fehlgeschlagen: %s', exc, exc_info=True)
+        flash(f'Löschung nicht möglich: {exc}', 'danger')
+        return redirect(url_for('meter_readings.reading_detail', reading_id=reading_id))
+
+    return redirect(url_for('meter_readings.meter_readings_list'))

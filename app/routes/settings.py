@@ -80,6 +80,14 @@ def settings_home():
             flash('Theme-Einstellung gespeichert und benutzerbezogen hinterlegt.', 'success')
             return redirect(url_for('settings_web.settings_home'))
 
+        if action == 'toggle_meter_debug' and _require_admin(user):
+            preference_data['meter_debug_mode'] = request.form.get('meter_debug_mode') == 'on'
+            prefs.preferences = json.dumps(preference_data)
+            db.session.commit()
+            status = 'aktiviert' if preference_data['meter_debug_mode'] else 'deaktiviert'
+            flash(f'Messwert-Debugmodus wurde {status}.', 'info')
+            return redirect(url_for('settings_web.settings_home'))
+
         if action == 'change_password':
             current_pw = request.form.get('current_password', '')
             new_pw = request.form.get('new_password', '')

@@ -308,6 +308,7 @@ class Meter(db.Model):
     location_description = db.Column(db.String(255))
     notes = db.Column(db.Text)
     price_per_unit = db.Column(db.Float)
+    is_archived = db.Column(db.Boolean, default=False)
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -754,7 +755,11 @@ class Contract(db.Model):
 
     def get_monthly_operating_prepayment(self) -> float:
         """Hilfsfunktion für Nebenkostenabrechnungen."""
-        return float(self.operating_cost_advance or 0) + float(self.heating_advance or 0)
+        return (
+            float(self.rent_additional or 0)
+            + float(self.operating_cost_advance or 0)
+            + float(self.heating_advance or 0)
+        )
     
     
 # In models.py - Neue Models
@@ -783,6 +788,8 @@ class Notification(db.Model):
     category = db.Column(db.String(50), default='info')
     link = db.Column(db.String(255))
     is_read = db.Column(db.Boolean, default=False)
+    read_at = db.Column(db.DateTime)
+    last_shown_at = db.Column(db.DateTime, default=datetime.utcnow)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     user = db.relationship('User', backref=db.backref('notifications', lazy=True, cascade='all, delete-orphan'))

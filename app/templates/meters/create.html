@@ -28,7 +28,7 @@
                             <select class="form-select" id="meter_type_id" name="meter_type_id" required>
                                 <option value="">Bitte auswählen...</option>
                                 {% for meter_type in meter_types %}
-                                <option value="{{ meter_type.id }}">
+                                <option value="{{ meter_type.id }}" data-unit="{{ meter_type.unit }}">
                                     {{ meter_type.name }} ({{ meter_type.unit }})
                                 </option>
                                 {% endfor %}
@@ -63,7 +63,7 @@
                         </div>
 
                         <div class="col-md-6">
-                            <label for="price_per_unit" class="form-label">Preis pro Einheit (Preis/x)</label>
+                            <label for="price_per_unit" class="form-label" id="price_per_unit_label">Preis pro Einheit (Preis/x)</label>
                             <input type="number" step="0.0001" class="form-control" id="price_per_unit" name="price_per_unit" placeholder="z.B. 0.35">
                             <div class="form-text">Preis pro ausgewählter Einheit (z.B. kWh, m²)</div>
                         </div>
@@ -131,7 +131,7 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     console.log('✅ Template meters/create.html geladen');
-    
+
     // Heutiges Datum setzen
     var today = new Date().toISOString().split('T')[0];
     var installationDateField = document.getElementById('installation_date');
@@ -141,12 +141,24 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Debug-Info in Konsole
     var buildingSelect = document.getElementById('building_id');
-    if (buildingSelect) {
-        console.log('🏢 Gebäude im Dropdown: ' + (buildingSelect.options.length - 1) + ' Optionen');
-        for (let i = 1; i < buildingSelect.options.length; i++) {
-            console.log('   - ' + buildingSelect.options[i].text + ' (Value: ' + buildingSelect.options[i].value + ')');
+        if (buildingSelect) {
+            console.log('🏢 Gebäude im Dropdown: ' + (buildingSelect.options.length - 1) + ' Optionen');
+            for (let i = 1; i < buildingSelect.options.length; i++) {
+                console.log('   - ' + buildingSelect.options[i].text + ' (Value: ' + buildingSelect.options[i].value + ')');
+            }
         }
-    }
-});
-</script>
-{% endblock %}
+
+        const meterTypeSelect = document.getElementById('meter_type_id');
+        const priceLabel = document.getElementById('price_per_unit_label');
+        function updatePriceLabel() {
+            if (!meterTypeSelect || !priceLabel) return;
+            const unit = meterTypeSelect.options[meterTypeSelect.selectedIndex]?.dataset.unit || 'x';
+            priceLabel.textContent = `Preis pro Einheit (Preis/${unit})`;
+        }
+        if (meterTypeSelect && priceLabel) {
+            meterTypeSelect.addEventListener('change', updatePriceLabel);
+            updatePriceLabel();
+        }
+  });
+  </script>
+  {% endblock %}

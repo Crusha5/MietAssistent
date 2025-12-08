@@ -17,9 +17,9 @@
         {% if meters %}
         <div class="hierarchy-tree">
             {% for meter in meters %}
-                {% if meter.is_main_meter %}
+                {% if meter.is_main_meter and not meter.is_archived %}
                     <!-- Hauptzähler (Ebene 0) -->
-                    <div class="hierarchy-item main-meter mb-3 p-3 border rounded bg-light">
+                    <div class="hierarchy-item main-meter mb-3 p-3 border rounded">
                         <div class="d-flex justify-content-between align-items-center">
                             <div class="d-flex align-items-center">
                                 <i class="bi bi-house-gear text-primary me-2 fs-5"></i>
@@ -41,15 +41,21 @@
                                 <a href="{{ url_for('meters.add_submeter', meter_id=meter.id) }}" class="btn btn-outline-success" title="Unterzähler hinzufügen">
                                     <i class="bi bi-plus-lg"></i>
                                 </a>
+                                <form action="{{ url_for('meters.archive_meter', meter_id=meter.id) }}" method="POST" class="d-inline">
+                                    <input type="hidden" name="next" value="{{ request.path }}">
+                                    <button type="submit" class="btn btn-outline-warning" onclick="return confirm('Diesen Zähler archivieren?');">
+                                        <i class="bi bi-archive"></i>
+                                    </button>
+                                </form>
                             </div>
                         </div>
                         
                         <!-- Unterzähler Ebene 1 -->
-                        {% set level1_meters = meter.sub_meters %}
+                        {% set level1_meters = meter.sub_meters | rejectattr('is_archived') | list %}
                         {% if level1_meters %}
                         <div class="sub-meters level-1 mt-2 ms-4">
                             {% for level1_meter in level1_meters %}
-                            <div class="hierarchy-item sub-meter level-1 mb-2 p-2 border rounded bg-white">
+                            <div class="hierarchy-item sub-meter level-1 mb-2 p-2 border rounded">
                                 <div class="d-flex justify-content-between align-items-center">
                                     <div class="d-flex align-items-center">
                                         <i class="bi bi-arrow-return-right text-success me-2"></i>
@@ -72,15 +78,21 @@
                                         <a href="{{ url_for('meters.add_submeter', meter_id=level1_meter.id) }}" class="btn btn-outline-success">
                                             <i class="bi bi-plus-lg"></i>
                                         </a>
+                                        <form action="{{ url_for('meters.archive_meter', meter_id=level1_meter.id) }}" method="POST" class="d-inline">
+                                            <input type="hidden" name="next" value="{{ request.path }}">
+                                            <button type="submit" class="btn btn-outline-warning" onclick="return confirm('Diesen Unterzähler archivieren?');">
+                                                <i class="bi bi-archive"></i>
+                                            </button>
+                                        </form>
                                     </div>
                                 </div>
                                 
                                 <!-- Unterzähler Ebene 2 -->
-                                {% set level2_meters = level1_meter.sub_meters %}
+                                {% set level2_meters = level1_meter.sub_meters | rejectattr('is_archived') | list %}
                                 {% if level2_meters %}
                                 <div class="sub-meters level-2 mt-2 ms-4">
                                     {% for level2_meter in level2_meters %}
-                                    <div class="hierarchy-item sub-meter level-2 mb-2 p-2 border rounded bg-light bg-opacity-50">
+                                    <div class="hierarchy-item sub-meter level-2 mb-2 p-2 border rounded">
                                         <div class="d-flex justify-content-between align-items-center">
                                             <div class="d-flex align-items-center">
                                                 <i class="bi bi-arrow-return-right text-info me-2"></i>
@@ -100,6 +112,12 @@
                                                 <a href="{{ url_for('meters.edit_meter', meter_id=level2_meter.id) }}" class="btn btn-outline-secondary">
                                                     <i class="bi bi-pencil"></i>
                                                 </a>
+                                                <form action="{{ url_for('meters.archive_meter', meter_id=level2_meter.id) }}" method="POST" class="d-inline">
+                                                    <input type="hidden" name="next" value="{{ request.path }}">
+                                                    <button type="submit" class="btn btn-outline-warning" onclick="return confirm('Diesen Unterzähler archivieren?');">
+                                                        <i class="bi bi-archive"></i>
+                                                    </button>
+                                                </form>
                                             </div>
                                         </div>
                                     </div>
@@ -134,6 +152,8 @@
 
 .hierarchy-item {
     transition: all 0.2s ease;
+    background: var(--bs-card-bg);
+    border-color: var(--bs-border-color);
 }
 
 .hierarchy-item:hover {
@@ -143,14 +163,17 @@
 
 .main-meter {
     border-left: 4px solid #1e40af !important;
+    background: var(--bs-card-bg);
 }
 
 .sub-meter.level-1 {
     border-left: 4px solid #0f766e !important;
+    background: var(--bs-body-bg);
 }
 
 .sub-meter.level-2 {
     border-left: 4px solid #dc2626 !important;
+    background: var(--bs-body-bg);
 }
 
 .sub-meters.level-1 {
@@ -165,17 +188,36 @@
 
 [data-bs-theme="dark"] .hierarchy-item,
 body[data-bs-theme="dark"] .hierarchy-item {
-    background: #111827;
-    border-color: #243145;
+    background: #0f172a;
+    border-color: #1f2937;
     color: #e2e8f0;
 }
 [data-bs-theme="dark"] .hierarchy-item .text-muted,
 body[data-bs-theme="dark"] .hierarchy-item .text-muted {
     color: #cbd5e1 !important;
 }
-[data-bs-theme="dark"] .hierarchy-item.bg-light,
-body[data-bs-theme="dark"] .hierarchy-item.bg-light {
-    background: #1b2535 !important;
+[data-bs-theme="dark"] .main-meter,
+body[data-bs-theme="dark"] .main-meter {
+    border-left-color: #60a5fa !important;
+    background: #0b1626;
+}
+[data-bs-theme="dark"] .sub-meter.level-1,
+body[data-bs-theme="dark"] .sub-meter.level-1 {
+    border-left-color: #34d399 !important;
+    background: #0c1723;
+}
+[data-bs-theme="dark"] .sub-meter.level-2,
+body[data-bs-theme="dark"] .sub-meter.level-2 {
+    border-left-color: #fbbf24 !important;
+    background: #0a101c;
+}
+[data-bs-theme="dark"] .sub-meters.level-1,
+body[data-bs-theme="dark"] .sub-meters.level-1 {
+    border-color: #334155;
+}
+[data-bs-theme="dark"] .sub-meters.level-2,
+body[data-bs-theme="dark"] .sub-meters.level-2 {
+    border-color: #475569;
 }
 </style>
 {% endblock %}

@@ -47,6 +47,13 @@ def _ensure_notifications_table():
     inspector = inspect(db.engine)
     if not inspector.has_table('notifications'):
         db.create_all()
+    else:
+        columns = {col['name'] for col in inspector.get_columns('notifications')}
+        with db.engine.begin() as conn:
+            if 'read_at' not in columns:
+                conn.execute(text("ALTER TABLE notifications ADD COLUMN read_at DATETIME"))
+            if 'last_shown_at' not in columns:
+                conn.execute(text("ALTER TABLE notifications ADD COLUMN last_shown_at DATETIME"))
 
 
 def _push_notification(user_id, title, message, link=None, category='info', dedup_hours=24):
@@ -63,6 +70,8 @@ def _push_notification(user_id, title, message, link=None, category='info', dedu
         Notification.created_at >= window_start,
     ).first()
     if existing:
+        existing.last_shown_at = datetime.utcnow()
+        db.session.commit()
         return existing
 
     notif = Notification(
@@ -71,10 +80,57 @@ def _push_notification(user_id, title, message, link=None, category='info', dedu
         message=message,
         link=link,
         category=category,
+        last_shown_at=datetime.utcnow(),
     )
     db.session.add(notif)
     db.session.commit()
     return notif
+
+
+def _refresh_notification_state(user_id, remind_after_hours=24):
+    """Reaktiviert gelesene Benachrichtigungen nach Ablauf des Erinnerungsfensters."""
+    now = datetime.utcnow()
+    cutoff = now - timedelta(hours=remind_after_hours)
+
+    stale = Notification.query.filter(
+        Notification.user_id == user_id,
+        Notification.is_read.is_(True),
+        Notification.read_at <= cutoff,
+    ).all()
+
+    needs_commit = False
+    for notif in stale:
+        notif.is_read = False
+        notif.read_at = None
+        notif.last_shown_at = now
+        needs_commit = True
+
+    missing_last_shown = Notification.query.filter(
+        Notification.user_id == user_id,
+        Notification.last_shown_at.is_(None)
+    ).all()
+
+    for notif in missing_last_shown:
+        notif.last_shown_at = notif.created_at or now
+        needs_commit = True
+
+    if needs_commit:
+        db.session.commit()
+
+
+def _get_active_notifications(user_id, limit=20):
+    _ensure_notifications_table()
+    _refresh_notification_state(user_id)
+
+    items = (
+        Notification.query
+        .filter_by(user_id=user_id, is_read=False)
+        .order_by(Notification.last_shown_at.desc())
+        .limit(limit)
+        .all()
+    )
+    unread = Notification.query.filter_by(user_id=user_id, is_read=False).count()
+    return items, unread
 
 def _build_dashboard_context(user=None):
     ensure_archiving_columns()
@@ -203,8 +259,7 @@ def _build_dashboard_context(user=None):
                     category='tenant'
                 )
 
-        notifications = Notification.query.filter_by(user_id=user.id).order_by(Notification.created_at.desc()).limit(15).all()
-        unread_notifications = Notification.query.filter_by(user_id=user.id, is_read=False).count()
+        notifications, unread_notifications = _get_active_notifications(user.id, limit=15)
 
     # Datenqualität / automatische Prüfungen
     data_quality = []
@@ -216,7 +271,12 @@ def _build_dashboard_context(user=None):
         })
 
     anomaly_count = 0
-    sorted_readings = sorted(MeterReading.query.all(), key=lambda r: (r.meter_id, r.reading_date))
+    sorted_readings = sorted(
+        MeterReading.query.filter(
+            (MeterReading.is_archived.is_(False)) | (MeterReading.is_archived.is_(None))
+        ).all(),
+        key=lambda r: (r.meter_id, r.reading_date),
+    )
     last_by_meter = {}
     for reading in sorted_readings:
         previous = last_by_meter.get(reading.meter_id)
@@ -234,7 +294,10 @@ def _build_dashboard_context(user=None):
         for meter in meters:
             if meter.meter_type and 'heiz' in meter.meter_type.name.lower():
                 reading = (
-                    MeterReading.query.filter_by(meter_id=meter.id)
+                    MeterReading.query.filter(
+                        MeterReading.meter_id == meter.id,
+                        (MeterReading.is_archived.is_(False)) | (MeterReading.is_archived.is_(None)),
+                    )
                     .order_by(MeterReading.reading_date.desc())
                     .first()
                 )
@@ -365,10 +428,8 @@ def dashboard():
 @main_bp.route('/notifications')
 @login_required
 def notifications_feed():
-    _ensure_notifications_table()
     user_id = session.get('user_id')
-    items = Notification.query.filter_by(user_id=user_id).order_by(Notification.created_at.desc()).limit(20).all()
-    unread = Notification.query.filter_by(user_id=user_id, is_read=False).count()
+    items, unread = _get_active_notifications(user_id, limit=20)
 
     def serialize(n):
         return {
@@ -377,7 +438,7 @@ def notifications_feed():
             'message': n.message,
             'category': n.category,
             'link': n.link,
-            'created_at': n.created_at.strftime('%d.%m.%Y %H:%M'),
+            'created_at': (n.last_shown_at or n.created_at).strftime('%d.%m.%Y %H:%M'),
             'is_read': n.is_read,
         }
 
@@ -387,9 +448,13 @@ def notifications_feed():
 @main_bp.route('/notifications/mark-all-read', methods=['POST'])
 @login_required
 def mark_all_notifications():
-    _ensure_notifications_table()
     user_id = session.get('user_id')
-    Notification.query.filter_by(user_id=user_id, is_read=False).update({Notification.is_read: True})
+    _ensure_notifications_table()
+    now = datetime.utcnow()
+    Notification.query.filter_by(user_id=user_id, is_read=False).update({
+        Notification.is_read: True,
+        Notification.read_at: now
+    })
     db.session.commit()
     return jsonify({'success': True})
 
