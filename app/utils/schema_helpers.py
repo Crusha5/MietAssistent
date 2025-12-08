@@ -10,6 +10,7 @@ def ensure_archiving_columns():
         'protocols': {'is_archived': 'is_archived BOOLEAN DEFAULT 0'},
         'meter_readings': {'is_archived': 'is_archived BOOLEAN DEFAULT 0'},
         'documents': {'is_archived': 'is_archived BOOLEAN DEFAULT 0'},
+        'meters': {'is_archived': 'is_archived BOOLEAN DEFAULT 0'},
     }
 
     for table, defs in columns.items():

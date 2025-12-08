@@ -17,7 +17,7 @@
         {% if meters %}
         <div class="hierarchy-tree">
             {% for meter in meters %}
-                {% if meter.is_main_meter %}
+                {% if meter.is_main_meter and not meter.is_archived %}
                     <!-- Hauptzähler (Ebene 0) -->
                     <div class="hierarchy-item main-meter mb-3 p-3 border rounded bg-light">
                         <div class="d-flex justify-content-between align-items-center">
@@ -45,7 +45,7 @@
                         </div>
                         
                         <!-- Unterzähler Ebene 1 -->
-                        {% set level1_meters = meter.sub_meters %}
+                        {% set level1_meters = meter.sub_meters | rejectattr('is_archived') | list %}
                         {% if level1_meters %}
                         <div class="sub-meters level-1 mt-2 ms-4">
                             {% for level1_meter in level1_meters %}
@@ -76,7 +76,7 @@
                                 </div>
                                 
                                 <!-- Unterzähler Ebene 2 -->
-                                {% set level2_meters = level1_meter.sub_meters %}
+                                {% set level2_meters = level1_meter.sub_meters | rejectattr('is_archived') | list %}
                                 {% if level2_meters %}
                                 <div class="sub-meters level-2 mt-2 ms-4">
                                     {% for level2_meter in level2_meters %}
@@ -176,6 +176,29 @@ body[data-bs-theme="dark"] .hierarchy-item .text-muted {
 [data-bs-theme="dark"] .hierarchy-item.bg-light,
 body[data-bs-theme="dark"] .hierarchy-item.bg-light {
     background: #1b2535 !important;
+}
+[data-bs-theme="dark"] .main-meter,
+body[data-bs-theme="dark"] .main-meter {
+    border-left-color: #60a5fa !important;
+    background: #0f172a;
+}
+[data-bs-theme="dark"] .sub-meter.level-1,
+body[data-bs-theme="dark"] .sub-meter.level-1 {
+    border-left-color: #34d399 !important;
+    background: #0d1726;
+}
+[data-bs-theme="dark"] .sub-meter.level-2,
+body[data-bs-theme="dark"] .sub-meter.level-2 {
+    border-left-color: #f59e0b !important;
+    background: #0b1220;
+}
+[data-bs-theme="dark"] .sub-meters.level-1,
+body[data-bs-theme="dark"] .sub-meters.level-1 {
+    border-color: #334155;
+}
+[data-bs-theme="dark"] .sub-meters.level-2,
+body[data-bs-theme="dark"] .sub-meters.level-2 {
+    border-color: #475569;
 }
 </style>
 {% endblock %}

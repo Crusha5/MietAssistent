@@ -7,6 +7,7 @@ import uuid
 
 from flask import current_app
 from app.extensions import db
+from sqlalchemy import or_
 
 meters_bp = Blueprint('meters', __name__)
 
@@ -14,12 +15,15 @@ meters_bp = Blueprint('meters', __name__)
 @login_required
 def meters_list():
     """Zeigt alle Zähler an"""
-    meters = Meter.query.options(
+    meters = Meter.query.filter(
+        or_(Meter.is_archived == False, Meter.is_archived.is_(None))
+    ).options(
         db.joinedload(Meter.building),
         db.joinedload(Meter.meter_type),
-        db.joinedload(Meter.apartment)
+        db.joinedload(Meter.apartment),
+        db.joinedload(Meter.sub_meters)
     ).all()
-    
+
     return render_template('meters/list.html', meters=meters)
 
 @meters_bp.route('/create', methods=['GET', 'POST'])
@@ -186,7 +190,8 @@ def edit_meter(meter_id):
     # Alle Hauptzähler als mögliche Parent-Zähler
     parent_meters = Meter.query.filter(
         Meter.id != meter_id,
-        Meter.is_main_meter == True
+        Meter.is_main_meter == True,
+        or_(Meter.is_archived == False, Meter.is_archived.is_(None))
     ).options(
         db.joinedload(Meter.building)
     ).all()
@@ -235,6 +240,28 @@ def edit_meter(meter_id):
                          meter_types=meter_types,
                          parent_meters=parent_meters,
                          next_url=next_url)
+
+
+@meters_bp.route('/<meter_id>/archive', methods=['POST'])
+@login_required
+def archive_meter(meter_id):
+    """Archiviert oder reaktiviert einen Zähler."""
+    meter = Meter.query.get_or_404(meter_id)
+    action = request.form.get('action', 'archive')
+    next_url = request.form.get('next')
+
+    try:
+        meter.is_archived = action == 'archive'
+        db.session.commit()
+        flash('✅ Zähler archiviert.' if meter.is_archived else '♻️ Zähler reaktiviert.', 'success')
+    except Exception as exc:
+        db.session.rollback()
+        current_app.logger.error('Fehler beim (Re-)Aktivieren des Zählers: %s', exc, exc_info=True)
+        flash(f'❌ Zähler konnte nicht aktualisiert werden: {exc}', 'danger')
+
+    if next_url:
+        return redirect(next_url)
+    return redirect(url_for('meters.edit_meter', meter_id=meter_id))
 
 @meters_bp.route('/<meter_id>/delete', methods=['POST'])
 @login_required

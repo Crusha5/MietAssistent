@@ -308,6 +308,7 @@ class Meter(db.Model):
     location_description = db.Column(db.String(255))
     notes = db.Column(db.Text)
     price_per_unit = db.Column(db.Float)
+    is_archived = db.Column(db.Boolean, default=False)
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

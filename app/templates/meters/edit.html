@@ -7,11 +7,40 @@
     <div class="col-lg-10">
         <div class="card border-0 shadow-sm">
             <div class="card-header bg-primary text-white">
-                <h5 class="card-title mb-0">
-                    <i class="bi bi-pencil-square me-2"></i>Zähler bearbeiten: {{ meter.meter_number }}
-                </h5>
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0 d-flex align-items-center gap-2">
+                        <span><i class="bi bi-pencil-square me-2"></i>Zähler bearbeiten: {{ meter.meter_number }}</span>
+                        {% if meter.is_archived %}
+                            <span class="badge bg-warning text-dark">Archiviert</span>
+                        {% endif %}
+                    </h5>
+                    <form method="POST" action="{{ url_for('meters.archive_meter', meter_id=meter.id) }}" class="d-flex align-items-center gap-2 m-0">
+                        {% if next_url %}
+                        <input type="hidden" name="next" value="{{ next_url }}">
+                        {% endif %}
+                        {% if meter.is_archived %}
+                            <input type="hidden" name="action" value="restore">
+                            <button type="submit" class="btn btn-outline-light btn-sm">
+                                <i class="bi bi-arrow-counterclockwise me-1"></i>Reaktivieren
+                            </button>
+                        {% else %}
+                            <input type="hidden" name="action" value="archive">
+                            <button type="submit" class="btn btn-outline-light btn-sm" onclick="return confirm('Zähler archivieren? Zukünftige Berechnungen berücksichtigen den Zähler nicht mehr.');">
+                                <i class="bi bi-archive me-1"></i>Archivieren
+                            </button>
+                        {% endif %}
+                    </form>
+                </div>
             </div>
             <div class="card-body">
+                {% if meter.is_archived %}
+                <div class="alert alert-warning d-flex align-items-center" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    <div class="flex-grow-1">
+                        Dieser Zähler ist archiviert und wird in Listen und Berechnungen ausgeblendet, bis er reaktiviert wird.
+                    </div>
+                </div>
+                {% endif %}
                 <form method="POST" action="{{ url_for('meters.edit_meter', meter_id=meter.id, next=next_url) }}">
                     {% if next_url %}
                     <input type="hidden" name="next" value="{{ next_url }}">

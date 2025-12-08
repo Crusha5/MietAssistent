@@ -497,9 +497,23 @@ def _calculate_settlement(apartment_id, period_start, period_end):
         costs.append(cost)
 
     # Zählerverbräuche vorbereiten
-    meters = Meter.query.filter_by(building_id=apartment.building_id).all()
-    meter_consumptions = {}
+    meters = (
+        Meter.query.filter(
+            Meter.building_id == apartment.building_id,
+            or_(Meter.is_archived == False, Meter.is_archived.is_(None)),
+        )
+        .options(db.joinedload(Meter.sub_meters))
+        .all()
+    )
+    relevant_meters = []
     for meter in meters:
+        belongs_to_apartment = meter.apartment_id == apartment.id
+        is_standalone_main = meter.is_main_meter and not meter.sub_meters and meter.apartment_id is None
+        if belongs_to_apartment or is_standalone_main:
+            relevant_meters.append(meter)
+
+    meter_consumptions = {}
+    for meter in relevant_meters:
         consumption, start_read, end_read = _get_consumption(meter, period_start, period_end)
         price_per_unit = meter.price_per_unit if meter.price_per_unit not in (None, '') else None
         tenant_share = None
