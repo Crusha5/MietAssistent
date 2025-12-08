@@ -517,8 +517,7 @@ def _calculate_settlement(apartment_id, period_start, period_end):
     relevant_meters = []
     for meter in meters:
         belongs_to_apartment = meter.apartment_id == apartment.id
-        is_standalone_main = meter.is_main_meter and not meter.sub_meters and meter.apartment_id is None
-        if belongs_to_apartment or is_standalone_main:
+        if belongs_to_apartment:
             relevant_meters.append(meter)
 
     meter_consumptions = {}

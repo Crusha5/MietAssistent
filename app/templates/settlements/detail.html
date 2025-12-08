@@ -167,7 +167,15 @@
                 </div>
                 <hr>
                 <h6>Verbrauchszähler</h6>
-                {% set consumption_meters = (settlement.consumption_details or []) | selectattr('apartment_id', 'equalto', settlement.apartment_id) | list %}
+                {% set consumption_ns = namespace(items=[]) %}
+                {% for meter in settlement.consumption_details or [] %}
+                    {% set meter_apartment_id = meter.get('apartment_id') %}
+                    {% set meter_apartment_number = meter.get('apartment_number') %}
+                    {% if meter_apartment_id == settlement.apartment_id or (apartment and meter_apartment_number and meter_apartment_number == apartment.apartment_number) %}
+                        {% set _ = consumption_ns.items.append(meter) %}
+                    {% endif %}
+                {% endfor %}
+                {% set consumption_meters = consumption_ns.items %}
                 <div class="table-responsive">
                     <table class="table table-sm">
                         <thead>
