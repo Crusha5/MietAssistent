@@ -4,6 +4,7 @@ from flask_cors import CORS
 from flask_swagger_ui import get_swaggerui_blueprint
 from datetime import datetime
 import os
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 # Import extensions from extensions module
 from app.extensions import db, jwt
@@ -13,14 +14,17 @@ from app.utils.audit import register_audit_listeners
 
 def create_app():
     app = Flask(__name__)
-    
+
+    # HTTPS-/Proxy-Handling immer im Factory-Kontext konfigurieren
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1, x_prefix=1)
+
     # Configuration
-    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-me')
     data_dir = os.path.abspath('data')
     os.makedirs(data_dir, exist_ok=True)
 
     upload_root = os.path.abspath(os.environ.get('UPLOAD_ROOT') or '/uploads')
     protocol_dir = os.path.abspath(os.environ.get('UPLOAD_FOLDER') or os.path.join(upload_root, 'protocolls'))
+    preferred_scheme = os.environ.get('PREFERRED_URL_SCHEME', 'https')
 
     # Verzeichnisse vorbereiten (Warnung statt Fallback bei fehlenden Rechten)
     try:
@@ -31,20 +35,24 @@ def create_app():
     except PermissionError:
         print(f"❌ Keine Berechtigung für Upload-Verzeichnisse unter {upload_root}. Bitte Mount/Owner prüfen.")
 
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(data_dir, 'rental.db')
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'jwt-secret-key-change-me')
-    app.config['UPLOAD_ROOT'] = upload_root
-    app.config['UPLOAD_FOLDER'] = protocol_dir
-    app.config['PREFERRED_URL_SCHEME'] = os.environ.get('PREFERRED_URL_SCHEME', 'https')
-    app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
-    
-    # Session Configuration
-    app.config['SESSION_TYPE'] = 'filesystem'
-    app.config['SESSION_PERMANENT'] = False
-    app.config['SESSION_USE_SIGNER'] = True
-    app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # 1 Stunde
-    app.config['SESSION_KEY_PREFIX'] = 'mietassistent_'
+    app.config.update(
+        SECRET_KEY=os.environ.get('SECRET_KEY', 'dev-secret-key-change-me'),
+        SQLALCHEMY_DATABASE_URI='sqlite:///' + os.path.join(data_dir, 'rental.db'),
+        SQLALCHEMY_TRACK_MODIFICATIONS=False,
+        JWT_SECRET_KEY=os.environ.get('JWT_SECRET_KEY', 'jwt-secret-key-change-me'),
+        UPLOAD_ROOT=upload_root,
+        UPLOAD_FOLDER=protocol_dir,
+        PREFERRED_URL_SCHEME=preferred_scheme,
+        MAX_CONTENT_LENGTH=16 * 1024 * 1024,  # 16MB max file size
+        SESSION_TYPE='filesystem',
+        SESSION_PERMANENT=False,
+        SESSION_USE_SIGNER=True,
+        PERMANENT_SESSION_LIFETIME=3600,  # 1 Stunde
+        SESSION_KEY_PREFIX='mietassistent_',
+        SESSION_COOKIE_SECURE=preferred_scheme == 'https',
+        SESSION_COOKIE_SAMESITE='Lax',
+        SESSION_COOKIE_HTTPONLY=True,
+    )
     
     # Initialize extensions with app
     db.init_app(app)
