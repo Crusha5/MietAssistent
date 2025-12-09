@@ -13,7 +13,7 @@ def web_login():
         
         user = User.query.filter_by(username=username).first()
         
-        if user and not user.is_active:
+        if user and user.is_active is False:
             flash('Dieser Benutzer ist inaktiv und kann sich nicht anmelden. Bitte wenden Sie sich an einen Administrator.', 'danger')
             return render_template('auth/login.html', error='Ihr Konto ist inaktiv.')
 
@@ -35,7 +35,7 @@ def api_login():
     
     user = User.query.filter_by(username=data['username']).first()
     
-    if user and not user.is_active:
+    if user and user.is_active is False:
         return jsonify({'error': 'Konto ist inaktiv. Bitte Administrator kontaktieren.'}), 403
 
     if user and user.check_password(data['password']):
