@@ -16,7 +16,7 @@ def create_app():
     app = Flask(__name__)
 
     # HTTPS-/Proxy-Handling immer im Factory-Kontext konfigurieren
-    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1, x_prefix=1)
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1, x_port=1)
 
     # Configuration
     data_dir = os.path.abspath('data')
@@ -49,9 +49,12 @@ def create_app():
         SESSION_USE_SIGNER=True,
         PERMANENT_SESSION_LIFETIME=3600,  # 1 Stunde
         SESSION_KEY_PREFIX='mietassistent_',
-        SESSION_COOKIE_SECURE=preferred_scheme == 'https',
+        SESSION_COOKIE_SECURE=True,
         SESSION_COOKIE_SAMESITE='Lax',
         SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_DOMAIN=None,
+        JWT_COOKIE_SECURE=True,
+        JWT_COOKIE_SAMESITE='Lax',
     )
     
     # Initialize extensions with app

@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, session, request, flash, jsonify
+from flask import Blueprint, render_template, redirect, url_for, session, request, flash, jsonify, current_app
 from app.models import User, Apartment, Tenant, Building, Meter, MeterType, MeterReading, Document, Contract, Protocol, OperatingCost, Income, DueDate, MaintenanceTask, Notification, Settlement
 from datetime import datetime, timedelta, date
 import uuid
@@ -26,6 +26,7 @@ def login_required(f):
     from functools import wraps
     @wraps(f)
     def decorated_function(*args, **kwargs):
+        current_app.logger.info(f"LOGIN REQUIRED CHECK, session keys: {list(session.keys())}")
         ensure_user_landlord_flag()
         if 'user_id' not in session:
             flash('Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.', 'warning')
@@ -416,6 +417,7 @@ def project_overview():
 @login_required
 def dashboard():
     user_id = session.get('user_id')
+    current_app.logger.info(f"DASHBOARD ACCESS, session keys: {list(session.keys())}")
     user = User.query.get(user_id)
     context = _build_dashboard_context(user=user)
 
