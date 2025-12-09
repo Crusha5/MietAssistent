@@ -1,12 +1,6 @@
-<!DOCTYPE html>
-<html lang="de">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Erste Einheit - MietAssistent Setup</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/setup.css') }}">
-</head>
-<body>
+{% extends 'setup/layout.html' %}
+{% block title %}Erste Einheit - MietAssistent Setup{% endblock %}
+{% block content %}
     <div class="setup-shell">
         <div class="setup-card">
             <div class="setup-topbar"></div>
@@ -95,7 +89,9 @@
             <div id="message" class="setup-info" style="display:none;"></div>
         </div>
     </div>
+{% endblock %}
 
+{% block scripts %}
     <script>
         const unitTypeDescriptions = {
             'wohnung': '<strong>Wohnung:</strong> Vollwertige Mieteinheit mit Wohn- und Aufenthaltsfunktion. Enthält Küche und Bad.',
@@ -193,5 +189,4 @@
 
         unitTypeSelect.dispatchEvent(new Event('change'));
     </script>
-</body>
-</html>
+{% endblock %}

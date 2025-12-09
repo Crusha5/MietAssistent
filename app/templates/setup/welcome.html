@@ -1,12 +1,6 @@
-<!DOCTYPE html>
-<html lang="de">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Setup - MietAssistent</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/setup.css') }}">
-</head>
-<body>
+{% extends 'setup/layout.html' %}
+{% block title %}Setup - MietAssistent{% endblock %}
+{% block content %}
     <div class="setup-shell">
         <div class="setup-card">
             <div class="setup-topbar"></div>
@@ -28,5 +22,4 @@
             </div>
         </div>
     </div>
-</body>
-</html>
+{% endblock %}

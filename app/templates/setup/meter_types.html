@@ -1,68 +1,81 @@
-<!DOCTYPE html>
-<html lang="de">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zählertypen einrichten</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/setup.css') }}">
-</head>
-<body>
+{% extends 'setup/layout.html' %}
+{% block title %}Zählertypen - MietAssistent Setup{% endblock %}
+{% block content %}
     <div class="setup-shell">
         <div class="setup-card">
             <div class="setup-topbar"></div>
             <div class="setup-header">
                 <span class="setup-badge">Schritt 4 von 4</span>
-                <h1 class="setup-title">Standard-Zählertypen</h1>
-                <p class="setup-subtitle">Wir legen die gängigen Zählertypen automatisch für dich an.</p>
+                <h1 class="setup-title">Zählertypen hinzufügen</h1>
+                <p class="setup-subtitle">Definiere die wichtigsten Zählertypen für dein Objekt.</p>
             </div>
 
-            <ul class="setup-list">
-                <li><span>✅</span><span>Strom & Allgemeinstrom</span></li>
-                <li><span>✅</span><span>Wasser, Heizung und Gas</span></li>
-                <li><span>✅</span><span>Wärmepumpe, Wallbox, PV-Einspeisung</span></li>
-            </ul>
-
-            <form id="meterTypesForm" class="form-footer setup-actions">
-                <a href="{{ url_for('setup.setup_apartment') }}" class="setup-btn secondary">Zurück</a>
-                <button type="submit" class="setup-btn">Zählertypen anlegen</button>
+            <form id="meterTypeForm" class="form-grid">
+                <div class="form-group">
+                    <label for="name">Zählertyp *</label>
+                    <input type="text" id="name" name="name" required placeholder="Strom, Wasser, Heizung ...">
+                </div>
+                <div class="form-group">
+                    <label for="unit">Einheit *</label>
+                    <input type="text" id="unit" name="unit" required placeholder="kWh, m³, kJ ...">
+                </div>
+                <div class="form-group">
+                    <label for="description">Beschreibung</label>
+                    <input type="text" id="description" name="description" placeholder="optional">
+                </div>
             </form>
 
-            <div id="meterMessage" class="setup-info" style="display:none;"></div>
+            <div class="form-footer setup-actions">
+                <a href="{{ url_for('setup.setup_apartment') }}" class="setup-btn secondary">Zurück</a>
+                <button type="submit" form="meterTypeForm" class="setup-btn">Zählertyp speichern</button>
+            </div>
+
+            <div id="message" class="setup-info" style="display:none;"></div>
         </div>
     </div>
+{% endblock %}
 
+{% block scripts %}
     <script>
-        const meterForm = document.getElementById('meterTypesForm');
-        const meterMessage = document.getElementById('meterMessage');
+        const meterTypeForm = document.getElementById('meterTypeForm');
+        const messageBox = document.getElementById('message');
 
-        meterForm.addEventListener('submit', async (e) => {
+        meterTypeForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const submitBtn = meterForm.querySelector('button[type="submit"]');
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'Lege an...';
+            const formData = new FormData(meterTypeForm);
+            const data = Object.fromEntries(formData.entries());
 
             try {
                 const response = await fetch('/setup/meter-types', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({})
+                    body: JSON.stringify(data)
                 });
+
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    throw new Error(`Server antwortete mit: ${text.substring(0, 100)}...`);
+                }
 
                 const result = await response.json();
                 if (result.success) {
-                    window.location.href = '/setup/complete';
+                    showMessage('Zählertyp gespeichert. Setup abgeschlossen!', false);
+                    setTimeout(() => window.location.href = '/setup/complete', 1200);
                 } else {
-                    throw new Error(result.message || 'Unbekannter Fehler');
+                    showMessage('Fehler: ' + result.message, true);
                 }
             } catch (error) {
-                meterMessage.style.display = 'block';
-                meterMessage.textContent = 'Fehler: ' + error.message;
-                meterMessage.style.borderColor = '#e74c3c';
-                meterMessage.style.background = '#fdecea';
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Zählertypen anlegen';
+                showMessage('Fehler beim Anlegen des Zählertyps: ' + error.message, true);
+                console.error('Fehlerdetails:', error);
             }
         });
+
+        function showMessage(text, isError) {
+            messageBox.style.display = 'block';
+            messageBox.textContent = text;
+            messageBox.style.borderColor = isError ? '#e74c3c' : 'var(--setup-primary)';
+            messageBox.style.background = isError ? '#fdecea' : '#f0f4ff';
+        }
     </script>
-</body>
-</html>
+{% endblock %}

@@ -1,51 +1,49 @@
-<!DOCTYPE html>
-<html lang="de">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gebäude einrichten</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/setup.css') }}">
-</head>
-<body>
+{% extends 'setup/layout.html' %}
+{% block title %}Gebäude anlegen - MietAssistent Setup{% endblock %}
+{% block content %}
     <div class="setup-shell">
         <div class="setup-card">
             <div class="setup-topbar"></div>
             <div class="setup-header">
                 <span class="setup-badge">Schritt 2 von 4</span>
-                <h1 class="setup-title">Gebäude anlegen</h1>
-                <p class="setup-subtitle">Bitte gib die Stammdaten deines ersten Gebäudes an.</p>
+                <h1 class="setup-title">Erstes Gebäude anlegen</h1>
+                <p class="setup-subtitle">Lege dein erstes Gebäude an, das du verwaltest.</p>
             </div>
 
             <form id="buildingForm" class="form-grid">
                 <div class="form-group">
-                    <label for="name">Gebäudename *</label>
-                    <input type="text" id="name" name="name" required placeholder="z.B. Haus am See">
-                </div>
-                <div class="form-group">
-                    <label for="year_built">Baujahr</label>
-                    <input type="number" id="year_built" name="year_built" min="1900" max="2035" placeholder="1990">
+                    <label for="name">Gebäude-Name *</label>
+                    <input type="text" id="name" name="name" required placeholder="z.B. Hauptstraße 12">
                 </div>
                 <div class="form-group">
                     <label for="street">Straße *</label>
-                    <input type="text" id="street" name="street" required placeholder="Musterstraße">
+                    <input type="text" id="street" name="street" required>
                 </div>
                 <div class="form-group">
                     <label for="street_number">Hausnummer *</label>
-                    <input type="text" id="street_number" name="street_number" required placeholder="10a">
+                    <input type="text" id="street_number" name="street_number" required>
                 </div>
                 <div class="form-group">
                     <label for="zip_code">PLZ *</label>
-                    <input type="text" id="zip_code" name="zip_code" required placeholder="12345">
+                    <input type="text" id="zip_code" name="zip_code" required>
                 </div>
                 <div class="form-group">
                     <label for="city">Stadt *</label>
-                    <input type="text" id="city" name="city" required placeholder="Musterstadt">
+                    <input type="text" id="city" name="city" required>
+                </div>
+                <div class="form-group">
+                    <label for="country">Land</label>
+                    <input type="text" id="country" name="country" value="Deutschland">
+                </div>
+                <div class="form-group">
+                    <label for="year_built">Baujahr</label>
+                    <input type="number" id="year_built" name="year_built" min="1600" max="2025">
                 </div>
                 <div class="form-group">
                     <label for="total_area_sqm">Gesamtfläche (m²)</label>
-                    <input type="number" step="0.01" id="total_area_sqm" name="total_area_sqm" placeholder="500.00">
+                    <input type="number" id="total_area_sqm" name="total_area_sqm" step="0.1">
                 </div>
-                <div class="form-group">
+                <div class="form-group" style="grid-column: 1 / -1;">
                     <label for="energy_efficiency_class">Energieeffizienzklasse</label>
                     <select id="energy_efficiency_class" name="energy_efficiency_class">
                         <option value="">Bitte wählen</option>
@@ -57,35 +55,29 @@
                         <option value="E">E</option>
                         <option value="F">F</option>
                         <option value="G">G</option>
-                        <option value="H">H</option>
                     </select>
                 </div>
             </form>
 
             <div class="form-footer setup-actions">
                 <a href="{{ url_for('setup.setup_admin') }}" class="setup-btn secondary">Zurück</a>
-                <button type="submit" form="buildingForm" class="setup-btn">Weiter</button>
+                <button type="submit" form="buildingForm" class="setup-btn">Gebäude anlegen</button>
             </div>
 
-            <div id="buildingMessage" class="setup-info" style="display:none;"></div>
+            <div id="message" class="setup-info" style="display:none;"></div>
         </div>
     </div>
+{% endblock %}
 
+{% block scripts %}
     <script>
         const buildingForm = document.getElementById('buildingForm');
-        const buildingMessage = document.getElementById('buildingMessage');
+        const messageBox = document.getElementById('message');
 
         buildingForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const formData = new FormData(buildingForm);
             const data = Object.fromEntries(formData.entries());
-
-            if (data.year_built) data.year_built = parseInt(data.year_built, 10);
-            if (data.total_area_sqm) data.total_area_sqm = parseFloat(data.total_area_sqm);
-
-            const submitBtn = buildingForm.querySelector('button[type="submit"]');
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'Speichere...';
 
             try {
                 const response = await fetch('/setup/building', {
@@ -94,22 +86,30 @@
                     body: JSON.stringify(data)
                 });
 
-                const result = await response.json();
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    throw new Error(`Server antwortete mit: ${text.substring(0, 100)}...`);
+                }
 
+                const result = await response.json();
                 if (result.success) {
-                    window.location.href = '/setup/apartment';
+                    showMessage('Gebäude erfolgreich angelegt! Weiterleitung...', false);
+                    setTimeout(() => window.location.href = '/setup/apartment', 1200);
                 } else {
-                    throw new Error(result.message || 'Unbekannter Fehler');
+                    showMessage('Fehler: ' + result.message, true);
                 }
             } catch (error) {
-                buildingMessage.style.display = 'block';
-                buildingMessage.textContent = 'Fehler: ' + error.message;
-                buildingMessage.style.borderColor = '#e74c3c';
-                buildingMessage.style.background = '#fdecea';
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Weiter';
+                showMessage('Fehler beim Anlegen des Gebäudes: ' + error.message, true);
+                console.error('Fehlerdetails:', error);
             }
         });
+
+        function showMessage(text, isError) {
+            messageBox.style.display = 'block';
+            messageBox.textContent = text;
+            messageBox.style.borderColor = isError ? '#e74c3c' : 'var(--setup-primary)';
+            messageBox.style.background = isError ? '#fdecea' : '#f0f4ff';
+        }
     </script>
-</body>
-</html>
+{% endblock %}

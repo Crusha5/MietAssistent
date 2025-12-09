@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}MietAssistent Setup{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <!-- Spezieller Setup-Stylesheet mit Fallback bei Ladefehlern -->
+    <link id="setupStylesheet" rel="stylesheet" href="{{ url_for('static', filename='css/setup.css') }}" onerror="document.body.classList.add('setup-fallback');">
+    <style>
+        /* Fallback-Styling falls setup.css nicht geladen werden kann */
+        body.setup-fallback {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            margin: 16px;
+            background: #f5f5f5;
+            color: #1f2b3d;
+        }
+        body.setup-fallback .setup-card {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 16px;
+            border: 1px solid #dcdfe6;
+            border-radius: 12px;
+            background: #fff;
+        }
+    </style>
+</head>
+<body>
+    {% block content %}{% endblock %}
+    {% block scripts %}{% endblock %}
+</body>
+</html>

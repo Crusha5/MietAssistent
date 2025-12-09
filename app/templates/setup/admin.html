@@ -1,12 +1,6 @@
-<!DOCTYPE html>
-<html lang="de">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Account - Setup</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/setup.css') }}">
-</head>
-<body>
+{% extends 'setup/layout.html' %}
+{% block title %}Admin Account - Setup{% endblock %}
+{% block content %}
     <div class="setup-shell">
         <div class="setup-card">
             <div class="setup-topbar"></div>
@@ -39,26 +33,25 @@
             <div id="message" class="setup-info" style="display:none;"></div>
         </div>
     </div>
+{% endblock %}
 
+{% block scripts %}
     <script>
-        const messageBox = document.getElementById('message');
         const adminForm = document.getElementById('adminForm');
+        const messageBox = document.getElementById('message');
 
-        adminForm.addEventListener('submit', async function(e) {
+        adminForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-
-            const formData = new FormData(this);
+            const formData = new FormData(adminForm);
             const data = {
-                username: formData.get('username'),
-                password: formData.get('password')
+                username: formData.get('username').trim(),
+                password: formData.get('password'),
+                confirm_password: formData.get('confirm_password')
             };
 
-            const confirmPassword = formData.get('confirm_password');
-
-            if (data.password !== confirmPassword) {
+            if (data.password !== data.confirm_password) {
                 return showMessage('Passwörter stimmen nicht überein', true);
             }
-
             if (!data.password || data.password.length < 6) {
                 return showMessage('Passwort muss mindestens 6 Zeichen lang sein', true);
             }
@@ -97,5 +90,4 @@
             messageBox.style.background = isError ? '#fdecea' : '#f0f4ff';
         }
     </script>
-</body>
-</html>
+{% endblock %}
