@@ -33,7 +33,8 @@ def setup_admin():
                 email=data.get('email', ''),
                 first_name=data.get('first_name', ''),
                 last_name=data.get('last_name', ''),
-                role='admin'
+                role='admin',
+                is_active=True
             )
             admin_user.set_password(data['password'])
             

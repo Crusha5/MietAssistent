@@ -15,18 +15,27 @@ meters_bp = Blueprint('meters', __name__)
 @login_required
 def meters_list():
     """Zeigt alle Zähler an"""
-    meters = Meter.query.options(
+    # Stelle sicher, dass wir immer frische Daten aus der DB bekommen
+    db.session.expire_all()
+
+    meters = Meter.query.filter(
+        or_(
+            Meter.is_archived.is_(False),
+            Meter.is_archived.is_(None),
+            Meter.is_archived == 0,
+            Meter.is_archived == '0',
+            Meter.is_archived == 'false',
+            Meter.is_archived == 'False'
+        )
+    ).options(
         db.joinedload(Meter.building),
         db.joinedload(Meter.meter_type),
         db.joinedload(Meter.apartment),
         db.joinedload(Meter.sub_meters)
-    ).filter(
-        or_(
-            Meter.is_archived.is_(False),
-            Meter.is_archived.is_(None),
-            Meter.is_archived == 0  # safety for non-boolean legacy values
-        )
     ).order_by(Meter.building_id, Meter.meter_number).all()
+
+    for meter in meters:
+        meter._children = []
 
     meter_map = {m.id: m for m in meters}
     children_map = {m_id: [] for m_id in meter_map.keys()}
@@ -50,7 +59,6 @@ def meters_list():
 
     buildings = {m.building_id: m.building for m in meter_map.values() if m.building}
 
-    # Ensure we have a placeholder section for meters without a valid building relation
     if any(b_id is None for b_id in roots_by_building.keys()):
         class _Placeholder:
             name = 'Ohne Gebäude'
@@ -108,6 +116,7 @@ def create_meter():
                 
                 db.session.add(meter)
                 db.session.commit()
+                db.session.expire_all()
                 
                 flash('✅ Hauptzähler erfolgreich angelegt!', 'success')
                 return redirect(url_for('meters.meters_list'))
@@ -392,9 +401,10 @@ def add_submeter(meter_id):
                 notes=request.form.get('notes', '').strip(),
                 price_per_unit=price_per_unit,
             )
-            
+
             db.session.add(submeter)
             db.session.commit()
+            db.session.expire_all()
             flash('✅ Unterzähler erfolgreich angelegt!', 'success')
             return redirect(url_for('meters.meter_detail', meter_id=parent_meter.id))
             
@@ -638,10 +648,11 @@ def create_meter_api():
             notes=data.get('notes', ''),
             price_per_unit=price_per_unit,
         )
-        
+
         db.session.add(meter)
         db.session.commit()
-        
+        db.session.expire_all()
+
         return jsonify({
             'message': 'Zähler erfolgreich angelegt',
             'id': meter.id
