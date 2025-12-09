@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, render_template, redirect, url_for, session, flash
+from flask import Blueprint, request, jsonify, render_template, redirect, url_for, session, flash, current_app
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from sqlalchemy import func, or_
 from app.models import User
@@ -31,6 +31,9 @@ def web_login():
             session['user_id'] = user.id
             session['username'] = user.username
             session['role'] = user.role or 'user'
+            current_app.logger.info(
+                f"LOGIN SUCCESS for user {user.id}, session keys: {list(session.keys())}"
+            )
             return redirect(url_for('main.dashboard'))
         
         return render_template('auth/login.html', error='Ungültige Anmeldedaten')

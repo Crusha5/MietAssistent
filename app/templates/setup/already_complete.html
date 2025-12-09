@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Setup bereits abgeschlossen</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/setup.css') }}">
+</head>
+<body>
+    <div class="setup-shell">
+        <div class="setup-card" style="text-align:center;">
+            <div class="setup-topbar"></div>
+            <div class="setup-header" style="align-items:center;">
+                <span class="setup-badge">Setup</span>
+                <h1 class="setup-title">Setup bereits abgeschlossen</h1>
+                <p class="setup-subtitle">Ein Benutzer existiert bereits. Bitte melde dich an.</p>
+            </div>
+            <div style="font-size:42px; margin:10px 0;">ℹ️</div>
+            <div class="setup-actions" style="justify-content:center;">
+                <a href="/auth/login" class="setup-btn">Zur Anmeldung</a>
+                <a href="/" class="setup-btn secondary">Zur Startseite</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

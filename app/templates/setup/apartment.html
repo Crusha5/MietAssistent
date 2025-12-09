@@ -4,117 +4,32 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Erste Einheit - MietAssistent Setup</title>
-    <style>
-        body { 
-            font-family: Arial, sans-serif; 
-            max-width: 700px; 
-            margin: 50px auto; 
-            padding: 20px;
-            background: #f5f5f5;
-        }
-        .container {
-            background: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .form-group { margin: 15px 0; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; }
-        input, select { 
-            width: 100%; 
-            padding: 10px; 
-            border: 1px solid #ddd; 
-            border-radius: 5px; 
-            box-sizing: border-box;
-        }
-        .btn { 
-            background: #3498db; 
-            color: white; 
-            padding: 12px 30px; 
-            border: none; 
-            border-radius: 5px; 
-            cursor: pointer;
-            font-size: 16px;
-            width: 100%;
-            margin-top: 10px;
-        }
-        .btn:hover { background: #2980b9; }
-        .error { 
-            color: red; 
-            margin-top: 10px; 
-            padding: 10px;
-            background: #ffe6e6;
-            border-radius: 5px;
-            border: 1px solid #ffcccc;
-        }
-        .success { 
-            color: green; 
-            margin-top: 10px; 
-            padding: 10px;
-            background: #e6ffe6;
-            border-radius: 5px;
-            border: 1px solid #ccffcc;
-        }
-        .form-row {
-            display: flex;
-            gap: 15px;
-        }
-        .form-row .form-group {
-            flex: 1;
-        }
-        .unit-type-info {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 5px;
-            margin: 15px 0;
-            font-size: 0.9em;
-            border-left: 4px solid #3498db;
-        }
-        .building-info {
-            background: #e8f4fd;
-            padding: 15px;
-            border-radius: 5px;
-            margin: 15px 0;
-            border-left: 4px solid #1e40af;
-        }
-        .feature-checkboxes {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 10px;
-            margin: 15px 0;
-        }
-        .feature-checkbox {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .feature-checkbox input {
-            width: auto;
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/setup.css') }}">
 </head>
 <body>
-    <div class="container">
-        <h1>🏠 Erste Einheit anlegen</h1>
-        
-        {% if building %}
-        <div class="building-info">
-            <strong>Gebäude:</strong> {{ building.name }}<br>
-            <strong>Adresse:</strong> {{ building.street }} {{ building.street_number }}, {{ building.zip_code }} {{ building.city }}
-        </div>
-        {% endif %}
-        
-        <p>Legen Sie Ihre erste Mieteinheit im Gebäude an. Wählen Sie den passenden Einheitentyp und die entsprechenden Merkmale.</p>
-        
-        <form id="apartmentForm">
-            <div class="form-row">
+    <div class="setup-shell">
+        <div class="setup-card">
+            <div class="setup-topbar"></div>
+            <div class="setup-header">
+                <span class="setup-badge">Schritt 3 von 4</span>
+                <h1 class="setup-title">Erste Einheit anlegen</h1>
+                <p class="setup-subtitle">Lege deine erste Mieteinheit im gewählten Gebäude an.</p>
+            </div>
+
+            {% if building %}
+            <div class="setup-info">
+                <strong>Gebäude:</strong> {{ building.name }}<br>
+                <strong>Adresse:</strong> {{ building.street }} {{ building.street_number }}, {{ building.zip_code }} {{ building.city }}
+            </div>
+            {% endif %}
+
+            <form id="apartmentForm" class="form-grid">
                 <div class="form-group">
-                    <label for="apartment_number">Einheiten-Nummer *:</label>
-                    <input type="text" id="apartment_number" name="apartment_number" required placeholder="z.B. 1, EG-Links, A1, Garage-1">
+                    <label for="apartment_number">Einheiten-Nummer *</label>
+                    <input type="text" id="apartment_number" name="apartment_number" required placeholder="z.B. EG-Links">
                 </div>
-                
                 <div class="form-group">
-                    <label for="unit_type">Einheitentyp *:</label>
+                    <label for="unit_type">Einheitentyp *</label>
                     <select id="unit_type" name="unit_type" required>
                         <option value="wohnung">Wohnung</option>
                         <option value="gewerbe">Gewerbeeinheit</option>
@@ -132,188 +47,151 @@
                         <option value="gemeinschaftsraum">Gemeinschaftsraum</option>
                     </select>
                 </div>
-            </div>
-
-            <div class="unit-type-info" id="unitTypeInfo">
-                <strong>Wohnung:</strong> Vollwertige Mieteinheit mit Wohn- und Aufenthaltsfunktion. Enthaltet Küche, Bad und Wohnräume.
-            </div>
-
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="floor">Etage / Lage:</label>
-                    <input type="text" id="floor" name="floor" placeholder="z.B. EG, 1, 2, DG, Untergeschoss">
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <div id="unitTypeInfo" class="setup-info" style="margin-top:0;">Wähle einen Einheitentyp.</div>
                 </div>
-                
                 <div class="form-group">
-                    <label for="area_sqm">Fläche (m²) *:</label>
+                    <label for="floor">Etage / Lage</label>
+                    <input type="text" id="floor" name="floor" placeholder="EG, 1, DG ...">
+                </div>
+                <div class="form-group">
+                    <label for="area_sqm">Fläche (m²) *</label>
                     <input type="number" id="area_sqm" name="area_sqm" step="0.01" required min="0.1" value="50">
                 </div>
-                
                 <div class="form-group">
-                    <label for="room_count">Anzahl Zimmer / Bereiche:</label>
+                    <label for="room_count">Anzahl Zimmer</label>
                     <input type="number" id="room_count" name="room_count" min="1" value="2">
                 </div>
-            </div>
-
-            <div class="form-row">
                 <div class="form-group">
-                    <label for="rent_net">Kaltmiete (€):</label>
+                    <label for="rent_net">Kaltmiete (€)</label>
                     <input type="number" id="rent_net" name="rent_net" step="0.01" value="0">
                 </div>
-                
                 <div class="form-group">
-                    <label for="rent_additional">Nebenkosten (€):</label>
+                    <label for="rent_additional">Nebenkosten (€)</label>
                     <input type="number" id="rent_additional" name="rent_additional" step="0.01" value="0">
                 </div>
+                <div class="form-group">
+                    <label class="checkbox"><input type="checkbox" id="has_balcony" name="has_balcony"> Balkon</label>
+                </div>
+                <div class="form-group">
+                    <label class="checkbox"><input type="checkbox" id="has_terrace" name="has_terrace"> Terrasse</label>
+                </div>
+                <div class="form-group">
+                    <label class="checkbox"><input type="checkbox" id="has_garage" name="has_garage"> Garage</label>
+                </div>
+                <div class="form-group">
+                    <label class="checkbox"><input type="checkbox" id="has_garden" name="has_garden"> Garten</label>
+                </div>
+                <div class="form-group">
+                    <label class="checkbox"><input type="checkbox" id="has_parking" name="has_parking"> Parkplatz</label>
+                </div>
+            </form>
+
+            <div class="form-footer setup-actions">
+                <a href="{{ url_for('setup.setup_building') }}" class="setup-btn secondary">Zurück</a>
+                <button type="submit" form="apartmentForm" class="setup-btn">Einheit anlegen</button>
             </div>
 
-            <div class="feature-checkboxes">
-                <div class="feature-checkbox">
-                    <input type="checkbox" id="has_balcony" name="has_balcony">
-                    <label for="has_balcony">Balkon</label>
-                </div>
-                
-                <div class="feature-checkbox">
-                    <input type="checkbox" id="has_terrace" name="has_terrace">
-                    <label for="has_terrace">Terrasse</label>
-                </div>
-                
-                <div class="feature-checkbox">
-                    <input type="checkbox" id="has_garage" name="has_garage">
-                    <label for="has_garage">Garage</label>
-                </div>
-                
-                <div class="feature-checkbox">
-                    <input type="checkbox" id="has_garden" name="has_garden">
-                    <label for="has_garden">Garten</label>
-                </div>
-                
-                <div class="feature-checkbox">
-                    <input type="checkbox" id="has_parking" name="has_parking">
-                    <label for="has_parking">Parkplatz</label>
-                </div>
-            </div>
-            
-            <button type="submit" class="btn">Einheit anlegen</button>
-        </form>
-        
-        <div id="message"></div>
+            <div id="message" class="setup-info" style="display:none;"></div>
+        </div>
     </div>
 
     <script>
-        // Einheitentyp-Info aktualisieren
         const unitTypeDescriptions = {
-            'wohnung': '<strong>Wohnung:</strong> Vollwertige Mieteinheit mit Wohn- und Aufenthaltsfunktion. Enthaltet Küche, Bad und Wohnräume.',
-            'gewerbe': '<strong>Gewerbeeinheit:</strong> Räumlichkeiten für gewerbliche Nutzung wie Büros, Läden, Praxen oder Werkstätten.',
-            'garage': '<strong>Garage / Stellplatz:</strong> Abgeschlossener Stellplatz, Garage oder Tiefgaragenplatz für Fahrzeuge.',
-            'keller': '<strong>Kellerabteil:</strong> Abgeteilter Kellerraum zur Lagerung von Gegenständen, oft mit eigenem Zugang.',
-            'kellerraum': '<strong>Kellerraum:</strong> Größerer Kellerraum für verschiedene Nutzungen, ggf. mit eigenem Zugang.',
-            'lager': '<strong>Lagerraum:</strong> Raum zur Lagerung von Waren, Material oder Gegenständen.',
-            'abstellraum': '<strong>Abstellraum:</strong> Kleiner Raum zur Abstellung von Haushaltsgeräten oder Gegenständen.',
-            'terrasse': '<strong>Terrasse:</strong> Befestigte Außenfläche direkt am Gebäude, oft ebenerdig oder aufgeständert.',
-            'balkon': '<strong>Balkon:</strong> Austritt an der Gebäudefassade, oft mit Geländer und begrenzter Fläche.',
-            'garten': '<strong>Garten / Außenfläche:</strong> Grünfläche oder Außenbereich zur alleinigen Nutzung.',
-            'dachboden': '<strong>Dachboden:</strong> Raum unter dem Dach, ggf. ausgebaut oder als Lager nutzbar.',
-            'technikraum': '<strong>Technikraum:</strong> Raum für technische Einrichtungen wie Heizung, Haustechnik.',
-            'waschkueche': '<strong>Waschküche:</strong> Raum mit Waschmaschinen und Trocknern, ggf. gemeinschaftlich genutzt.',
-            'gemeinschaftsraum': '<strong>Gemeinschaftsraum:</strong> Raum für alle Bewohner, z.B. Partyraum, Gästezimmer.'
+            'wohnung': '<strong>Wohnung:</strong> Vollwertige Mieteinheit mit Wohn- und Aufenthaltsfunktion. Enthält Küche und Bad.',
+            'gewerbe': '<strong>Gewerbeeinheit:</strong> Für Büros, Läden, Praxen oder Werkstätten.',
+            'garage': '<strong>Garage / Stellplatz:</strong> Stellplatz oder Tiefgaragenplatz.',
+            'keller': '<strong>Kellerabteil:</strong> Abgeteilter Kellerraum zur Lagerung.',
+            'kellerraum': '<strong>Kellerraum:</strong> Größerer Kellerraum mit eigenem Zugang.',
+            'lager': '<strong>Lagerraum:</strong> Lager für Waren oder Material.',
+            'abstellraum': '<strong>Abstellraum:</strong> Kleiner Raum zur Aufbewahrung.',
+            'terrasse': '<strong>Terrasse:</strong> Befestigte Außenfläche am Gebäude.',
+            'balkon': '<strong>Balkon:</strong> Austritt an der Fassade mit Geländer.',
+            'garten': '<strong>Garten / Außenfläche:</strong> Grünfläche zur alleinigen Nutzung.',
+            'dachboden': '<strong>Dachboden:</strong> Raum unter dem Dach, ggf. als Lager.',
+            'technikraum': '<strong>Technikraum:</strong> Für Heizungs- und Haustechnik.',
+            'waschkueche': '<strong>Waschküche:</strong> Raum mit Waschmöglichkeiten.',
+            'gemeinschaftsraum': '<strong>Gemeinschaftsraum:</strong> Gemeinsame Nutzung, z.B. Partyraum.'
         };
 
-        document.getElementById('unit_type').addEventListener('change', function() {
-            const infoDiv = document.getElementById('unitTypeInfo');
-            const type = this.value;
-            infoDiv.innerHTML = unitTypeDescriptions[type] || unitTypeDescriptions['wohnung'];
-            
-            // Automatische Anpassungen basierend auf Einheitentyp
+        const unitTypeSelect = document.getElementById('unit_type');
+        const unitTypeInfo = document.getElementById('unitTypeInfo');
+        const messageBox = document.getElementById('message');
+        const apartmentForm = document.getElementById('apartmentForm');
+
+        unitTypeSelect.addEventListener('change', () => {
+            const type = unitTypeSelect.value;
+            unitTypeInfo.innerHTML = unitTypeDescriptions[type] || unitTypeDescriptions['wohnung'];
             const areaInput = document.getElementById('area_sqm');
             const roomsInput = document.getElementById('room_count');
-            
             switch(type) {
                 case 'wohnung':
-                    areaInput.value = '50';
-                    roomsInput.value = '2';
-                    break;
+                    areaInput.value = '50'; roomsInput.value = '2'; break;
                 case 'gewerbe':
-                    areaInput.value = '30';
-                    roomsInput.value = '1';
-                    break;
+                    areaInput.value = '30'; roomsInput.value = '1'; break;
                 case 'garage':
-                    areaInput.value = '12';
-                    roomsInput.value = '1';
-                    break;
+                    areaInput.value = '12'; roomsInput.value = '1'; break;
                 case 'keller':
                 case 'kellerraum':
-                    areaInput.value = '8';
-                    roomsInput.value = '1';
-                    break;
+                    areaInput.value = '8'; roomsInput.value = '1'; break;
                 case 'balkon':
                 case 'terrasse':
-                    areaInput.value = '10';
-                    roomsInput.value = '1';
-                    break;
+                    areaInput.value = '10'; roomsInput.value = '1'; break;
                 default:
-                    areaInput.value = '15';
-                    roomsInput.value = '1';
+                    areaInput.value = '15'; roomsInput.value = '1';
             }
         });
 
-        document.getElementById('apartmentForm').addEventListener('submit', async function(e) {
+        apartmentForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            
-            const formData = new FormData(this);
+            const formData = new FormData(apartmentForm);
             const data = {
                 apartment_number: formData.get('apartment_number'),
                 unit_type: formData.get('unit_type'),
                 floor: formData.get('floor'),
                 area_sqm: parseFloat(formData.get('area_sqm')),
-                room_count: parseInt(formData.get('room_count')),
+                room_count: parseInt(formData.get('room_count'), 10),
                 rent_net: parseFloat(formData.get('rent_net')),
                 rent_additional: parseFloat(formData.get('rent_additional')),
                 has_balcony: formData.get('has_balcony') === 'on',
                 has_terrace: formData.get('has_terrace') === 'on',
                 has_garage: formData.get('has_garage') === 'on'
             };
-            
+
             try {
                 const response = await fetch('/setup/apartment', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
                 });
-                
-                // Prüfe ob die Antwort JSON ist
+
                 const contentType = response.headers.get('content-type');
                 if (!contentType || !contentType.includes('application/json')) {
                     const text = await response.text();
                     throw new Error(`Server antwortete mit: ${text.substring(0, 100)}...`);
                 }
-                
+
                 const result = await response.json();
-                
                 if (result.success) {
-                    showMessage('Einheit erfolgreich angelegt! Weiterleitung...', 'success');
-                    setTimeout(() => {
-                        window.location.href = '/setup/meter-types';
-                    }, 2000);
+                    showMessage('Einheit erfolgreich angelegt! Weiterleitung...', false);
+                    setTimeout(() => window.location.href = '/setup/meter-types', 1400);
                 } else {
-                    showMessage('Fehler: ' + result.message, 'error');
+                    showMessage('Fehler: ' + result.message, true);
                 }
             } catch (error) {
-                showMessage('Fehler beim Anlegen der Einheit: ' + error.message, 'error');
+                showMessage('Fehler beim Anlegen der Einheit: ' + error.message, true);
                 console.error('Fehlerdetails:', error);
             }
         });
-        
-        function showMessage(message, type) {
-            const messageDiv = document.getElementById('message');
-            messageDiv.textContent = message;
-            messageDiv.className = type;
+
+        function showMessage(text, isError) {
+            messageBox.style.display = 'block';
+            messageBox.textContent = text;
+            messageBox.style.borderColor = isError ? '#e74c3c' : 'var(--setup-primary)';
+            messageBox.style.background = isError ? '#fdecea' : '#f0f4ff';
         }
 
-        // Initialisiere die Einheitentyp-Beschreibung
-        document.getElementById('unit_type').dispatchEvent(new Event('change'));
+        unitTypeSelect.dispatchEvent(new Event('change'));
     </script>
 </body>
 </html>

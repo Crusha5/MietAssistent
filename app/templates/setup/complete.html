@@ -3,67 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Setup Abgeschlossen</title>
-    <style>
-        body { 
-            font-family: Arial, sans-serif; 
-            max-width: 600px; 
-            margin: 50px auto; 
-            padding: 20px;
-            background: #f5f5f5;
-        }
-        .container {
-            background: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            text-align: center;
-        }
-        .success { color: #27ae60; font-size: 48px; margin: 20px 0; }
-        .btn { 
-            background: #27ae60; 
-            color: white; 
-            padding: 12px 30px; 
-            border: none; 
-            border-radius: 5px; 
-            cursor: pointer;
-            font-size: 16px;
-            text-decoration: none;
-            display: inline-block;
-            margin: 10px;
-        }
-        .btn:hover { background: #219653; }
-        .btn-secondary {
-            background: #3498db;
-        }
-        .btn-secondary:hover {
-            background: #2980b9;
-        }
-    </style>
+    <title>Setup abgeschlossen</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/setup.css') }}">
 </head>
 <body>
-    <div class="container">
-        <div class="success">✅</div>
-        <h1>Setup Abgeschlossen!</h1>
-        <p>Ihr Rental Management System wurde erfolgreich eingerichtet.</p>
-        
-        <div style="margin: 30px 0;">
-            <p><strong>Nächste Schritte:</strong></p>
-            <ul style="text-align: left; display: inline-block;">
-                <li>Weitere Wohnungen hinzufügen</li>
-                <li>Mieter anlegen</li>
-                <li>Zählerstände erfassen</li>
-            </ul>
-        </div>
-        
-        <div>
-            <a href="/" class="btn btn-secondary">Zur Startseite</a>
-            <a href="/dashboard" class="btn">Zum Dashboard</a>
-            <a href="/login" class="btn btn-secondary">Zur Anmeldung</a>
-        </div>
-        
-        <div style="margin-top: 30px; font-size: 14px; color: #666;">
-            <p>API Dokumentation: <a href="/api/docs">/api/docs</a></p>
+    <div class="setup-shell">
+        <div class="setup-card" style="text-align:center;">
+            <div class="setup-topbar"></div>
+            <div class="setup-header" style="align-items:center;">
+                <span class="setup-badge">Fertig</span>
+                <h1 class="setup-title">Setup abgeschlossen</h1>
+                <p class="setup-subtitle">Ihr MietAssistent ist startklar.</p>
+            </div>
+            <div style="font-size:48px; margin:10px 0;">✅</div>
+            <div class="setup-info" style="text-align:left;">
+                <strong>Nächste Schritte:</strong>
+                <ul class="setup-list" style="margin-top:8px;">
+                    <li><span>📄</span><span>Weitere Wohnungen und Mieter anlegen</span></li>
+                    <li><span>🧾</span><span>Zählerstände erfassen</span></li>
+                    <li><span>📊</span><span>Abrechnungen vorbereiten</span></li>
+                </ul>
+            </div>
+            <div class="setup-actions" style="justify-content:center;">
+                <a href="/" class="setup-btn secondary">Zur Startseite</a>
+                <a href="/dashboard" class="setup-btn">Zum Dashboard</a>
+                <a href="/auth/login" class="setup-btn secondary">Zur Anmeldung</a>
+            </div>
         </div>
     </div>
 </body>

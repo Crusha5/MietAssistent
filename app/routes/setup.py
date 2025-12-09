@@ -8,7 +8,6 @@ from datetime import datetime
 setup_bp = Blueprint('setup', __name__)
 
 @setup_bp.route('/')
-@setup_bp.route('/setup')
 def setup_index():
     print("🔍 DEBUG: Setup index called")
     # Prüfe ob bereits Benutzer existieren

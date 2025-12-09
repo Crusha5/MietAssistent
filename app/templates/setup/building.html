@@ -1,142 +1,115 @@
-{% extends "base.html" %}
-{% set show_sidebar = False %}
-
-{% block content %}
-<div class="container mt-5">
-    <div class="row justify-content-center">
-        <div class="col-md-8">
-            <div class="card">
-                <div class="card-header bg-primary text-white">
-                    <h4 class="mb-0"><i class="bi bi-building me-2"></i>Gebäude einrichten</h4>
-                </div>
-                <div class="card-body">
-                    <p class="text-muted">Bitte geben Sie die Daten für Ihr erstes Gebäude ein.</p>
-                    
-                    <form id="buildingForm">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="name" class="form-label">Gebäudename *</label>
-                                    <input type="text" class="form-control" id="name" name="name" required placeholder="z.B. Haus am See, Gewerbezentrum">
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="year_built" class="form-label">Baujahr</label>
-                                    <input type="number" class="form-control" id="year_built" name="year_built" min="1900" max="2030" placeholder="z.B. 1990">
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="row">
-                            <div class="col-md-8">
-                                <div class="mb-3">
-                                    <label for="street" class="form-label">Straße *</label>
-                                    <input type="text" class="form-control" id="street" name="street" required placeholder="z.B. Musterstraße">
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="street_number" class="form-label">Hausnummer *</label>
-                                    <input type="text" class="form-control" id="street_number" name="street_number" required placeholder="z.B. 10">
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="row">
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label for="zip_code" class="form-label">PLZ *</label>
-                                    <input type="text" class="form-control" id="zip_code" name="zip_code" required placeholder="z.B. 12345">
-                                </div>
-                            </div>
-                            <div class="col-md-8">
-                                <div class="mb-3">
-                                    <label for="city" class="form-label">Stadt *</label>
-                                    <input type="text" class="form-control" id="city" name="city" required placeholder="z.B. Musterstadt">
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="total_area_sqm" class="form-label">Gesamtfläche (m²)</label>
-                                    <input type="number" step="0.01" class="form-control" id="total_area_sqm" name="total_area_sqm" placeholder="z.B. 500.00">
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="energy_efficiency_class" class="form-label">Energieeffizienzklasse</label>
-                                    <select class="form-select" id="energy_efficiency_class" name="energy_efficiency_class">
-                                        <option value="">Bitte wählen</option>
-                                        <option value="A+">A+</option>
-                                        <option value="A">A</option>
-                                        <option value="B">B</option>
-                                        <option value="C">C</option>
-                                        <option value="D">D</option>
-                                        <option value="E">E</option>
-                                        <option value="F">F</option>
-                                        <option value="G">G</option>
-                                        <option value="H">H</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="d-flex justify-content-between mt-4">
-                            <a href="{{ url_for('setup.setup_admin') }}" class="btn btn-secondary">
-                                <i class="bi bi-arrow-left me-2"></i>Zurück
-                            </a>
-                            <button type="submit" class="btn btn-primary">
-                                Weiter <i class="bi bi-arrow-right ms-2"></i>
-                            </button>
-                        </div>
-                    </form>
-                </div>
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gebäude einrichten</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/setup.css') }}">
+</head>
+<body>
+    <div class="setup-shell">
+        <div class="setup-card">
+            <div class="setup-topbar"></div>
+            <div class="setup-header">
+                <span class="setup-badge">Schritt 2 von 4</span>
+                <h1 class="setup-title">Gebäude anlegen</h1>
+                <p class="setup-subtitle">Bitte gib die Stammdaten deines ersten Gebäudes an.</p>
             </div>
+
+            <form id="buildingForm" class="form-grid">
+                <div class="form-group">
+                    <label for="name">Gebäudename *</label>
+                    <input type="text" id="name" name="name" required placeholder="z.B. Haus am See">
+                </div>
+                <div class="form-group">
+                    <label for="year_built">Baujahr</label>
+                    <input type="number" id="year_built" name="year_built" min="1900" max="2035" placeholder="1990">
+                </div>
+                <div class="form-group">
+                    <label for="street">Straße *</label>
+                    <input type="text" id="street" name="street" required placeholder="Musterstraße">
+                </div>
+                <div class="form-group">
+                    <label for="street_number">Hausnummer *</label>
+                    <input type="text" id="street_number" name="street_number" required placeholder="10a">
+                </div>
+                <div class="form-group">
+                    <label for="zip_code">PLZ *</label>
+                    <input type="text" id="zip_code" name="zip_code" required placeholder="12345">
+                </div>
+                <div class="form-group">
+                    <label for="city">Stadt *</label>
+                    <input type="text" id="city" name="city" required placeholder="Musterstadt">
+                </div>
+                <div class="form-group">
+                    <label for="total_area_sqm">Gesamtfläche (m²)</label>
+                    <input type="number" step="0.01" id="total_area_sqm" name="total_area_sqm" placeholder="500.00">
+                </div>
+                <div class="form-group">
+                    <label for="energy_efficiency_class">Energieeffizienzklasse</label>
+                    <select id="energy_efficiency_class" name="energy_efficiency_class">
+                        <option value="">Bitte wählen</option>
+                        <option value="A+">A+</option>
+                        <option value="A">A</option>
+                        <option value="B">B</option>
+                        <option value="C">C</option>
+                        <option value="D">D</option>
+                        <option value="E">E</option>
+                        <option value="F">F</option>
+                        <option value="G">G</option>
+                        <option value="H">H</option>
+                    </select>
+                </div>
+            </form>
+
+            <div class="form-footer setup-actions">
+                <a href="{{ url_for('setup.setup_admin') }}" class="setup-btn secondary">Zurück</a>
+                <button type="submit" form="buildingForm" class="setup-btn">Weiter</button>
+            </div>
+
+            <div id="buildingMessage" class="setup-info" style="display:none;"></div>
         </div>
     </div>
-</div>
 
-<script>
-document.getElementById('buildingForm').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    
-    const formData = new FormData(this);
-    const data = Object.fromEntries(formData.entries());
-    
-    // Zahlenwerte konvertieren
-    if (data.year_built) data.year_built = parseInt(data.year_built);
-    if (data.total_area_sqm) data.total_area_sqm = parseFloat(data.total_area_sqm);
-    
-    const submitBtn = this.querySelector('button[type="submit"]');
-    submitBtn.disabled = true;
-    submitBtn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Wird gespeichert...';
-    
-    try {
-        const response = await fetch('/setup/building', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(data)
+    <script>
+        const buildingForm = document.getElementById('buildingForm');
+        const buildingMessage = document.getElementById('buildingMessage');
+
+        buildingForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(buildingForm);
+            const data = Object.fromEntries(formData.entries());
+
+            if (data.year_built) data.year_built = parseInt(data.year_built, 10);
+            if (data.total_area_sqm) data.total_area_sqm = parseFloat(data.total_area_sqm);
+
+            const submitBtn = buildingForm.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Speichere...';
+
+            try {
+                const response = await fetch('/setup/building', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    window.location.href = '/setup/apartment';
+                } else {
+                    throw new Error(result.message || 'Unbekannter Fehler');
+                }
+            } catch (error) {
+                buildingMessage.style.display = 'block';
+                buildingMessage.textContent = 'Fehler: ' + error.message;
+                buildingMessage.style.borderColor = '#e74c3c';
+                buildingMessage.style.background = '#fdecea';
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Weiter';
+            }
         });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            window.location.href = '/setup/apartment';
-        } else {
-            alert('Fehler: ' + result.message);
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = 'Weiter <i class="bi bi-arrow-right ms-2"></i>';
-        }
-    } catch (error) {
-        alert('Netzwerkfehler: ' + error.message);
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = 'Weiter <i class="bi bi-arrow-right ms-2"></i>';
-    }
-});
-</script>
-{% endblock %}
+    </script>
+</body>
+</html>
