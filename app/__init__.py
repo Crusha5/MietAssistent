@@ -184,7 +184,7 @@ def create_app():
 
             if not User.query.first():
                 app.logger.info("SETUP REDIRECT: kein Benutzer vorhanden, leite zu /setup um")
-                return redirect(url_for('setup.setup_index'))
+                return redirect('/setup')
         except Exception as exc:
             app.logger.warning(f"SETUP CHECK fehlgeschlagen: {exc}")
             return None
