@@ -4,10 +4,10 @@ services:
     restart: unless-stopped
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.rental-management.rule=Host(`nka.v2office.de`)"
-      - "traefik.http.routers.rental-management.entrypoints=websecure"
-      - "traefik.http.routers.rental-management.tls.certresolver=myresolver"
-      - "traefik.http.services.rental-management.loadbalancer.server.port=5000"
+      - "traefik.http.routers.mietassistent.rule=Host(`nka.v2office.de`)"
+      - "traefik.http.routers.mietassistent.entrypoints=websecure"
+      - "traefik.http.routers.mietassistent.tls.certresolver=myresolver"
+      - "traefik.http.services.mietassistent.loadbalancer.server.port=5000"
       - "traefik.docker.network=proxy-network"
     networks:
       - proxy-network

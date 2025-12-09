@@ -67,6 +67,8 @@ def create_app():
     except PermissionError:
         print(f"❌ Keine Berechtigung für Upload-Verzeichnisse unter {upload_root}. Bitte Mount/Owner prüfen.")
 
+    secure_cookies = os.environ.get('COOKIE_SECURE', 'true').lower() == 'true'
+
     app.config.update(
         SECRET_KEY=_load_or_create_secret(secret_key_path, os.environ.get('SECRET_KEY')),  # stabiler Key pro Deploy
         SQLALCHEMY_DATABASE_URI='sqlite:///' + os.path.join(data_dir, 'rental.db'),
@@ -83,12 +85,13 @@ def create_app():
         PERMANENT_SESSION_LIFETIME=3600,  # 1 Stunde
         SESSION_KEY_PREFIX='mietassistent_',
         SESSION_COOKIE_NAME=os.environ.get('SESSION_COOKIE_NAME', 'mietassistent_session'),
-        SESSION_COOKIE_SECURE=True,
+        # Über env abschaltbar, damit lokale HTTP-Tests Sessions behalten
+        SESSION_COOKIE_SECURE=secure_cookies,
         SESSION_COOKIE_SAMESITE='Lax',
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_DOMAIN=None,
         JWT_TOKEN_LOCATION=['headers'],  # JWTs getrennt von Web-Sessions halten
-        JWT_COOKIE_SECURE=True,
+        JWT_COOKIE_SECURE=secure_cookies,
         JWT_COOKIE_SAMESITE='Lax',
     )
     

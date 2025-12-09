@@ -12,22 +12,60 @@
         /* Fallback-Styling falls setup.css nicht geladen werden kann */
         body.setup-fallback {
             font-family: 'Segoe UI', system-ui, sans-serif;
-            margin: 16px;
-            background: #f5f5f5;
+            margin: 0;
+            background: linear-gradient(180deg, #f8fbff 0%, #eef2f8 100%);
             color: #1f2b3d;
+            min-height: 100vh;
+        }
+        body.setup-fallback .setup-shell {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
         }
         body.setup-fallback .setup-card {
-            max-width: 960px;
+            max-width: 1040px;
             margin: 0 auto;
-            padding: 16px;
+            padding: 18px;
             border: 1px solid #dcdfe6;
-            border-radius: 12px;
+            border-radius: 16px;
             background: #fff;
+            box-shadow: 0 16px 40px rgba(0,0,0,0.06);
         }
     </style>
 </head>
-<body>
-    {% block content %}{% endblock %}
+<body class="setup-body">
+    <div class="setup-bg">
+        <span class="setup-orb orb-1"></span>
+        <span class="setup-orb orb-2"></span>
+        <span class="setup-orb orb-3"></span>
+    </div>
+
+    <header class="setup-nav">
+        <div class="setup-brand">
+            <div class="setup-logo">MA</div>
+            <div>
+                <p class="setup-kicker">Onboarding</p>
+                <strong>MietAssistent</strong>
+            </div>
+        </div>
+        <div class="setup-nav-actions">
+            <span class="setup-chip">Geführte Einrichtung</span>
+            <span class="setup-chip muted">Sicher &amp; responsive</span>
+        </div>
+    </header>
+
+    <main class="setup-main">
+        {% block content %}{% endblock %}
+    </main>
+
+    <script>
+        // sanfte Einblendung für die Setup-Oberfläche
+        document.addEventListener('DOMContentLoaded', () => {
+            document.body.classList.add('setup-ready');
+        });
+    </script>
     {% block scripts %}{% endblock %}
 </body>
 </html>
