@@ -8,6 +8,7 @@ import uuid
 from flask import current_app
 from app.extensions import db
 from sqlalchemy import or_
+from app.utils.meter_tree import load_meter_tree, next_sort_order
 
 meters_bp = Blueprint('meters', __name__)
 
@@ -15,49 +16,7 @@ meters_bp = Blueprint('meters', __name__)
 @login_required
 def meters_list():
     """Zeigt alle Zähler an"""
-    # Stelle sicher, dass wir immer frische Daten aus der DB bekommen
-    db.session.expire_all()
-
-    meters = Meter.query.filter(
-        or_(
-            Meter.is_archived.is_(False),
-            Meter.is_archived.is_(None),
-            Meter.is_archived == 0,
-            Meter.is_archived == '0',
-            Meter.is_archived == 'false',
-            Meter.is_archived == 'False'
-        )
-    ).options(
-        db.joinedload(Meter.building),
-        db.joinedload(Meter.meter_type),
-        db.joinedload(Meter.apartment),
-        db.joinedload(Meter.sub_meters)
-    ).order_by(Meter.building_id, Meter.meter_number).all()
-
-    for meter in meters:
-        meter._children = []
-
-    meter_map = {m.id: m for m in meters}
-    children_map = {m_id: [] for m_id in meter_map.keys()}
-    roots_by_building = {}
-
-    for meter in meter_map.values():
-        if meter.parent_meter_id and meter.parent_meter_id in meter_map:
-            children_map[meter.parent_meter_id].append(meter)
-        else:
-            roots_by_building.setdefault(meter.building_id, []).append(meter)
-
-    def attach_children(current_meter):
-        current_meter._children = sorted(children_map.get(current_meter.id, []), key=lambda m: m.meter_number)
-        for child in current_meter._children:
-            attach_children(child)
-
-    for building_id, building_roots in roots_by_building.items():
-        roots_by_building[building_id] = sorted(building_roots, key=lambda m: m.meter_number)
-        for root in roots_by_building[building_id]:
-            attach_children(root)
-
-    buildings = {m.building_id: m.building for m in meter_map.values() if m.building}
+    roots_by_building, buildings = load_meter_tree()
 
     if any(b_id is None for b_id in roots_by_building.keys()):
         class _Placeholder:
@@ -112,6 +71,7 @@ def create_meter():
                     location_description=request.form.get('location_description', '').strip(),
                     notes=request.form.get('notes', '').strip(),
                     price_per_unit=price_per_unit,
+                    sort_order=next_sort_order(building_id),
                 )
                 
                 db.session.add(meter)
@@ -400,6 +360,7 @@ def add_submeter(meter_id):
                 location_description=request.form.get('location_description', '').strip(),
                 notes=request.form.get('notes', '').strip(),
                 price_per_unit=price_per_unit,
+                sort_order=next_sort_order(parent_meter.building_id, parent_meter.id),
             )
 
             db.session.add(submeter)
@@ -569,11 +530,12 @@ def reparent_meter(meter_id):
                         return True
                 return False
 
-            if is_descendant(meter, new_parent_id):
-                raise ValueError('Der gewählte Zielzähler ist ein Unterzähler dieses Zählers.')
+        if is_descendant(meter, new_parent_id):
+            raise ValueError('Der gewählte Zielzähler ist ein Unterzähler dieses Zählers.')
 
         meter.parent_meter_id = new_parent_id
         meter.is_main_meter = new_parent_id is None
+        meter.sort_order = next_sort_order(meter.building_id, new_parent_id)
         db.session.commit()
 
         return jsonify({'status': 'ok', 'meter_id': meter.id, 'new_parent_id': new_parent_id})
@@ -584,6 +546,49 @@ def reparent_meter(meter_id):
         db.session.rollback()
         current_app.logger.error('Fehler beim Reparenting: %s', exc, exc_info=True)
         return jsonify({'error': 'Interner Fehler beim Verschieben des Zählers'}), 500
+
+
+@meters_bp.route('/api/meters/reorder', methods=['POST'])
+@login_required
+def reorder_meters():
+    """Aktualisiert Reihenfolge und Parent-Beziehung mehrerer Zähler nach Drag & Drop."""
+    payload = request.get_json() or {}
+    items = payload.get('items') or []
+
+    try:
+        for entry in items:
+            meter_id = entry.get('id')
+            parent_id = entry.get('parent_id') or None
+            sort_order = int(entry.get('position', 0))
+
+            meter = Meter.query.get(meter_id)
+            if not meter:
+                continue
+
+            if parent_id == meter_id:
+                raise ValueError('Ein Zähler kann nicht sein eigener Parent sein.')
+
+            if parent_id:
+                parent = Meter.query.get(parent_id)
+                if not parent:
+                    raise ValueError('Ziel-Parent existiert nicht.')
+                if parent.building_id != meter.building_id:
+                    raise ValueError('Zähler können nur innerhalb eines Gebäudes verschoben werden.')
+
+            meter.parent_meter_id = parent_id
+            meter.is_main_meter = parent_id is None
+            meter.sort_order = sort_order
+
+        db.session.commit()
+        db.session.expire_all()
+        return jsonify({'status': 'ok', 'updated': len(items)})
+    except ValueError as ve:
+        db.session.rollback()
+        return jsonify({'error': str(ve)}), 400
+    except Exception as exc:
+        db.session.rollback()
+        current_app.logger.error('Fehler beim Neuordnen der Zähler: %s', exc, exc_info=True)
+        return jsonify({'error': 'Interner Fehler beim Neuordnen der Zähler'}), 500
 
 # 🔥 API ROUTES FÜR MOBILE APP/EXTERNE SYSTEME
 

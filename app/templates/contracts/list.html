@@ -113,6 +113,24 @@
         {% endif %}
     </div>
 </div>
+
+<div class="card border-0 shadow-sm mt-4">
+    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+        <span class="fw-semibold"><i class="bi bi-diagram-3 me-2"></i>Zählerübersicht</span>
+        <button id="contracts-meter-toggle" class="btn btn-outline-secondary btn-sm" type="button">
+            <i class="bi bi-arrows-move me-1"></i>Drag & Drop
+        </button>
+    </div>
+    <div class="card-body">
+        <div class="small text-muted mb-2">Ordnen Sie Haupt- und Unterzähler per Ziehen neu. Änderungen werden sofort gespeichert.</div>
+        <div id="contracts-drag-feedback" class="alert alert-info d-none" role="alert"></div>
+        {% set toggle_id = 'contracts-meter-toggle' %}
+        {% set feedback_id = 'contracts-drag-feedback' %}
+        {% set roots_by_building = meter_roots %}
+        {% set buildings = meter_buildings %}
+        {% include 'meters/_tree_widget.html' with context %}
+    </div>
+</div>
 {% endblock %}
 
 {% include 'contracts/landlord_modal.html' %}
