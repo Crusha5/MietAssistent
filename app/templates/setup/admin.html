@@ -4,145 +4,96 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Account - Setup</title>
-    <style>
-        body { 
-            font-family: Arial, sans-serif; 
-            max-width: 500px; 
-            margin: 50px auto; 
-            padding: 20px;
-            background: #f5f5f5;
-        }
-        .container {
-            background: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .form-group { margin: 15px 0; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; }
-        input { 
-            width: 100%; 
-            padding: 10px; 
-            border: 1px solid #ddd; 
-            border-radius: 5px; 
-            box-sizing: border-box;
-        }
-        .btn { 
-            background: #3498db; 
-            color: white; 
-            padding: 12px 30px; 
-            border: none; 
-            border-radius: 5px; 
-            cursor: pointer;
-            font-size: 16px;
-            width: 100%;
-            margin-top: 10px;
-        }
-        .btn:hover { background: #2980b9; }
-        .error { 
-            color: red; 
-            margin-top: 10px; 
-            padding: 10px;
-            background: #ffe6e6;
-            border-radius: 5px;
-            border: 1px solid #ffcccc;
-        }
-        .success { 
-            color: green; 
-            margin-top: 10px; 
-            padding: 10px;
-            background: #e6ffe6;
-            border-radius: 5px;
-            border: 1px solid #ccffcc;
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/setup.css') }}">
 </head>
 <body>
-    <div class="container">
-        <h1>👤 Admin Account</h1>
-        <p>Bitte legen Sie den Hauptbenutzer für die Verwaltung an.</p>
-        
-        <form id="adminForm">
-            <div class="form-group">
-                <label for="username">Benutzername:</label>
-                <input type="text" id="username" name="username" required>
+    <div class="setup-shell">
+        <div class="setup-card">
+            <div class="setup-header">
+                <span class="setup-badge">Schritt 1 von 4</span>
+                <h1 class="setup-title">Admin-Konto anlegen</h1>
+                <p class="setup-subtitle">Erstelle den ersten Benutzer, der das System verwaltet.</p>
             </div>
-            
-            <div class="form-group">
-                <label for="password">Passwort:</label>
-                <input type="password" id="password" name="password" required>
+
+            <form id="adminForm" class="form-grid">
+                <div class="form-group">
+                    <label for="username">Benutzername</label>
+                    <input type="text" id="username" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Passwort</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+                <div class="form-group">
+                    <label for="confirm_password">Passwort bestätigen</label>
+                    <input type="password" id="confirm_password" name="confirm_password" required>
+                </div>
+            </form>
+
+            <div class="form-footer setup-actions">
+                <button type="submit" form="adminForm" class="setup-btn">Admin Account erstellen</button>
+                <a href="{{ url_for('setup.setup_index') }}" class="setup-btn secondary">Zurück</a>
             </div>
-            
-            <div class="form-group">
-                <label for="confirm_password">Passwort bestätigen:</label>
-                <input type="password" id="confirm_password" name="confirm_password" required>
-            </div>
-            
-            <button type="submit" class="btn">Admin Account erstellen</button>
-        </form>
-        
-        <div id="message"></div>
+
+            <div id="message" class="setup-info" style="display:none;"></div>
+        </div>
     </div>
 
     <script>
-        document.getElementById('adminForm').addEventListener('submit', async function(e) {
+        const messageBox = document.getElementById('message');
+        const adminForm = document.getElementById('adminForm');
+
+        adminForm.addEventListener('submit', async function(e) {
             e.preventDefault();
-            
+
             const formData = new FormData(this);
             const data = {
                 username: formData.get('username'),
                 password: formData.get('password')
             };
-            
+
             const confirmPassword = formData.get('confirm_password');
-            
+
             if (data.password !== confirmPassword) {
-                showMessage('Passwörter stimmen nicht überein', 'error');
-                return;
+                return showMessage('Passwörter stimmen nicht überein', true);
             }
-            
-            if (data.password.length < 6) {
-                showMessage('Passwort muss mindestens 6 Zeichen lang sein', 'error');
-                return;
+
+            if (!data.password || data.password.length < 6) {
+                return showMessage('Passwort muss mindestens 6 Zeichen lang sein', true);
             }
-            
+
             try {
                 const response = await fetch('/setup/admin', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
                 });
-                
-                // Prüfe ob die Antwort JSON ist
+
                 const contentType = response.headers.get('content-type');
                 if (!contentType || !contentType.includes('application/json')) {
                     const text = await response.text();
                     throw new Error(`Server antwortete mit: ${text.substring(0, 100)}...`);
                 }
-                
+
                 const result = await response.json();
-                
+
                 if (result.success) {
-                    showMessage('Admin Account erfolgreich erstellt! Weiterleitung...', 'success');
-                    setTimeout(() => {
-                        // EXPLIZITE Weiterleitung
-                        window.location.href = '/setup/building';
-                    }, 1500);
+                    showMessage('Admin Account erfolgreich erstellt! Weiterleitung...', false);
+                    setTimeout(() => window.location.href = '/setup/building', 1200);
                 } else {
-                    showMessage('Fehler: ' + result.message, 'error');
+                    showMessage('Fehler: ' + result.message, true);
                 }
             } catch (error) {
-                showMessage('Fehler beim Erstellen des Accounts: ' + error.message, 'error');
+                showMessage('Fehler beim Erstellen des Accounts: ' + error.message, true);
                 console.error('Fehlerdetails:', error);
             }
         });
-        
-        function showMessage(message, type) {
-            const messageDiv = document.getElementById('message');
-            messageDiv.textContent = message;
-            messageDiv.className = type;
+
+        function showMessage(text, isError) {
+            messageBox.style.display = 'block';
+            messageBox.textContent = text;
+            messageBox.style.borderColor = isError ? '#e74c3c' : 'var(--setup-primary)';
+            messageBox.style.background = isError ? '#fdecea' : '#f0f4ff';
         }
     </script>
 </body>

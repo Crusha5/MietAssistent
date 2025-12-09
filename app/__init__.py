@@ -1,4 +1,4 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, redirect, request, url_for
 import json
 from flask_cors import CORS
 from flask_swagger_ui import get_swaggerui_blueprint
@@ -157,6 +157,37 @@ def create_app():
 
     # Falls die Runtime-Migration aufgrund alter Datenbanken nicht griff, einmal pro Prozess nachziehen
     _register_runtime_migration_hook(app)
+
+    @app.before_request
+    def enforce_initial_setup():
+        """Sichere den Setup-Fluss, solange kein Benutzer existiert.
+
+        Alle Aufrufe (inklusive Login) werden auf den Setup-Assistenten gelenkt, bis
+        mindestens ein User angelegt ist. Setup- und statische Routen bleiben frei, damit
+        Assets und Schrittseiten geladen werden können.
+        """
+
+        # Statische Dateien müssen ohne Redirect erreichbar sein
+        if request.endpoint in ('static',) or (request.path and request.path.startswith('/static')):
+            return None
+
+        # Setup-spezifische Seiten nicht abfangen, sonst gäbe es Schleifen
+        if request.blueprint == 'setup' or request.path.startswith('/setup'):
+            return None
+
+        # Healthcheck sollte nicht umgelenkt werden
+        if request.endpoint == 'health':
+            return None
+
+        try:
+            from app.models import User
+
+            if not User.query.first():
+                app.logger.info("SETUP REDIRECT: kein Benutzer vorhanden, leite zu /setup um")
+                return redirect(url_for('setup.setup_index'))
+        except Exception as exc:
+            app.logger.warning(f"SETUP CHECK fehlgeschlagen: {exc}")
+            return None
 
     # Add context processor for buildings after database is initialized
     @app.context_processor
