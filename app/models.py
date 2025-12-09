@@ -309,6 +309,7 @@ class Meter(db.Model):
     notes = db.Column(db.Text)
     price_per_unit = db.Column(db.Float)
     is_archived = db.Column(db.Boolean, default=False)
+    sort_order = db.Column(db.Integer, default=0)
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

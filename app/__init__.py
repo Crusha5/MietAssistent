@@ -67,6 +67,8 @@ def create_app():
     except PermissionError:
         print(f"❌ Keine Berechtigung für Upload-Verzeichnisse unter {upload_root}. Bitte Mount/Owner prüfen.")
 
+    secure_cookies = os.environ.get('COOKIE_SECURE', 'true').lower() == 'true'
+
     app.config.update(
         SECRET_KEY=_load_or_create_secret(secret_key_path, os.environ.get('SECRET_KEY')),  # stabiler Key pro Deploy
         SQLALCHEMY_DATABASE_URI='sqlite:///' + os.path.join(data_dir, 'rental.db'),
@@ -83,12 +85,13 @@ def create_app():
         PERMANENT_SESSION_LIFETIME=3600,  # 1 Stunde
         SESSION_KEY_PREFIX='mietassistent_',
         SESSION_COOKIE_NAME=os.environ.get('SESSION_COOKIE_NAME', 'mietassistent_session'),
-        SESSION_COOKIE_SECURE=True,
+        # Über env abschaltbar, damit lokale HTTP-Tests Sessions behalten
+        SESSION_COOKIE_SECURE=secure_cookies,
         SESSION_COOKIE_SAMESITE='Lax',
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_DOMAIN=None,
         JWT_TOKEN_LOCATION=['headers'],  # JWTs getrennt von Web-Sessions halten
-        JWT_COOKIE_SECURE=True,
+        JWT_COOKIE_SECURE=secure_cookies,
         JWT_COOKIE_SAMESITE='Lax',
     )
     
@@ -188,6 +191,15 @@ def create_app():
         except Exception as exc:
             app.logger.warning(f"SETUP CHECK fehlgeschlagen: {exc}")
             return None
+
+    @app.after_request
+    def disable_html_caching(response):
+        """Deaktiviert Browser-Caching für dynamische Seiten, damit frische Daten erscheinen."""
+        if request.endpoint not in ('static',) and response.mimetype and 'text/html' in response.mimetype:
+            response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+            response.headers['Pragma'] = 'no-cache'
+            response.headers['Expires'] = '0'
+        return response
 
     # Add context processor for buildings after database is initialized
     @app.context_processor
@@ -549,6 +561,7 @@ def _register_runtime_migration_hook(app):
         try:
             _ensure_contract_protocol_columns()
             _ensure_meter_price_column()
+            _ensure_meter_sort_order_column()
             _ensure_income_breakdown_columns()
             _ensure_settlement_audit_table()
         except Exception as exc:
@@ -741,6 +754,22 @@ def _ensure_meter_price_column():
             print("✅ price_per_unit added")
     except Exception as mig_exc:
         print(f"⚠️ Could not migrate meters.price_per_unit: {mig_exc}")
+
+
+def _ensure_meter_sort_order_column():
+    """Fügt ein sort_order Feld für Zähler hinzu, falls noch nicht vorhanden."""
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(db.engine)
+    try:
+        meter_columns = [col['name'] for col in inspector.get_columns('meters')]
+        if 'sort_order' not in meter_columns:
+            print("🔄 Adding sort_order to meters...")
+            db.session.execute(text('ALTER TABLE meters ADD COLUMN sort_order INTEGER DEFAULT 0'))
+            db.session.commit()
+            print("✅ sort_order added")
+    except Exception as mig_exc:
+        print(f"⚠️ Could not migrate meters.sort_order: {mig_exc}")
 
 
 def _ensure_income_breakdown_columns():

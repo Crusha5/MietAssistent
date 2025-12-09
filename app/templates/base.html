@@ -66,54 +66,77 @@
             outline-offset: 3px;
         }
 
-        .sidebar {
-            min-height: calc(100vh - 56px);
-            background-color: var(--background);
-            border-right: 1px solid #dee2e6;
-            position: relative;
+        .app-sidebar {
+            position: sticky;
+            top: 80px;
+            border-radius: 16px;
+            background: linear-gradient(180deg, #ffffff 0%, #f6f8fc 100%);
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 20px 44px rgba(15, 23, 42, 0.12);
+            padding: 16px 14px;
+            overflow: hidden;
         }
-        @media (max-width: 768px) {
-            .sidebar {
-                min-height: auto;
-                border-right: none;
-                border-bottom: 1px solid #dee2e6;
-            }
+        .sidebar-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 10px;
         }
-        .sidebar .nav-link {
-            color: #333;
-            padding: 0.75rem 1rem;
-            margin: 0.125rem 0;
-            border-radius: 0.375rem;
-            transition: all 0.2s ease;
+        .sidebar-title { font-weight: 700; letter-spacing: 0.02em; }
+        .sidebar-collapse-btn {
+            border: 1px solid #e5e7eb;
+            background: #fff;
+            border-radius: 10px;
+            padding: 6px 10px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 600;
+            color: #1f2b3d;
+            transition: background 0.2s ease, transform 0.2s ease;
         }
-        .sidebar .nav-link:hover, .sidebar .nav-link.active {
-            background-color: #e9ecef;
-            color: var(--primary);
-        }
-        .sidebar .nav-link i {
-            width: 1.5rem;
-            text-align: center;
-            margin-right: 0.5rem;
-        }
-        .sidebar .section-toggle {
+        .sidebar-collapse-btn:hover { background: #eef2ff; transform: translateY(-1px); }
+        .sidebar-group { border-radius: 12px; margin-top: 6px; padding: 6px 6px 2px; background: rgba(15,23,42,0.02); }
+        .sidebar-toggle {
+            width: 100%;
             border: none;
             background: transparent;
-            color: #6c757d;
-            font-size: 0.8rem;
-            letter-spacing: 0.02em;
-            padding: 0.25rem 0.75rem;
-            width: 100%;
-            text-align: left;
+            padding: 10px;
+            font-weight: 700;
+            color: #0f172a;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
         }
-        .sidebar .section-toggle:hover {
-            color: #495057;
+        .sidebar-toggle .label { letter-spacing: 0.02em; font-size: 0.85rem; color: #475569; }
+        .sidebar-toggle .icon-wrap { display: flex; align-items: center; gap: 8px; }
+        .sidebar-toggle .chevron { transition: transform 0.25s ease; }
+        .sidebar-group.open .chevron { transform: rotate(180deg); }
+        .sidebar-links {
+            overflow: hidden;
+            max-height: 0;
+            transition: max-height 0.3s ease, opacity 0.3s ease;
+            opacity: 0;
         }
-        .sidebar .collapse-icon {
-            transition: transform 0.2s ease;
+        .sidebar-group.open .sidebar-links { opacity: 1; }
+        .sidebar-link {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            color: #1f2937;
+            text-decoration: none;
+            font-weight: 600;
+            transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
         }
-        .sidebar .collapsed .collapse-icon {
-            transform: rotate(-90deg);
-        }
+        .sidebar-link i { width: 1.25rem; text-align: center; }
+        .sidebar-link:hover { background: #eef2ff; color: var(--primary); transform: translateX(2px); }
+        .sidebar-link.active { background: #e0e7ff; color: var(--primary); }
+        .sidebar-chip { font-size: 0.75rem; padding: 2px 8px; background: #eef2ff; border-radius: 999px; color: #475569; }
+        @media (max-width: 768px) { .app-sidebar { position: static; box-shadow: none; border-radius: 12px; } }
         .stat-card {
             transition: transform 0.2s, box-shadow 0.2s;
             border: none;
@@ -282,26 +305,25 @@
             background-color: #0b1220 !important;
         }
 
-        [data-bs-theme="dark"] .sidebar,
-        body[data-bs-theme="dark"] .sidebar {
+        [data-bs-theme="dark"] .app-sidebar,
+        body[data-bs-theme="dark"] .app-sidebar {
             background-color: #0f172a;
             border-color: #1f2937;
+            box-shadow: 0 20px 44px rgba(0,0,0,0.5);
         }
-        [data-bs-theme="dark"] .sidebar .nav-link,
-        body[data-bs-theme="dark"] .sidebar .nav-link {
-            color: #dbeafe;
-        }
-        [data-bs-theme="dark"] .sidebar .nav-link.active,
-        [data-bs-theme="dark"] .sidebar .nav-link:hover,
-        body[data-bs-theme="dark"] .sidebar .nav-link.active,
-        body[data-bs-theme="dark"] .sidebar .nav-link:hover {
+        [data-bs-theme="dark"] .sidebar-link,
+        body[data-bs-theme="dark"] .sidebar-link { color: #e2e8f0; }
+        [data-bs-theme="dark"] .sidebar-link.active,
+        [data-bs-theme="dark"] .sidebar-link:hover,
+        body[data-bs-theme="dark"] .sidebar-link.active,
+        body[data-bs-theme="dark"] .sidebar-link:hover {
             background-color: #1a2337;
             color: #f8fafc;
         }
-        [data-bs-theme="dark"] .sidebar small.text-muted,
-        body[data-bs-theme="dark"] .sidebar small.text-muted {
-            color: #94a3b8 !important;
-        }
+        [data-bs-theme="dark"] .sidebar-toggle .label,
+        body[data-bs-theme="dark"] .sidebar-toggle .label { color: #cbd5e1; }
+        [data-bs-theme="dark"] .sidebar-collapse-btn,
+        body[data-bs-theme="dark"] .sidebar-collapse-btn { background: #111827; color: #e2e8f0; border-color: #1f2937; }
         [data-bs-theme="dark"] .activity-item:hover,
         body[data-bs-theme="dark"] .activity-item:hover {
             background-color: rgba(255, 255, 255, 0.06);
@@ -468,144 +490,159 @@
     <div class="container-fluid">
         <div class="row">
             {% if session.user_id and show_sidebar != False %}
-            <!-- Sidebar -->
-            <div class="col-lg-2 col-md-3 sidebar d-none d-md-block">
-                <button class="btn btn-outline-secondary btn-sm sidebar-toggle-btn" id="sidebarCollapse" aria-pressed="false" aria-label="Sidebar ein- oder ausblenden" title="Sidebar ein-/ausblenden">
-                    <i class="bi bi-layout-sidebar-inset"></i>
-                </button>
-                <div class="position-sticky pt-3">
-                    <ul class="nav flex-column">
-                        <li class="nav-item mb-2">
-                            <button class="section-toggle d-flex align-items-center justify-content-between collapsed" data-bs-toggle="collapse" data-bs-target="#section-main" aria-expanded="false">
-                                <span class="small">HAUPTMENÜ</span>
-                                <i class="bi bi-chevron-down collapse-icon"></i>
+            <div class="col-xl-3 col-lg-3 col-md-4 d-none d-md-block">
+                <aside class="app-sidebar" id="appSidebar">
+                    <div class="sidebar-header">
+                        <div class="sidebar-title">Navigation</div>
+                        <button class="sidebar-collapse-btn" id="sidebarCollapse" aria-pressed="false" aria-label="Sidebar ein- oder ausblenden" title="Sidebar ein-/ausblenden">
+                            <i class="bi bi-layout-sidebar-inset"></i> Gruppen
+                        </button>
+                    </div>
+
+                    <div class="sidebar-groups">
+                        <div class="sidebar-group" data-section-id="section-main">
+                            <button class="sidebar-toggle" type="button">
+                                <span class="icon-wrap">
+                                    <i class="bi bi-speedometer2"></i>
+                                    <span class="label">Hauptmenü</span>
+                                </span>
+                                <i class="bi bi-chevron-down chevron"></i>
                             </button>
-                        </li>
-                        <li class="nav-item">
-                            <div class="collapse sidebar-section" id="section-main" data-section="section-main">
-                                <a class="nav-link {% if request.path == '/dashboard' %}active{% endif %}" href="/dashboard">
-                                    <i class="bi bi-speedometer2"></i> Dashboard
+                            <div class="sidebar-links">
+                                <a class="sidebar-link {% if request.path == '/dashboard' %}active{% endif %}" href="/dashboard">
+                                    <i class="bi bi-speedometer2"></i>
+                                    <span>Dashboard</span>
                                 </a>
                             </div>
-                        </li>
-                        <li class="nav-item mb-2 mt-3">
-                            <button class="section-toggle d-flex align-items-center justify-content-between collapsed" data-bs-toggle="collapse" data-bs-target="#section-buildings" aria-expanded="false">
-                                <span class="small">GEBÄUDE &amp; EINHEITEN</span>
-                                <i class="bi bi-chevron-down collapse-icon"></i>
+                        </div>
+
+                        <div class="sidebar-group" data-section-id="section-buildings">
+                            <button class="sidebar-toggle" type="button">
+                                <span class="icon-wrap">
+                                    <i class="bi bi-building"></i>
+                                    <span class="label">Gebäude &amp; Einheiten</span>
+                                </span>
+                                <i class="bi bi-chevron-down chevron"></i>
                             </button>
-                        </li>
-                        <li class="nav-item">
-                            <div class="collapse sidebar-section" id="section-buildings" data-section="section-buildings">
-                                <a class="nav-link {% if request.path.startswith('/buildings') %}active{% endif %}" href="/buildings">
+                            <div class="sidebar-links">
+                                <a class="sidebar-link {% if request.path.startswith('/buildings') %}active{% endif %}" href="/buildings">
                                     <i class="bi bi-building"></i> Gebäude
                                 </a>
-                                <a class="nav-link {% if request.path.startswith('/apartments') %}active{% endif %}" href="/apartments">
+                                <a class="sidebar-link {% if request.path.startswith('/apartments') %}active{% endif %}" href="/apartments">
                                     <i class="bi bi-house-door"></i> Wohnungen
                                 </a>
-                                <a class="nav-link {% if request.path.startswith('/tenants') %}active{% endif %}" href="/tenants">
+                                <a class="sidebar-link {% if request.path.startswith('/tenants') %}active{% endif %}" href="/tenants">
                                     <i class="bi bi-people"></i> Mieter
                                 </a>
                             </div>
-                        </li>
-                        <li class="nav-item mb-2 mt-3">
-                            <button class="section-toggle d-flex align-items-center justify-content-between collapsed" data-bs-toggle="collapse" data-bs-target="#section-contracts" aria-expanded="false">
-                                <span class="small">VERTRÄGE &amp; PROTOKOLLE</span>
-                                <i class="bi bi-chevron-down collapse-icon"></i>
+                        </div>
+
+                        <div class="sidebar-group" data-section-id="section-contracts">
+                            <button class="sidebar-toggle" type="button">
+                                <span class="icon-wrap">
+                                    <i class="bi bi-journal-text"></i>
+                                    <span class="label">Verträge &amp; Protokolle</span>
+                                </span>
+                                <i class="bi bi-chevron-down chevron"></i>
                             </button>
-                        </li>
-                        <li class="nav-item">
-                            <div class="collapse sidebar-section" id="section-contracts" data-section="section-contracts">
-                                <a class="nav-link {% if request.path.startswith('/contracts') %}active{% endif %}" href="/contracts">
+                            <div class="sidebar-links">
+                                <a class="sidebar-link {% if request.path.startswith('/contracts') %}active{% endif %}" href="/contracts">
                                     <i class="bi bi-file-earmark-text"></i> Mietverträge
                                 </a>
-                                <a class="nav-link {% if request.path.startswith('/protocols') %}active{% endif %}" href="/protocols">
+                                <a class="sidebar-link {% if request.path.startswith('/protocols') %}active{% endif %}" href="/protocols">
                                     <i class="bi bi-clipboard-check"></i> Protokolle
                                 </a>
-                                <a class="nav-link {% if request.path.startswith('/maintenance') %}active{% endif %}" href="/maintenance">
+                                <a class="sidebar-link {% if request.path.startswith('/maintenance') %}active{% endif %}" href="/maintenance">
                                     <i class="bi bi-calendar-week"></i> Wartungsplaner
                                 </a>
-                                <a class="nav-link {% if request.path.startswith('/contract-templates') %}active{% endif %}" href="/contract-templates">
+                                <a class="sidebar-link {% if request.path.startswith('/contract-templates') %}active{% endif %}" href="/contract-templates">
                                     <i class="bi bi-layers"></i> Vorlagen
                                 </a>
                             </div>
-                        </li>
-                        <li class="nav-item mb-2 mt-3">
-                            <button class="section-toggle d-flex align-items-center justify-content-between collapsed" data-bs-toggle="collapse" data-bs-target="#section-meters" aria-expanded="false">
-                                <span class="small">ZÄHLER &amp; MESSUNGEN</span>
-                                <i class="bi bi-chevron-down collapse-icon"></i>
+                        </div>
+
+                        <div class="sidebar-group" data-section-id="section-meters">
+                            <button class="sidebar-toggle" type="button">
+                                <span class="icon-wrap">
+                                    <i class="bi bi-speedometer"></i>
+                                    <span class="label">Zähler &amp; Messungen</span>
+                                </span>
+                                <i class="bi bi-chevron-down chevron"></i>
                             </button>
-                        </li>
-                        <li class="nav-item">
-                            <div class="collapse sidebar-section" id="section-meters" data-section="section-meters">
-                                <a class="nav-link {% if request.path.startswith('/meters') %}active{% endif %}" href="/meters">
+                            <div class="sidebar-links">
+                                <a class="sidebar-link {% if request.path.startswith('/meters') %}active{% endif %}" href="/meters">
                                     <i class="bi bi-speedometer"></i> Zähler
                                 </a>
-                                <a class="nav-link {% if request.path.startswith('/meter-readings') %}active{% endif %}" href="{{ url_for('meter_readings.meter_readings_list') }}">
+                                <a class="sidebar-link {% if request.path.startswith('/meter-readings') %}active{% endif %}" href="{{ url_for('meter_readings.meter_readings_list') }}">
                                     <i class="bi bi-clipboard-data"></i> Zählerstände
                                 </a>
-                                <a class="nav-link {% if request.path.startswith('/meter-types') %}active{% endif %}" href="/meter-types">
+                                <a class="sidebar-link {% if request.path.startswith('/meter-types') %}active{% endif %}" href="/meter-types">
                                     <i class="bi bi-card-list"></i> Zählertyp Verwaltung
                                 </a>
                             </div>
-                        </li>
-                        <li class="nav-item mb-2 mt-3">
-                            <button class="section-toggle d-flex align-items-center justify-content-between collapsed" data-bs-toggle="collapse" data-bs-target="#section-finance" aria-expanded="false">
-                                <span class="small">FINANZEN &amp; DOKUMENTE</span>
-                                <i class="bi bi-chevron-down collapse-icon"></i>
+                        </div>
+
+                        <div class="sidebar-group" data-section-id="section-finance">
+                            <button class="sidebar-toggle" type="button">
+                                <span class="icon-wrap">
+                                    <i class="bi bi-cash-coin"></i>
+                                    <span class="label">Finanzen &amp; Dokumente</span>
+                                </span>
+                                <i class="bi bi-chevron-down chevron"></i>
                             </button>
-                        </li>
-                        <li class="nav-item">
-                            <div class="collapse sidebar-section" id="section-finance" data-section="section-finance">
-                                <a class="nav-link {% if request.path.startswith('/costs') %}active{% endif %}" href="/costs">
+                            <div class="sidebar-links">
+                                <a class="sidebar-link {% if request.path.startswith('/costs') %}active{% endif %}" href="/costs">
                                     <i class="bi bi-cash-coin"></i> Kosten
                                 </a>
-                                <a class="nav-link {% if request.path.startswith('/finances/incomes') %}active{% endif %}" href="/finances/incomes">
+                                <a class="sidebar-link {% if request.path.startswith('/finances/incomes') %}active{% endif %}" href="/finances/incomes">
                                     <i class="bi bi-cash-stack"></i> Einnahmen
                                 </a>
-                                <a class="nav-link {% if request.path.startswith('/settlements') %}active{% endif %}" href="/settlements">
+                                <a class="sidebar-link {% if request.path.startswith('/settlements') %}active{% endif %}" href="/settlements">
                                     <i class="bi bi-calculator"></i> Abrechnungen
                                 </a>
-                                <a class="nav-link {% if request.path.startswith('/documents') %}active{% endif %}" href="/documents">
+                                <a class="sidebar-link {% if request.path.startswith('/documents') %}active{% endif %}" href="/documents">
                                     <i class="bi bi-files"></i> Dokumente
                                 </a>
                             </div>
-                        </li>
-                        <li class="nav-item mb-2 mt-3">
-                            <button class="section-toggle d-flex align-items-center justify-content-between collapsed" data-bs-toggle="collapse" data-bs-target="#section-system" aria-expanded="false">
-                                <span class="small">SYSTEM</span>
-                                <i class="bi bi-chevron-down collapse-icon"></i>
+                        </div>
+
+                        <div class="sidebar-group" data-section-id="section-system">
+                            <button class="sidebar-toggle" type="button">
+                                <span class="icon-wrap">
+                                    <i class="bi bi-gear"></i>
+                                    <span class="label">System</span>
+                                </span>
+                                <i class="bi bi-chevron-down chevron"></i>
                             </button>
-                        </li>
-                        <li class="nav-item">
-                            <div class="collapse sidebar-section" id="section-system" data-section="section-system">
-                                <a class="nav-link {% if request.path.startswith('/reports') %}active{% endif %}" href="/reports">
+                            <div class="sidebar-links">
+                                <a class="sidebar-link {% if request.path.startswith('/reports') %}active{% endif %}" href="/reports">
                                     <i class="bi bi-graph-up"></i> Auswertungen
                                 </a>
-                                <a class="nav-link {% if request.path.startswith('/settings') %}active{% endif %}" href="/settings">
+                                <a class="sidebar-link {% if request.path.startswith('/settings') %}active{% endif %}" href="/settings">
                                     <i class="bi bi-gear"></i> Einstellungen
                                 </a>
                                 {% if session.get('role') == 'admin' %}
-                                <a class="nav-link {% if request.path.startswith('/settings/backup') %}active{% endif %}" href="/settings/backup">
-                                    <i class="bi bi-cloud-arrow-down"></i> Backup & Wiederherstellung
+                                <a class="sidebar-link {% if request.path.startswith('/settings/backup') %}active{% endif %}" href="/settings/backup">
+                                    <i class="bi bi-cloud-arrow-down"></i> Backup &amp; Wiederherstellung
                                 </a>
                                 {% endif %}
-                                <a class="nav-link {% if request.path == '/rss' %}active{% endif %}" href="/rss">
+                                <a class="sidebar-link {% if request.path == '/rss' %}active{% endif %}" href="/rss">
                                     <i class="bi bi-rss"></i> News Feeds
                                 </a>
                                 {% if session.get('role') == 'admin' %}
-                                <a class="nav-link {% if request.path.startswith('/users') %}active{% endif %}" href="/users">
+                                <a class="sidebar-link {% if request.path.startswith('/users') %}active{% endif %}" href="/users">
                                     <i class="bi bi-people"></i> Benutzerverwaltung
                                 </a>
                                 {% endif %}
                             </div>
-                        </li>
-                    </ul>
-                </div>
+                        </div>
+                    </div>
+                </aside>
             </div>
             {% endif %}
 
             <!-- Main content area -->
-            <main class="{% if session.user_id and show_sidebar != False %}col-md-9 col-lg-10{% else %}col-12{% endif %} px-md-4 py-4">
+            <main class="{% if session.user_id and show_sidebar != False %}col-md-8 col-lg-9 col-xl-9{% else %}col-12{% endif %} px-md-4 py-4">
                 {% with messages = get_flashed_messages(with_categories=true) %}
                     {% if messages %}
                         {% for category, message in messages %}
@@ -630,7 +667,6 @@
             document.querySelectorAll('i.bi').forEach(icon => icon.setAttribute('aria-hidden', 'true'));
 
             const stored = JSON.parse(sessionStorage.getItem('sidebarState') || '{}');
-            const collapses = {};
 
             const tooltipTriggers = Array.from(document.querySelectorAll('[data-bs-toggle="tooltip"], [data-tooltip="true"]'));
             tooltipTriggers.forEach(el => new bootstrap.Tooltip(el));
@@ -703,69 +739,68 @@
                 });
             }
 
-            document.querySelectorAll('.sidebar-section').forEach(section => {
-                const id = section.getAttribute('id');
-                const toggle = document.querySelector(`[data-bs-target="#${id}"]`);
-                const collapse = new bootstrap.Collapse(section, { toggle: false });
-                collapses[id] = collapse;
+            const sidebarState = stored;
+            const collapseAllFlag = localStorage.getItem('sidebarCollapseAll') === 'true';
+            const sidebarGroups = document.querySelectorAll('.sidebar-group');
 
-                const isOpen = stored[id] === true;
-                if (isOpen) {
-                    collapse.show();
-                    toggle?.classList.remove('collapsed');
-                } else {
-                    collapse.hide();
-                    toggle?.classList.add('collapsed');
+            const setGroupState = (group, open, persist = true) => {
+                const id = group.getAttribute('data-section-id');
+                const links = group.querySelector('.sidebar-links');
+                group.classList.toggle('open', open);
+                if (links) {
+                    links.style.maxHeight = open ? `${links.scrollHeight}px` : '0px';
                 }
+                if (persist && id) {
+                    sidebarState[id] = open;
+                    sessionStorage.setItem('sidebarState', JSON.stringify(sidebarState));
+                }
+            };
 
-                const persistState = (isOpen) => {
-                    stored[id] = isOpen;
-                    sessionStorage.setItem('sidebarState', JSON.stringify(stored));
-                };
+            sidebarGroups.forEach(group => {
+                const id = group.getAttribute('data-section-id');
+                const toggle = group.querySelector('.sidebar-toggle');
+                const links = group.querySelector('.sidebar-links');
+                if (!toggle || !links || !id) return;
 
-                section.addEventListener('shown.bs.collapse', () => {
-                    toggle?.classList.remove('collapsed');
-                    persistState(true);
-                });
-                section.addEventListener('hidden.bs.collapse', () => {
-                    toggle?.classList.add('collapsed');
-                    persistState(false);
-                });
+                const shouldOpen = sidebarState[id] !== undefined ? sidebarState[id] : !collapseAllFlag;
+                // Max-Height initialisieren, damit kein "Hüpfen" entsteht
+                setGroupState(group, shouldOpen, false);
+                requestAnimationFrame(() => setGroupState(group, shouldOpen, false));
 
-                toggle?.addEventListener('click', () => {
-                    setTimeout(() => persistState(section.classList.contains('show')), 200);
+                toggle.addEventListener('click', () => {
+                    const next = !group.classList.contains('open');
+                    setGroupState(group, next, true);
                 });
             });
 
+            const recalcHeights = () => {
+                sidebarGroups.forEach(group => {
+                    if (group.classList.contains('open')) {
+                        const links = group.querySelector('.sidebar-links');
+                        if (links) {
+                            links.style.maxHeight = `${links.scrollHeight}px`;
+                        }
+                    }
+                });
+            };
+            window.addEventListener('resize', () => requestAnimationFrame(recalcHeights));
+
             const sidebarCollapse = document.getElementById('sidebarCollapse');
             if (sidebarCollapse) {
-                const applySectionState = (shouldCollapse) => {
-                    Object.entries(collapses).forEach(([id, collapse]) => {
-                        const toggle = document.querySelector(`[data-bs-target="#${id}"]`);
-                        if (shouldCollapse) {
-                            collapse.hide();
-                            toggle?.classList.add('collapsed');
-                            stored[id] = false;
-                        } else {
-                            collapse.show();
-                            toggle?.classList.remove('collapsed');
-                            stored[id] = true;
-                        }
-                    });
-                    sessionStorage.setItem('sidebarState', JSON.stringify(stored));
-                    sidebarCollapse.setAttribute('aria-pressed', shouldCollapse ? 'true' : 'false');
-                    sidebarCollapse.innerHTML = shouldCollapse
-                        ? '<i class="bi bi-arrows-expand"></i>'
-                        : '<i class="bi bi-layout-sidebar-inset"></i>';
+                const applyAll = (collapseAll) => {
+                    sidebarGroups.forEach(group => setGroupState(group, !collapseAll, true));
+                    localStorage.setItem('sidebarCollapseAll', collapseAll);
+                    sidebarCollapse.setAttribute('aria-pressed', collapseAll ? 'true' : 'false');
+                    sidebarCollapse.innerHTML = collapseAll
+                        ? '<i class="bi bi-arrows-expand"></i> Gruppen'
+                        : '<i class="bi bi-layout-sidebar-inset"></i> Gruppen';
+                    recalcHeights();
                 };
 
-                const initialCollapsed = localStorage.getItem('sidebarCollapseAll') === 'true';
-                applySectionState(initialCollapsed);
-
+                applyAll(collapseAllFlag);
                 sidebarCollapse.addEventListener('click', () => {
                     const next = !(localStorage.getItem('sidebarCollapseAll') === 'true');
-                    localStorage.setItem('sidebarCollapseAll', next);
-                    applySectionState(next);
+                    applyAll(next);
                 });
             }
         });

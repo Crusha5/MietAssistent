@@ -197,31 +197,47 @@ def setup_apartment():
 def setup_meter_types():
     print("🔍 DEBUG: Setup meter-types called")
     print(f"🔍 DEBUG: Session at meter-types: {dict(session)}")
-    
+
     if request.method == 'POST':
         try:
-            # Create standard meter types
-            meter_types_data = [
-                # Strom
-                {'name': 'Strom', 'category': 'electricity', 'unit': 'kWh', 'decimal_places': 2},
-                {'name': 'Strom Allgemeinstrom', 'category': 'electricity', 'unit': 'kWh', 'decimal_places': 2},
-                
-                # Wasser
-                {'name': 'Wasser', 'category': 'water', 'unit': 'm³', 'decimal_places': 3},
+            payload = request.get_json(silent=True) or {}
 
-                # Heizung
-                {'name': 'Heizung', 'category': 'heating', 'unit': 'kWh', 'decimal_places': 2},
-                
-                # Gas - KORREKTUR: 'unit' statt 'heizung'
-                {'name': 'Gas', 'category': 'gas', 'unit': 'm³', 'decimal_places': 3},
-                
-                # Erneuerbare
-                {'name': 'Wärmepumpe', 'category': 'renewable', 'unit': 'kWh', 'decimal_places': 2},
-                {'name': 'Strom Wallbox', 'category': 'electricity', 'unit': 'kWh', 'decimal_places': 2},
-                {'name': 'Strom PV-Einspeisung', 'category': 'electricity', 'unit': 'kWh', 'decimal_places': 2},
-            ]
-            
+            # Erlaube mehrere Zählertypen in einem Rutsch, fallback auf Standardliste
+            incoming_meter_types = payload.get('meter_types') if isinstance(payload, dict) else None
+
+            if incoming_meter_types and isinstance(incoming_meter_types, list):
+                meter_types_data = []
+                for raw_mt in incoming_meter_types:
+                    name = (raw_mt.get('name') or '').strip()
+                    unit = (raw_mt.get('unit') or '').strip()
+
+                    if not name or not unit:
+                        continue  # Leere Zeilen überspringen, damit der POST nicht fehlschlägt
+
+                    meter_types_data.append({
+                        'name': name,
+                        'category': (raw_mt.get('category') or 'other').strip() or 'other',
+                        'unit': unit,
+                        'decimal_places': int(raw_mt.get('decimal_places') or 2)
+                    })
+
+                if not meter_types_data:
+                    return jsonify({'success': False, 'message': 'Bitte mindestens einen gültigen Zählertyp angeben.'}), 400
+            else:
+                # Standardliste beibehalten, falls kein Array gesendet wird
+                meter_types_data = [
+                    {'name': 'Strom', 'category': 'electricity', 'unit': 'kWh', 'decimal_places': 2},
+                    {'name': 'Strom Allgemeinstrom', 'category': 'electricity', 'unit': 'kWh', 'decimal_places': 2},
+                    {'name': 'Wasser', 'category': 'water', 'unit': 'm³', 'decimal_places': 3},
+                    {'name': 'Heizung', 'category': 'heating', 'unit': 'kWh', 'decimal_places': 2},
+                    {'name': 'Gas', 'category': 'gas', 'unit': 'm³', 'decimal_places': 3},
+                    {'name': 'Wärmepumpe', 'category': 'renewable', 'unit': 'kWh', 'decimal_places': 2},
+                    {'name': 'Strom Wallbox', 'category': 'electricity', 'unit': 'kWh', 'decimal_places': 2},
+                    {'name': 'Strom PV-Einspeisung', 'category': 'electricity', 'unit': 'kWh', 'decimal_places': 2},
+                ]
+
             for mt_data in meter_types_data:
+                # Kein serverseitiges Caching: Alle Zählertypen werden frisch gespeichert
                 meter_type = MeterType(
                     id=str(uuid.uuid4()),
                     name=mt_data['name'],

@@ -12,6 +12,8 @@ tenants_bp = Blueprint('tenants', __name__)
 @login_required
 def tenants_list():
     try:
+        # Immer frische Daten laden, um Browser-Cache-Effekte zu umgehen
+        db.session.expire_all()
         q = request.args.get('q', '').strip().lower()
         building_id = request.args.get('building_id')
         apartment_id = request.args.get('apartment_id')
@@ -83,7 +85,7 @@ def create_tenant():
             if apartment:
                 apartment.update_occupancy_status()
             
-            flash('Mieter erfolgreich angelegt!', 'success')
+            flash('✅ Mieter erfolgreich angelegt!', 'success')
             return redirect(url_for('tenants.tenants_list'))
             
         except Exception as e:

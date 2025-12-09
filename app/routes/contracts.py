@@ -11,6 +11,7 @@ import re
 from app.routes.contract_editor import load_contract_tree
 from app.models import Landlord, Protocol, Meter, MeterReading, Document, Tenant
 from app.utils.schema_helpers import ensure_archiving_columns
+from app.utils.meter_tree import load_meter_tree
 from app.utils.pdf_generator import generate_professional_contract_html, save_contract_pdf
 try:
     from PyPDF2 import PdfMerger
@@ -170,12 +171,16 @@ def contracts_list():
         contracts = query.order_by(Contract.created_at.desc()).all()
         
         current_app.logger.info(f"Loaded {len(contracts)} contracts")
+        meter_roots, meter_buildings = load_meter_tree()
+
         return render_template(
             'contracts/list.html',
             contracts=contracts,
             q=q,
             status=status,
-            archived_filter=archived_filter
+            archived_filter=archived_filter,
+            meter_roots=meter_roots,
+            meter_buildings=meter_buildings,
         )
         
     except Exception as e:

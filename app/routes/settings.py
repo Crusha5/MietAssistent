@@ -11,6 +11,12 @@ from app.models import (
     UserPreference,
     Landlord,
     RevisionLog,
+    Meter,
+    MeterReading,
+    Building,
+    Apartment,
+    Tenant,
+    Contract,
     get_revision_table_label,
 )
 import json
@@ -37,6 +43,19 @@ backup_lock = Lock()
 
 def _require_admin(user):
     return user and user.role == 'admin'
+
+
+def _get_admin_entities():
+    """Sammelt zentrale Datensätze für die Debug-Ansicht."""
+    return {
+        'meters': Meter.query.order_by(Meter.building_id, Meter.sort_order, Meter.meter_number).all(),
+        'meter_readings': MeterReading.query.order_by(MeterReading.reading_date.desc()).limit(200).all(),
+        'buildings': Building.query.order_by(Building.name).all(),
+        'apartments': Apartment.query.order_by(Apartment.apartment_number).all(),
+        'tenants': Tenant.query.order_by(Tenant.last_name, Tenant.first_name).all(),
+        'users': User.query.order_by(User.last_name, User.first_name).all(),
+        'contracts': Contract.query.order_by(Contract.created_at.desc()).limit(200).all(),
+    }
 
 
 def _update_job(job_id, **kwargs):
@@ -128,6 +147,104 @@ def landlord_management():
     user = User.query.get(session.get('user_id'))
     landlords = Landlord.query.order_by(Landlord.company_name.asc(), Landlord.last_name.asc()).all()
     return render_template('settings/landlords.html', landlords=landlords, user=user)
+
+
+@settings_bp.route('/debug')
+@login_required
+def debug_dashboard():
+    """Admin-Debug-Ansicht zum direkten Bearbeiten und Löschen kritischer Datensätze."""
+    user = User.query.get(session.get('user_id'))
+    if not _require_admin(user):
+        flash('Nur Administratoren dürfen den Debug-Bereich nutzen.', 'danger')
+        return redirect(url_for('settings_web.settings_home'))
+
+    entities = _get_admin_entities()
+    active_tab = request.args.get('tab', 'meters')
+
+    return render_template('settings/debug.html', entities=entities, active_tab=active_tab)
+
+
+@settings_bp.route('/debug/<entity>/<record_id>/update', methods=['POST'])
+@login_required
+def update_debug_record(entity, record_id):
+    """Erlaubt revisionsfreie Updates weniger Felder im Admin-Debug."""
+    user = User.query.get(session.get('user_id'))
+    if not _require_admin(user):
+        flash('Nur Administratoren dürfen Datensätze bearbeiten.', 'danger')
+        return redirect(url_for('settings_web.debug_dashboard'))
+
+    model_map = {
+        'meters': (Meter, {'meter_number': str, 'description': str, 'parent_meter_id': str}),
+        'meter_readings': (MeterReading, {'reading_value': float, 'notes': str}),
+        'buildings': (Building, {'name': str, 'street': str, 'city': str}),
+        'apartments': (Apartment, {'apartment_number': str, 'floor': str}),
+        'tenants': (Tenant, {'first_name': str, 'last_name': str, 'email': str, 'phone': str}),
+        'users': (User, {'first_name': str, 'last_name': str, 'email': str, 'role': str}),
+        'contracts': (Contract, {'status': str}),
+    }
+
+    if entity not in model_map:
+        flash('Unbekannte Entität.', 'danger')
+        return redirect(url_for('settings_web.debug_dashboard'))
+
+    model, allowed_fields = model_map[entity]
+    record = model.query.get_or_404(record_id)
+
+    try:
+        for field, converter in allowed_fields.items():
+            if field in request.form:
+                value = request.form.get(field)
+                try:
+                    value = converter(value) if value not in (None, '') else None
+                except Exception:
+                    value = value
+                setattr(record, field, value)
+
+        db.session.commit()
+        flash('Datensatz aktualisiert.', 'success')
+    except Exception as exc:
+        db.session.rollback()
+        current_app.logger.error('Debug-Update fehlgeschlagen: %s', exc, exc_info=True)
+        flash(f'Fehler beim Aktualisieren: {exc}', 'danger')
+
+    return redirect(url_for('settings_web.debug_dashboard', tab=entity))
+
+
+@settings_bp.route('/debug/<entity>/<record_id>/delete', methods=['POST'])
+@login_required
+def delete_debug_record(entity, record_id):
+    """Löscht Datensätze im Admin-Debug endgültig."""
+    user = User.query.get(session.get('user_id'))
+    if not _require_admin(user):
+        flash('Nur Administratoren dürfen Datensätze löschen.', 'danger')
+        return redirect(url_for('settings_web.debug_dashboard'))
+
+    model_map = {
+        'meters': Meter,
+        'meter_readings': MeterReading,
+        'buildings': Building,
+        'apartments': Apartment,
+        'tenants': Tenant,
+        'users': User,
+        'contracts': Contract,
+    }
+
+    model = model_map.get(entity)
+    if not model:
+        flash('Unbekannte Entität.', 'danger')
+        return redirect(url_for('settings_web.debug_dashboard'))
+
+    record = model.query.get_or_404(record_id)
+    try:
+        db.session.delete(record)
+        db.session.commit()
+        flash('Datensatz gelöscht.', 'success')
+    except Exception as exc:
+        db.session.rollback()
+        current_app.logger.error('Debug-Löschung fehlgeschlagen: %s', exc, exc_info=True)
+        flash(f'Fehler beim Löschen: {exc}', 'danger')
+
+    return redirect(url_for('settings_web.debug_dashboard', tab=entity))
 
 
 @settings_bp.route('/revisions')
