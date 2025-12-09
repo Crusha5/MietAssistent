@@ -201,6 +201,24 @@ body {
     color: #23314a;
 }
 
+.setup-list-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: #f9fbff;
+    box-shadow: 0 10px 24px rgba(31,43,61,0.08);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.setup-list-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 16px 36px rgba(31,43,61,0.12);
+}
+
 .setup-actions {
     margin-top: 22px;
     display: flex;
@@ -231,6 +249,18 @@ body {
     transform: translateY(-1px);
     box-shadow: 0 12px 26px rgba(43,125,233,0.25);
     background: linear-gradient(135deg, #2f86ff, #1e55a2);
+}
+
+.setup-btn.ghost {
+    background: rgba(43,125,233,0.08);
+    color: #1f2b3d;
+    border-color: rgba(43,125,233,0.25);
+    box-shadow: none;
+}
+
+.setup-btn.ghost:hover {
+    background: rgba(43,125,233,0.14);
+    box-shadow: 0 8px 22px rgba(31,43,61,0.08);
 }
 
 .setup-btn.secondary {

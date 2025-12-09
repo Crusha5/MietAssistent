@@ -16,18 +16,35 @@
                     <input type="text" id="name" name="name" required placeholder="Strom, Wasser, Heizung ...">
                 </div>
                 <div class="form-group">
+                    <label for="category">Kategorie *</label>
+                    <select id="category" name="category" required>
+                        <option value="electricity">Strom</option>
+                        <option value="water">Wasser</option>
+                        <option value="heating">Heizung</option>
+                        <option value="gas">Gas</option>
+                        <option value="renewable">Erneuerbare</option>
+                        <option value="other">Sonstiges</option>
+                    </select>
+                </div>
+                <div class="form-group">
                     <label for="unit">Einheit *</label>
                     <input type="text" id="unit" name="unit" required placeholder="kWh, m³, kJ ...">
                 </div>
                 <div class="form-group">
-                    <label for="description">Beschreibung</label>
-                    <input type="text" id="description" name="description" placeholder="optional">
+                    <label for="decimal_places">Nachkommastellen</label>
+                    <input type="number" id="decimal_places" name="decimal_places" min="0" max="6" value="2">
+                </div>
+                <div class="setup-actions" style="grid-column: 1 / -1; gap: 10px; justify-content: flex-start;">
+                    <button type="submit" class="setup-btn">Zur Liste hinzufügen</button>
+                    <button type="button" class="setup-btn ghost" id="addDefaults">Standardtypen übernehmen</button>
                 </div>
             </form>
 
+            <div class="setup-list" id="meterTypeList" aria-live="polite"></div>
+
             <div class="form-footer setup-actions">
                 <a href="{{ url_for('setup.setup_apartment') }}" class="setup-btn secondary">Zurück</a>
-                <button type="submit" form="meterTypeForm" class="setup-btn">Zählertyp speichern</button>
+                <button type="button" id="finishSetup" class="setup-btn">Speichern &amp; Setup abschließen</button>
             </div>
 
             <div id="message" class="setup-info" style="display:none;"></div>
@@ -38,44 +55,116 @@
 {% block scripts %}
     <script>
         const meterTypeForm = document.getElementById('meterTypeForm');
+        const finishBtn = document.getElementById('finishSetup');
+        const addDefaultsBtn = document.getElementById('addDefaults');
         const messageBox = document.getElementById('message');
+        const listContainer = document.getElementById('meterTypeList');
 
-        meterTypeForm.addEventListener('submit', async (e) => {
+        const meterTypes = [];
+        const defaultTypes = [
+            { name: 'Strom', category: 'electricity', unit: 'kWh', decimal_places: 2 },
+            { name: 'Strom Allgemeinstrom', category: 'electricity', unit: 'kWh', decimal_places: 2 },
+            { name: 'Wasser', category: 'water', unit: 'm³', decimal_places: 3 },
+            { name: 'Heizung', category: 'heating', unit: 'kWh', decimal_places: 2 },
+            { name: 'Gas', category: 'gas', unit: 'm³', decimal_places: 3 },
+            { name: 'Wärmepumpe', category: 'renewable', unit: 'kWh', decimal_places: 2 },
+            { name: 'Strom Wallbox', category: 'electricity', unit: 'kWh', decimal_places: 2 },
+            { name: 'Strom PV-Einspeisung', category: 'electricity', unit: 'kWh', decimal_places: 2 }
+        ];
+
+        const renderList = () => {
+            if (!meterTypes.length) {
+                listContainer.innerHTML = '<div class="setup-info">Noch keine Zählertypen hinzugefügt.</div>';
+                return;
+            }
+
+            listContainer.innerHTML = meterTypes.map((mt, idx) => `
+                <div class="setup-list-item">
+                    <div>
+                        <div class="fw-semibold">${mt.name} <span class="badge bg-light text-dark ms-1">${mt.unit}</span></div>
+                        <div class="text-muted small">${mt.category} • Nachkommastellen: ${mt.decimal_places}</div>
+                    </div>
+                    <button class="setup-btn ghost" data-remove="${idx}">Entfernen</button>
+                </div>
+            `).join('');
+
+            listContainer.querySelectorAll('[data-remove]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const index = parseInt(btn.getAttribute('data-remove'), 10);
+                    meterTypes.splice(index, 1);
+                    renderList();
+                });
+            });
+        };
+
+        meterTypeForm.addEventListener('submit', (e) => {
             e.preventDefault();
             const formData = new FormData(meterTypeForm);
-            const data = Object.fromEntries(formData.entries());
+            const entry = Object.fromEntries(formData.entries());
+
+            if (!entry.name || !entry.unit) {
+                showMessage('Bitte Name und Einheit angeben.', true);
+                return;
+            }
+
+            meterTypes.push({
+                name: entry.name.trim(),
+                category: entry.category || 'other',
+                unit: entry.unit.trim(),
+                decimal_places: entry.decimal_places || 2
+            });
+
+            meterTypeForm.reset();
+            renderList();
+            showMessage('Zählertyp zur Liste hinzugefügt.', false);
+        });
+
+        addDefaultsBtn.addEventListener('click', () => {
+            meterTypes.push(...defaultTypes.filter(defaultType => !meterTypes.some(mt => mt.name === defaultType.name)));
+            renderList();
+            showMessage('Standardtypen ergänzt. Du kannst weitere hinzufügen oder entfernen.', false);
+        });
+
+        finishBtn.addEventListener('click', async () => {
+            if (!meterTypes.length) {
+                showMessage('Bitte mindestens einen Zählertyp hinzufügen.', true);
+                return;
+            }
 
             try {
                 const response = await fetch('/setup/meter-types', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
+                    body: JSON.stringify({ meter_types: meterTypes })
                 });
 
                 const contentType = response.headers.get('content-type');
                 if (!contentType || !contentType.includes('application/json')) {
                     const text = await response.text();
-                    throw new Error(`Server antwortete mit: ${text.substring(0, 100)}...`);
+                    throw new Error(`Server antwortete mit: ${text.substring(0, 120)}...`);
                 }
 
                 const result = await response.json();
                 if (result.success) {
-                    showMessage('Zählertyp gespeichert. Setup abgeschlossen!', false);
+                    showMessage('Zählertypen gespeichert. Setup abgeschlossen!', false);
                     setTimeout(() => window.location.href = '/setup/complete', 1200);
                 } else {
                     showMessage('Fehler: ' + result.message, true);
                 }
             } catch (error) {
-                showMessage('Fehler beim Anlegen des Zählertyps: ' + error.message, true);
+                showMessage('Fehler beim Anlegen der Zählertypen: ' + error.message, true);
                 console.error('Fehlerdetails:', error);
             }
         });
 
-        function showMessage(text, isError) {
+        const showMessage = (text, isError) => {
             messageBox.style.display = 'block';
             messageBox.textContent = text;
             messageBox.style.borderColor = isError ? '#e74c3c' : 'var(--setup-primary)';
             messageBox.style.background = isError ? '#fdecea' : '#f0f4ff';
-        }
+        };
+
+        // Initialzustand
+        renderList();
     </script>
 {% endblock %}
