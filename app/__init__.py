@@ -4,6 +4,7 @@ from flask_cors import CORS
 from flask_swagger_ui import get_swaggerui_blueprint
 from datetime import datetime
 import os
+import secrets
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 # Import extensions from extensions module
@@ -11,6 +12,32 @@ from app.extensions import db, jwt
 from app.utils.project_profile import load_project_profile
 from app.utils.schema_helpers import ensure_user_landlord_flag
 from app.utils.audit import register_audit_listeners
+
+
+def _load_or_create_secret(secret_path: str, env_value: str = None, length: int = 32) -> str:
+    """
+    Lädt einen stabilen Secret-Key aus einer Datei oder erzeugt ihn einmalig.
+    So bleibt die Session auch nach Rebuilds gültig, solange das Datenverzeichnis persistiert.
+    """
+
+    if env_value:
+        return env_value
+
+    try:
+        if os.path.exists(secret_path):
+            with open(secret_path, "r") as fh:
+                stored = fh.read().strip()
+                if stored:
+                    return stored
+
+        generated = secrets.token_hex(length)
+        os.makedirs(os.path.dirname(secret_path), exist_ok=True)
+        with open(secret_path, "w") as fh:
+            fh.write(generated)
+        return generated
+    except Exception as exc:
+        print(f"⚠️  Konnte Secret-Key nicht persistieren ({secret_path}): {exc}")
+        return secrets.token_hex(length)
 
 def create_app():
     app = Flask(__name__)
@@ -22,9 +49,14 @@ def create_app():
     data_dir = os.path.abspath('data')
     os.makedirs(data_dir, exist_ok=True)
 
+    session_dir = os.path.join(data_dir, 'flask_sessions')
+    os.makedirs(session_dir, exist_ok=True)
+
     upload_root = os.path.abspath(os.environ.get('UPLOAD_ROOT') or '/uploads')
     protocol_dir = os.path.abspath(os.environ.get('UPLOAD_FOLDER') or os.path.join(upload_root, 'protocolls'))
     preferred_scheme = os.environ.get('PREFERRED_URL_SCHEME', 'https')
+    secret_key_path = os.path.join(data_dir, 'secret.key')
+    jwt_secret_key_path = os.path.join(data_dir, 'jwt_secret.key')
 
     # Verzeichnisse vorbereiten (Warnung statt Fallback bei fehlenden Rechten)
     try:
@@ -36,23 +68,26 @@ def create_app():
         print(f"❌ Keine Berechtigung für Upload-Verzeichnisse unter {upload_root}. Bitte Mount/Owner prüfen.")
 
     app.config.update(
-        SECRET_KEY=os.environ.get('SECRET_KEY', 'dev-secret-key-change-me'),
+        SECRET_KEY=_load_or_create_secret(secret_key_path, os.environ.get('SECRET_KEY')),  # stabiler Key pro Deploy
         SQLALCHEMY_DATABASE_URI='sqlite:///' + os.path.join(data_dir, 'rental.db'),
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
-        JWT_SECRET_KEY=os.environ.get('JWT_SECRET_KEY', 'jwt-secret-key-change-me'),
+        JWT_SECRET_KEY=_load_or_create_secret(jwt_secret_key_path, os.environ.get('JWT_SECRET_KEY')),  # separater JWT-Key
         UPLOAD_ROOT=upload_root,
         UPLOAD_FOLDER=protocol_dir,
         PREFERRED_URL_SCHEME=preferred_scheme,
         MAX_CONTENT_LENGTH=16 * 1024 * 1024,  # 16MB max file size
         SESSION_TYPE='filesystem',
+        SESSION_FILE_DIR=session_dir,
         SESSION_PERMANENT=False,
         SESSION_USE_SIGNER=True,
         PERMANENT_SESSION_LIFETIME=3600,  # 1 Stunde
         SESSION_KEY_PREFIX='mietassistent_',
+        SESSION_COOKIE_NAME=os.environ.get('SESSION_COOKIE_NAME', 'mietassistent_session'),
         SESSION_COOKIE_SECURE=True,
         SESSION_COOKIE_SAMESITE='Lax',
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_DOMAIN=None,
+        JWT_TOKEN_LOCATION=['headers'],  # JWTs getrennt von Web-Sessions halten
         JWT_COOKIE_SECURE=True,
         JWT_COOKIE_SAMESITE='Lax',
     )
